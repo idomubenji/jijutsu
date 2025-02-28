@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import { SignupForm } from '@/components/SignupForm';
 export default function Home() {
   const [isCountdownComplete, setIsCountdownComplete] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+  const router = useRouter();
 
   // Get the release date from environment variable
   const releaseDate = process.env.NEXT_PUBLIC_RELEASE_DATE || '2023-12-31T23:59:59';
@@ -20,10 +22,17 @@ export default function Home() {
   useEffect(() => {
     const isComplete = new Date(releaseDate).getTime() <= new Date().getTime();
     setIsCountdownComplete(isComplete);
-  }, [releaseDate]);
+    
+    // If countdown is complete, redirect to the game page
+    if (isComplete) {
+      router.push('/game');
+    }
+  }, [releaseDate, router]);
 
   const handleCountdownComplete = () => {
     setIsCountdownComplete(true);
+    // Redirect to game page when countdown completes
+    router.push('/game');
   };
 
   return (

@@ -6,11 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
 
-export function SignupForm() {
+interface SignupFormProps {
+  onSuccess?: () => void;
+}
+
+export function SignupForm({ onSuccess }: SignupFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSignupComplete, setIsSignupComplete] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +34,22 @@ export function SignupForm() {
     setMessage(null);
 
     try {
+      // First, try to sign in with the email to check if it already exists and is verified
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: 'dummy-password-for-check' // We're not expecting this to work, just checking if the email exists
+      });
+      
+      // If there's no error or the error is about invalid credentials (not "user not found"),
+      // then the email exists in Supabase Auth
+      if (!signInError || (signInError && signInError.message && 
+          (signInError.message.includes('Invalid login credentials') || 
+           signInError.message.includes('Invalid email or password')))) {
+        setMessage({ text: 'An account with this email already exists. Please sign in instead.', isError: true });
+        setIsSubmitting(false);
+        return;
+      }
+
       // Check if the email already exists in our users table
       // In a more secure implementation, this would be done server-side
       const { data: existingUser, error: checkError } = await supabase
@@ -43,7 +64,7 @@ export function SignupForm() {
       }
 
       if (existingUser) {
-        setMessage({ text: 'Account already exists!', isError: true });
+        setMessage({ text: 'An account with this email already exists. Please sign in instead.', isError: true });
         setIsSubmitting(false);
         return;
       }
@@ -56,6 +77,16 @@ export function SignupForm() {
 
       if (error) {
         console.error('Supabase auth signUp error:', error);
+        // Check if the error is related to an existing account
+        if (error.message && (
+          error.message.includes('already registered') || 
+          error.message.includes('User already registered') ||
+          error.message.includes('Email already registered')
+        )) {
+          setMessage({ text: 'An account with this email already exists. Please sign in instead.', isError: true });
+          setIsSubmitting(false);
+          return;
+        }
         throw error;
       }
 
@@ -64,74 +95,113 @@ export function SignupForm() {
       }
       
       console.log('User signed up successfully:', data.user.id);
-
-      // Add the user to the users table - now our policy is more permissive
-      const { error: insertError } = await supabase
-        .from('users')
-        .insert([{ 
-          email, 
-          user_id: data.user.id 
-        }]);
-
-      if (insertError) {
-        console.error('Error inserting user into users table:', JSON.stringify(insertError, null, 2));
-        throw insertError;
-      }
+      
+      // No longer adding the user to the users table here
+      // They will be added after email confirmation
 
       setMessage({ 
         text: 'Account created successfully! Check your email for the confirmation link.', 
         isError: false 
       });
+      setIsSignupComplete(true);
+      // Empty the form fields
       setEmail('');
       setPassword('');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Do not call onSuccess here to keep dialog open
+      
+    } catch (error: any) {
       console.error('Error signing up:', error);
       console.error('Detailed error:', JSON.stringify(error, null, 2));
-      setMessage({ 
-        text: `An error occurred during signup: ${errorMessage}. Please try again later.`,
-        isError: true 
-      });
+      
+      // Check for various forms of duplicate email errors
+      if (error.message && (
+          error.message.includes('duplicate key value') || 
+          error.message.includes('users_email_key') ||
+          error.message.includes('already registered') ||
+          error.message.includes('23505')
+      )) {
+        setMessage({ 
+          text: 'An account with this email already exists. Please sign in instead.',
+          isError: true 
+        });
+      } else {
+        // Generic error fallback
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        setMessage({ 
+          text: `An error occurred during signup. Please try again later.`,
+          isError: true 
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleCloseDialog = () => {
+    if (onSuccess) {
+      onSuccess();
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4 w-full max-w-md">
-      <div className="space-y-2">
-        <Label htmlFor="signup-email">Email</Label>
-        <Input
-          id="signup-email"
-          type="email"
-          placeholder="your@email.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-      </div>
-      
-      <div className="space-y-2">
-        <Label htmlFor="signup-password">Password</Label>
-        <Input
-          id="signup-password"
-          type="password"
-          placeholder="••••••••"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-      </div>
-      
-      {message && (
-        <p className={`text-sm ${message.isError ? 'text-red-500' : 'text-green-500'}`}>
-          {message.text}
-        </p>
+      {isSignupComplete ? (
+        <div className="space-y-4">
+          <div className="bg-green-50 p-4 rounded-md border border-green-200">
+            <p className="text-green-700 font-medium">Account created successfully!</p>
+            <p className="text-green-600 mt-2">
+              Please check your email for the confirmation link to activate your account.
+            </p>
+            <p className="text-green-600 mt-2">
+              After confirming your email, you'll be able to sign in to your account.
+            </p>
+          </div>
+          <Button 
+            type="button" 
+            className="w-full" 
+            onClick={handleCloseDialog}
+          >
+            Close
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-2">
+            <Label htmlFor="signup-email">Email</Label>
+            <Input
+              id="signup-email"
+              type="email"
+              placeholder="your@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="signup-password">Password</Label>
+            <Input
+              id="signup-password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          
+          {message && (
+            <p className={`text-sm ${message.isError ? 'text-red-500' : 'text-green-500'}`}>
+              {message.text}
+            </p>
+          )}
+          
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? 'Signing up...' : 'Sign up'}
+          </Button>
+        </>
       )}
-      
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
-        {isSubmitting ? 'Signing up...' : 'Sign up'}
-      </Button>
     </form>
   );
 } 
