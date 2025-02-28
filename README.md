@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Jijutsu (字術)
+
+Jijutsu (lit. "character art") is an alchemy game where you can combine radicals to create kanji, and combine those kanji to make more advanced kanji and vocabulary.
+
+## Tech Stack
+
+- **Frontend**: NextJS, TypeScript, Tailwind CSS, Shadcn UI
+- **Backend**: Supabase for authentication and database
+
+## Features
+
+- Landing page with rotating sakura animation around the Jijutsu logo
+- Countdown timer until release date
+- Waitlist functionality (pre-launch)
+- User signup functionality (post-launch)
+- Email notification to waitlisted users when the countdown completes
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js 16.8+ and npm/yarn
+- A Supabase account and project
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Installation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd jijutsu
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. Install dependencies:
+   ```bash
+   npm install
+   # or
+   yarn install
+   ```
 
-## Learn More
+3. Create a `.env.local` file in the root directory with your Supabase credentials:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+   NEXT_PUBLIC_RELEASE_DATE="2023-12-31T23:59:59"
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+4. Set up the Supabase database by executing the SQL statements in `supabase-schema.sql` in your Supabase SQL editor.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+5. Start the development server:
+   ```bash
+   npm run dev
+   # or
+   yarn dev
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+6. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## Deploy on Vercel
+## Database Setup
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The project requires two main tables in Supabase:
+- `waitlisted_users`: Stores emails of users who join the waitlist before launch
+- `users`: Stores registered users after launch
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Refer to `supabase-schema.sql` for the complete database schema setup.
+
+## Countdown Timer
+
+The countdown timer is configured to expire on the date specified in the `NEXT_PUBLIC_RELEASE_DATE` environment variable. You can adjust this date for testing purposes.
+
+## Deployment
+
+This is a [Next.js](https://nextjs.org/) project that can be deployed to Vercel, Netlify, or any other platform that supports Next.js.
+
+1. Build the project:
+   ```bash
+   npm run build
+   # or
+   yarn build
+   ```
+
+2. Deploy the build to your hosting platform of choice.
+
+## License
+
+[MIT](LICENSE)

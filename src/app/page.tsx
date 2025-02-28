@@ -1,35 +1,84 @@
-import { Inter } from "next/font/google";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+'use client';
 
-const inter = Inter({ subsets: ["latin"] });
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Countdown } from '@/components/Countdown';
+import { SakuraAnimation } from '@/components/SakuraAnimation';
+import { WaitlistForm } from '@/components/WaitlistForm';
+import { SignupForm } from '@/components/SignupForm';
 
 export default function Home() {
+  const [isCountdownComplete, setIsCountdownComplete] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+
+  // Get the release date from environment variable
+  const releaseDate = process.env.NEXT_PUBLIC_RELEASE_DATE || '2023-12-31T23:59:59';
+
+  // Check if the countdown is already complete on initial load
+  useEffect(() => {
+    const isComplete = new Date(releaseDate).getTime() <= new Date().getTime();
+    setIsCountdownComplete(isComplete);
+  }, [releaseDate]);
+
+  const handleCountdownComplete = () => {
+    setIsCountdownComplete(true);
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-stone-100 dark:bg-stone-900">
       <main className="flex flex-col items-center justify-center w-full flex-1 px-5 text-center">
-        <Card className="w-full max-w-md bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-xl border-0">
+        <Card className="w-full max-w-md bg-stone-50/80 dark:bg-stone-800/80 backdrop-blur-sm shadow-xl border-0">
           <CardHeader>
-            <CardTitle className="text-5xl font-bold tracking-tight text-gray-900 dark:text-white">
+            <CardTitle className="text-5xl font-bold tracking-tight text-stone-900 dark:text-stone-50">
               字術へようこそ
             </CardTitle>
-            <CardDescription className="text-xl text-gray-600 dark:text-gray-300">
+            <CardDescription className="text-xl text-stone-600 dark:text-stone-300">
               Welcome to Jijutsu
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="h-1 w-16 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full mx-auto mb-6"></div>
-            <p className="text-md text-gray-500 dark:text-gray-400">
-              Experience the art of characters
+          <CardContent className="flex flex-col items-center">
+            <SakuraAnimation />
+            
+            <div className="h-1 w-16 bg-gradient-to-r from-pink-400 to-amber-400 rounded-full mx-auto my-6"></div>
+            
+            <p className="text-md text-stone-600 dark:text-stone-400 mb-4">
+              The art of characters
             </p>
+            
+            <Countdown 
+              targetDate={releaseDate} 
+              onComplete={handleCountdownComplete} 
+            />
           </CardContent>
-          <CardFooter className="flex justify-center gap-4">
-            <Button variant="default">Get Started</Button>
-            <Button variant="outline">Learn More</Button>
+          <CardFooter className="flex justify-center">
+            <Dialog open={formOpen} onOpenChange={setFormOpen}>
+              <DialogTrigger asChild>
+                <Button variant="default">
+                  {isCountdownComplete ? 'Sign up' : 'Join the waitlist'}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>
+                    {isCountdownComplete ? 'Create an account' : 'Join the waitlist'}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {isCountdownComplete 
+                      ? 'Sign up to start creating with Jijutsu.' 
+                      : 'Be the first to know when Jijutsu launches.'}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  {isCountdownComplete ? <SignupForm /> : <WaitlistForm />}
+                </div>
+              </DialogContent>
+            </Dialog>
           </CardFooter>
         </Card>
       </main>
-      <footer className="w-full py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+      <footer className="w-full py-6 text-center text-sm text-stone-500 dark:text-stone-400">
         &copy; {new Date().getFullYear()} Jijutsu
       </footer>
     </div>
