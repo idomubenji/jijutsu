@@ -16,14 +16,12 @@ type TimeLeft = {
 
 export function Countdown({ targetDate, onComplete }: CountdownProps) {
   const [timeLeft, setTimeLeft] = useState<TimeLeft>({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-  const [isCompleted, setIsCompleted] = useState(false);
 
   useEffect(() => {
     const calculateTimeLeft = () => {
       const difference = new Date(targetDate).getTime() - new Date().getTime();
       
       if (difference <= 0) {
-        setIsCompleted(true);
         onComplete?.();
         return { days: 0, hours: 0, minutes: 0, seconds: 0 };
       }
