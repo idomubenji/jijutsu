@@ -34,24 +34,24 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
     setMessage(null);
 
     try {
-      // First, try to sign in with the email to check if it already exists and is verified
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      // First, check if this email is already in use in Auth
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
-        password: 'dummy-password-for-check' // We're not expecting this to work, just checking if the email exists
+        password: 'dummyPasswordForCheckingOnly', // Intentionally using a dummy password
       });
       
-      // If there's no error or the error is about invalid credentials (not "user not found"),
-      // then the email exists in Supabase Auth
-      if (!signInError || (signInError && signInError.message && 
-          (signInError.message.includes('Invalid login credentials') || 
-           signInError.message.includes('Invalid email or password')))) {
+      // If we can sign in (no error about invalid credentials, only wrong password),
+      // then the email exists and is verified
+      if (signInError && !signInError.message.includes('Invalid login credentials')) {
+        console.error('Error checking if email exists:', signInError);
+      } else if (signInData?.user) {
+        // The email exists and is verified (we got a wrong password error but the email is valid)
         setMessage({ text: 'An account with this email already exists. Please sign in instead.', isError: true });
         setIsSubmitting(false);
         return;
       }
 
       // Check if the email already exists in our users table
-      // In a more secure implementation, this would be done server-side
       const { data: existingUser, error: checkError } = await supabase
         .from('users')
         .select('email')
@@ -78,11 +78,7 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
       if (error) {
         console.error('Supabase auth signUp error:', error);
         // Check if the error is related to an existing account
-        if (error.message && (
-          error.message.includes('already registered') || 
-          error.message.includes('User already registered') ||
-          error.message.includes('Email already registered')
-        )) {
+        if (error.message.includes('already registered')) {
           setMessage({ text: 'An account with this email already exists. Please sign in instead.', isError: true });
           setIsSubmitting(false);
           return;
@@ -92,6 +88,14 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
 
       if (!data?.user) {
         throw new Error('No user returned from signup');
+      }
+      
+      // Check if the email was already confirmed (indicating existing verified account)
+      if (data.user.email_confirmed_at) {
+        console.log('User already has a verified account with this email:', data.user.id);
+        setMessage({ text: 'An account with this email already exists. Please sign in instead.', isError: true });
+        setIsSubmitting(false);
+        return;
       }
       
       console.log('User signed up successfully:', data.user.id);
