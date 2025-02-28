@@ -140,4 +140,4 @@ CREATE TABLE User_Compound_Progress (
     PRIMARY KEY (user_id, compound_id)
 );
 Summary
-These eight tables—Radicals, Kanji, Kanji_Radicals, Compounds, Compound_Kanji, Users, User_Kanji_Progress, and User_Compound_Progress—provide a solid foundation for your game. They support the core mechanics, user progress tracking, and a seamless experience for both anonymous and registered players. Let me know if you need help with implementation or further adjustments!
+These eight tables—Radicals, Kanji, Kanji_Radicals, Compounds, Compound_Kanji, Users, User_Kanji_Progress, and User_Compound_Progress—provide a solid foundation for your game. They support the core mechanics, user progress tracking, and a seamless experience for both anonymous and registered players. Let me know if you need help with implementation or further adjustments!g
