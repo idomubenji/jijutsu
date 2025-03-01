@@ -1695,7 +1695,7 @@ export default function GamePage() {
         {elements.filter(el => el.position.x !== 0 || el.position.y !== 0).map((element) => (
           <div
             key={element.id}
-            className={`absolute cursor-grab select-none ${element.isDragging ? 'opacity-70 cursor-grabbing z-50' : 'opacity-100 z-10'} ${element.type === 'kanji' ? 'text-xl font-bold' : 'text-lg'} rounded-md flex items-center justify-center transition-all duration-150 ${element.className || ''}`}
+            className={`absolute cursor-grab select-none ${element.isDragging ? 'opacity-70 cursor-grabbing z-50' : 'opacity-100 z-10'} ${element.type === 'kanji' ? 'text-xl font-bold text-white' : 'text-lg'} rounded-md flex items-center justify-center transition-all duration-150 ${element.className || ''}`}
             style={{
               left: `${element.position.x}px`,
               top: `${element.position.y}px`,
@@ -1790,7 +1790,7 @@ export default function GamePage() {
                   <DialogHeader>
                     <DialogTitle className="text-white dark:text-black">Sign in to Jijutsu</DialogTitle>
                   </DialogHeader>
-                  <div className="py-4">
+                  <div className="py-4 text-white dark:text-black">
                     <SignInForm 
                       onSwitchToSignUp={() => handleOpenAuth('signup')}
                       onSuccess={handleAuthSuccess}
@@ -1809,7 +1809,7 @@ export default function GamePage() {
                   <DialogHeader>
                     <DialogTitle className="text-white dark:text-black">Create your Jijutsu account</DialogTitle>
                   </DialogHeader>
-                  <div className="py-4">
+                  <div className="py-4 text-white dark:text-black">
                     <SignupForm 
                       onSuccess={handleAuthSuccess}
                     />
@@ -1884,7 +1884,7 @@ export default function GamePage() {
         {/* Update the floating element to handle scroll position correctly */}
         {isDraggingFromSidebar && sidebarDraggedChar && (
           <div 
-            className="absolute z-50 pointer-events-none"
+            className={`absolute z-50 pointer-events-none ${discoveredKanji.has(sidebarDraggedChar) || supabaseKanji.includes(sidebarDraggedChar) ? 'text-white' : ''}`}
             style={{
               left: `${mousePosition.x}px`,
               top: `${mousePosition.y}px`,
@@ -2090,7 +2090,7 @@ export default function GamePage() {
                   <div
                     key={kanjiKey}
                     data-kanji={kanji}
-                    className="w-9 h-9 flex items-center justify-center rounded cursor-pointer select-none relative group"
+                    className="w-9 h-9 flex items-center justify-center rounded cursor-pointer select-none relative group text-white"
                     style={{ 
                       backgroundColor: 'rgba(0, 79, 23, 0.9)', // #004F17 with 90% opacity
                       userSelect: 'none',

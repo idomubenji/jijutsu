@@ -76,7 +76,7 @@ export function SignInForm({ onSwitchToSignUp, onSuccess }: SignInFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4 w-full max-w-md">
       <div className="space-y-2">
-        <Label htmlFor="signin-email">Email</Label>
+        <Label htmlFor="signin-email" className="text-white dark:text-black">Email</Label>
         <Input
           id="signin-email"
           type="email"
@@ -84,11 +84,12 @@ export function SignInForm({ onSwitchToSignUp, onSuccess }: SignInFormProps) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+          className="text-white dark:text-black placeholder:text-stone-400 dark:placeholder:text-stone-600"
         />
       </div>
       
       <div className="space-y-2">
-        <Label htmlFor="signin-password">Password</Label>
+        <Label htmlFor="signin-password" className="text-white dark:text-black">Password</Label>
         <Input
           id="signin-password"
           type="password"
@@ -96,11 +97,12 @@ export function SignInForm({ onSwitchToSignUp, onSuccess }: SignInFormProps) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          className="text-white dark:text-black placeholder:text-stone-400 dark:placeholder:text-stone-600"
         />
       </div>
       
       {message && (
-        <p className={`text-sm ${message.isError ? 'text-red-500' : 'text-green-500'}`}>
+        <p className={`text-sm ${message.isError ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'}`}>
           {message.text}
         </p>
       )}
@@ -109,11 +111,11 @@ export function SignInForm({ onSwitchToSignUp, onSuccess }: SignInFormProps) {
         {isSubmitting ? 'Signing in...' : 'Sign in'}
       </Button>
       
-      <div className="text-sm text-center text-stone-500">
+      <div className="text-sm text-center text-stone-300 dark:text-stone-700">
         <span>Don&apos;t have an account? </span>
         <Button 
           variant="link" 
-          className="p-0 h-auto font-normal" 
+          className="p-0 h-auto font-normal text-white dark:text-black" 
           onClick={(e) => {
             e.preventDefault();
             if (onSwitchToSignUp) {

@@ -151,12 +151,12 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
     <form onSubmit={handleSubmit} className="space-y-4 w-full max-w-md">
       {isSignupComplete ? (
         <div className="space-y-4">
-          <div className="bg-green-50 p-4 rounded-md border border-green-200">
-            <p className="text-green-700 font-medium">Account created successfully!</p>
-            <p className="text-green-600 mt-2">
+          <div className="bg-green-50 dark:bg-green-900 p-4 rounded-md border border-green-200 dark:border-green-800">
+            <p className="text-green-700 dark:text-green-300 font-medium">Account created successfully!</p>
+            <p className="text-green-600 dark:text-green-400 mt-2">
               Please check your email for the confirmation link to activate your account.
             </p>
-            <p className="text-green-600 mt-2">
+            <p className="text-green-600 dark:text-green-400 mt-2">
               After confirming your email, you&apos;ll be able to sign in to your account.
             </p>
           </div>
@@ -171,7 +171,7 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
       ) : (
         <>
           <div className="space-y-2">
-            <Label htmlFor="signup-email">Email</Label>
+            <Label htmlFor="signup-email" className="text-white dark:text-black">Email</Label>
             <Input
               id="signup-email"
               type="email"
@@ -179,11 +179,12 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              className="text-white dark:text-black placeholder:text-stone-400 dark:placeholder:text-stone-600"
             />
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="signup-password">Password</Label>
+            <Label htmlFor="signup-password" className="text-white dark:text-black">Password</Label>
             <Input
               id="signup-password"
               type="password"
@@ -191,11 +192,12 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              className="text-white dark:text-black placeholder:text-stone-400 dark:placeholder:text-stone-600"
             />
           </div>
           
           {message && (
-            <p className={`text-sm ${message.isError ? 'text-red-500' : 'text-green-500'}`}>
+            <p className={`text-sm ${message.isError ? 'text-red-500 dark:text-red-400' : 'text-green-500 dark:text-green-400'}`}>
               {message.text}
             </p>
           )}
