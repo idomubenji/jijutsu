@@ -43,7 +43,7 @@ export function restartSupabaseConnection() {
       
       if (typeof newClient[clientKey] === 'function' || typeof newClient[clientKey] === 'object') {
         // Use type assertion to safely copy properties
-        (supabase[supabaseKey] as any) = newClient[clientKey];
+        (supabase[supabaseKey] as unknown) = newClient[clientKey];
       }
     });
     

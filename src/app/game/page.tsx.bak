@@ -1054,7 +1054,7 @@ export default function GamePage() {
       
       return updated;
     });
-  }, [elements, setElements, discoveredKanji, setDiscoveredKanji, recordKanjiDiscovery, kanjiData]);
+  }, [elements, setElements, discoveredKanji, setDiscoveredKanji, recordKanjiDiscovery, kanjiData, findPossibleKanji]);
 
   // Health check function
   const runHealthCheck = useCallback(async () => {
@@ -1327,14 +1327,6 @@ export default function GamePage() {
   // Define handleAuthSuccess function
   const handleAuthSuccess = () => {
     // Implementation details...
-  };
-
-  // Define sidebarRadicals
-  const sidebarRadicals = [{ char: '木' }, { char: '火' }, { char: '水' }]; // Example radicals
-
-  // Define resetProgress function
-  const resetProgress = () => {
-    console.log('Reset progress implementation needed');
   };
 
   if (loadingData) {
