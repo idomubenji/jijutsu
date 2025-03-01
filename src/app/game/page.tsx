@@ -100,6 +100,10 @@ export default function GamePage() {
   const [unlockedRadicalCount, setUnlockedRadicalCount] = useState<number>(10); // Start with 10
   const [userKanjiCount, setUserKanjiCount] = useState<number>(0);
   
+  // Add a debounce map to track recent discoveries
+  const recentDiscoveries = new Map<string, number>();
+  const DISCOVERY_COOLDOWN = 2000; // 2 seconds cooldown
+  
   // Detect dark mode
   useEffect(() => {
     const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -279,16 +283,59 @@ export default function GamePage() {
   const recordKanjiDiscovery = async (kanji: string) => {
     if (!user) return; // Only record for authenticated users
     
+    // Check if this kanji was recently discovered to prevent loops
+    const lastDiscoveryTime = recentDiscoveries.get(kanji);
+    const now = Date.now();
+    if (lastDiscoveryTime && (now - lastDiscoveryTime) < DISCOVERY_COOLDOWN) {
+      console.log('Skipping duplicate discovery attempt for:', kanji);
+      return;
+    }
+    recentDiscoveries.set(kanji, now);
+    
+    // Clean up old entries from recentDiscoveries
+    for (const [k, time] of recentDiscoveries.entries()) {
+      if (now - time > DISCOVERY_COOLDOWN) {
+        recentDiscoveries.delete(k);
+      }
+    }
+
     try {
-      console.log('Looking up kanji in dex:', kanji);
-      // First get the kanji_id from kanji_dex table
+      console.log('Starting kanji discovery process for:', kanji);
+      console.log('User ID:', user.id);
+      
+      // First check if user already has this kanji
+      const { data: existingKanji, error: existingError } = await supabase
+        .from('user_kanji')
+        .select('kanji_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (existingKanji) {
+        console.log('User already has this kanji:', kanji);
+        return;
+      }
+
+      if (existingError && existingError.code !== 'PGRST116') {  // PGRST116 means no rows returned
+        console.error('Error checking existing kanji:', existingError);
+        return;
+      }
+      
+      // Get the kanji_id from kanji_dex table
       const { data: kanjiData, error: kanjiError } = await supabase
         .from('kanji_dex')
-        .select('id, kanji, dex_number')  // Select more fields for debugging
+        .select('id, kanji, dex_number, meanings')
         .eq('kanji', kanji)
         .single();
 
-      console.log('Query result:', { data: kanjiData, error: kanjiError });
+      console.log('Kanji lookup query result:', {
+        kanji: kanji,
+        data: kanjiData,
+        error: kanjiError ? {
+          message: kanjiError.message,
+          code: kanjiError.code,
+          details: kanjiError.details
+        } : null
+      });
 
       if (kanjiError) {
         console.error('Error finding kanji in dex:', kanjiError);
@@ -296,16 +343,24 @@ export default function GamePage() {
       }
 
       if (!kanjiData?.id) {
-        console.error('Kanji not found in dex:', kanji);
-        // Let's also check what we got back
-        console.log('Received data:', kanjiData);
+        console.error('Kanji not found in dex. Details:', {
+          searchedKanji: kanji,
+          receivedData: kanjiData,
+          dexNumber: kanjiData?.dex_number,
+          meanings: kanjiData?.meanings
+        });
         return;
       }
 
-      console.log('Found kanji in dex:', kanjiData);
+      console.log('Found kanji in dex:', {
+        id: kanjiData.id,
+        kanji: kanjiData.kanji,
+        dexNumber: kanjiData.dex_number,
+        meanings: kanjiData.meanings
+      });
 
       // Insert into user_kanji table
-      const { error: insertError } = await supabase
+      const { data: insertData, error: insertError } = await supabase
         .from('user_kanji')
         .insert([{
           user_id: user.id,
@@ -316,24 +371,40 @@ export default function GamePage() {
       if (insertError) {
         // If it's a duplicate, that's fine - user already discovered this kanji
         if (insertError.code === '23505') { // Postgres unique violation code
+          console.log('Kanji already discovered by user:', {
+            userId: user.id,
+            kanjiId: kanjiData.id
+          });
           return;
         }
-        console.error('Error recording kanji discovery:', insertError);
-      } else {
-        // Successfully recorded kanji, update count
-        setUserKanjiCount(prev => {
-          const newCount = prev + 1;
-          // Check if this unlocks a new radical
-          if (newCount % 10 === 0) {
-            // Increment the unlocked radical count
-            setUnlockedRadicalCount(10 + Math.floor(newCount / 10));
-            addNotification(`You've unlocked a new radical!`, 'success');
-          }
-          return newCount;
+        console.error('Error recording kanji discovery:', {
+          error: insertError,
+          userId: user.id,
+          kanjiId: kanjiData.id
         });
+        return;
       }
+
+      console.log('Successfully recorded kanji discovery:', {
+        userId: user.id,
+        kanjiId: kanjiData.id,
+        insertedData: insertData
+      });
+
+      // Successfully recorded kanji, update count
+      setUserKanjiCount(prev => {
+        const newCount = prev + 1;
+        // Check if this unlocks a new radical
+        if (newCount % 10 === 0) {
+          // Increment the unlocked radical count
+          setUnlockedRadicalCount(10 + Math.floor(newCount / 10));
+          addNotification(`You've unlocked a new radical!`, 'success');
+        }
+        return newCount;
+      });
+
     } catch (error) {
-      console.error('Error in recordKanjiDiscovery:', error);
+      console.error('Unexpected error in recordKanjiDiscovery:', error);
     }
   };
 
