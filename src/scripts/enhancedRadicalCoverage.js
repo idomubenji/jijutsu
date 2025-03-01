@@ -108,7 +108,7 @@ const radicalMeanings = {
   "亠": "lid"
 };
 
-sortedRadicals.slice(0, 10).forEach((radical, index) => {
+sortedRadicals.slice(0, 10).forEach((radical, _) => {
   const meaning = radicalMeanings[radical] || "-";
   const count = kanjiRadicalsData.radicalToKanji[radical].length;
   console.log(`| ${radical} | ${meaning} | ${count} |`);

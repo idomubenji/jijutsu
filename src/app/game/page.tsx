@@ -7,8 +7,6 @@ import { SignInForm } from '@/components/SignInForm';
 import { SignupForm } from '@/components/SignupForm';
 import { supabase } from '@/lib/supabase';
 import { LogOut, Info, X, Trash2 } from 'lucide-react';
-import { ClientLayout } from '@/components/ClientLayout';
-import MainLayout from '@/components/MainLayout';
 import { useKanjiRadicals } from '@/hooks/useKanjiRadicals';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import GameNav from '@/components/GameNav';
@@ -44,6 +42,7 @@ interface KanjiRadicalsData {
 }
 
 // Add an interface for sorted radicals
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface SortedRadicalsData {
   sortedRadicals: string[];
 }
@@ -58,12 +57,19 @@ interface KanjiDetails {
   kun_reading?: string[];
 }
 
+// Interface for user authentication
+interface UserAuth {
+  id: string;
+  email?: string;
+}
+
 export default function GamePage() {
   // Auth state
   const [isSignInOpen, setIsSignInOpen] = useState(false);
   const [isSignUpOpen, setIsSignUpOpen] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserAuth | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Game state
@@ -104,6 +110,7 @@ export default function GamePage() {
   const [connections, setConnections] = useState<{from: string, to: string}[]>([]);
   
   // Add state for tracking dark mode
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isDarkMode, setIsDarkMode] = useState(false);
   
   // Add state for unlocked radicals
@@ -585,7 +592,7 @@ export default function GamePage() {
       // Determine the position of the currently dragged element
       let draggedX = 0;
       let draggedY = 0;
-      let draggedId = draggedElement || 'sidebar';
+      const draggedId = draggedElement || 'sidebar';
       
       if (draggedElement) {
         // If dragging an existing element, get its position from elements state
@@ -821,7 +828,8 @@ export default function GamePage() {
   };
   
   // Clone a radical from sidebar to game area
-  const handleCloneRadical = (radical: string, clientX: number, clientY: number, elementRect: DOMRect) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleCloneRadical = (radical: string, clientX: number, clientY: number, _elementRect: DOMRect) => {
     if (!gameAreaRef.current) return;
     
     // Get game area bounds
@@ -963,7 +971,7 @@ export default function GamePage() {
       const requiredRadicals = new Set(kanjiData.kanjiToRadicals[kanji] || []);
       
       // First check direct match with cluster characters
-      let directMatch = checkExactMatch(clusterChars, requiredRadicals);
+      const directMatch = checkExactMatch(clusterChars, requiredRadicals);
       
       // If not a direct match and we have expanded some kanji, check the expanded list
       let expandedMatch = false;
@@ -1018,7 +1026,7 @@ export default function GamePage() {
       if (requiredRadicals.size !== charCounts.size) return false;
       
       // Check if all our characters are in the required list
-      for (const [char, count] of charCounts.entries()) {
+      for (const [char] of charCounts.entries()) {
         if (!requiredRadicals.has(char)) return false;
       }
       
@@ -1272,7 +1280,7 @@ export default function GamePage() {
   }, []);
 
   // Add a function to sync localStorage kanji to database when user signs in
-  const syncLocalKanjiToDatabase = async (currentUser: any) => {
+  const syncLocalKanjiToDatabase = async (currentUser: UserAuth) => {
     if (!currentUser) return;
     
     try {
@@ -1371,6 +1379,7 @@ export default function GamePage() {
   }, [selectedKanji, fetchKanjiDetails]);
   
   // Handle opening the kanji details dialog - simplified to just set the selected kanji
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleKanjiClick = (kanji: string, event: React.MouseEvent | React.TouchEvent) => {
     // Prevent any drag operations immediately
     event.preventDefault();
@@ -1402,6 +1411,62 @@ export default function GamePage() {
       setLastAddedElementId(null);
     }
   }, [lastAddedElementId]);
+
+  // Fetch user data and kanji on initial load and auth state change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user || null);
+        
+        if (session?.user) {
+          await fetchUserKanjiData();
+        } else {
+          // Load saved kanji from localStorage for non-logged in users
+          // loadSavedKanji(); - removing this call as function doesn't exist
+        }
+
+        setIsLoading(false);
+
+      } catch (error) {
+        console.error('Error checking auth state:', error);
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
+        setUser(session?.user || null);
+        
+        if (session?.user) {
+          await fetchUserKanjiData();
+        } else {
+          // Clear kanji data when user logs out
+          setDiscoveredKanji(new Set());
+          setUnlockedRadicalCount(10);
+          // loadSavedKanji(); - removing this call as function doesn't exist
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [fetchUserKanjiData]); // Added fetchUserKanjiData as a dependency
+
+  // Sync kanji to database when user logs in
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (user && discoveredKanji.size > 0) {
+      console.log('User signed in with local kanji, syncing to database...');
+      syncLocalKanjiToDatabase(user);
+    }
+  }, [discoveredKanji]);
 
   if (loadingData) {
     return (
@@ -1533,8 +1598,11 @@ export default function GamePage() {
               <ul className="list-disc pl-5 space-y-2 text-black/70 dark:text-white/80">
                 <li>Drag radicals from the sidebar into the main workspace.</li>
                 <li>Move radicals around and bring them close to each other to combine them.</li>
-                <li>When you have the exact set of radicals needed to form a kanji, they'll merge automatically!</li>
+                <li>When you have the exact set of radicals needed to form a kanji, they&apos;ll merge automatically!</li>
                 <li>Discovered kanji will appear in the sidebar. You can also use these to create more complex kanji.</li>
+                <li>When you see a blinking outline, it means you&apos;re close to forming a kanji!</li>
+                <li>Drag unwanted elements to the trash can to remove them.</li>
+                <li>The more kanji you discover, the more radicals you unlock!</li>
               </ul>
             </div>
             <div className="space-y-2">
@@ -1916,7 +1984,7 @@ export default function GamePage() {
           )}
           
           {/* Unlocked radicals grid */}
-          <div className="grid grid-cols-17 gap-1">
+          <div className="grid grid-cols-17 gap-1 grid-flow-row-dense auto-rows-min">
             {sidebarRadicals.map(({ char }, index) => {
               // Generate a truly unique key for each radical
               const radicalKey = `sidebar-radical-${index}-${char}-${Math.random().toString(36).slice(2, 5)}`;
@@ -1957,7 +2025,7 @@ export default function GamePage() {
                   Unlock more by creating kanji
                 </div>
               </div>
-              <div className="grid grid-cols-17 gap-1">
+              <div className="grid grid-cols-17 gap-1 grid-flow-row-dense auto-rows-min">
                 {sortedRadicals.slice(unlockedRadicalCount, unlockedRadicalCount + 5)
                   .filter(radical => kanjiData?.radicalToKanji[radical]) // Ensure the radical exists in data
                   .map((radical, index) => {
@@ -2011,7 +2079,7 @@ export default function GamePage() {
               Drag and combine radicals to discover kanji!
             </div>
           ) : (
-            <div className="grid grid-cols-8 gap-2">
+            <div className="grid grid-cols-8 gap-2 grid-flow-row-dense auto-rows-min">
               {(user ? supabaseKanji : Array.from(discoveredKanji)).map((kanji, index) => {
                 // Generate a stable unique key for each discovered kanji
                 const kanjiKey = `discovered-${kanji}-${index}`;
