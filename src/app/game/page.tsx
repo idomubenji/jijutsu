@@ -121,6 +121,9 @@ export default function GamePage() {
   const [isKanjiDetailsOpen, setIsKanjiDetailsOpen] = useState(false);
   const [loadingKanjiDetails, setLoadingKanjiDetails] = useState(false);
   
+  // Add this state declaration near the other useState hooks
+  const [lastAddedElementId, setLastAddedElementId] = useState<string | null>(null);
+  
   // Detect dark mode
   useEffect(() => {
     const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -781,11 +784,11 @@ export default function GamePage() {
             className: 'merge-success ripple-effect' // Add animation classes
           };
           
-          // Add the new element to the game
+          // Add the new element to the game and store its ID for collision check
           setElements(prev => [...prev, newElement]);
           
-          // Check for collisions
-          setTimeout(() => checkElementCollisions(newId), 50);
+          // Store the ID for collision checking in the next render
+          setLastAddedElementId(newId);
         }
       }
       
@@ -1389,6 +1392,16 @@ export default function GamePage() {
       setSelectedKanji(null);
     }, 300);
   };
+
+  // Add this useEffect hook after the other useEffect hooks
+  useEffect(() => {
+    // If we have a lastAddedElementId, check for collisions
+    if (lastAddedElementId) {
+      checkElementCollisions(lastAddedElementId);
+      // Reset the ID after checking
+      setLastAddedElementId(null);
+    }
+  }, [lastAddedElementId]);
 
   if (loadingData) {
     return (
@@ -2013,24 +2026,18 @@ export default function GamePage() {
                       userSelect: 'none',
                       zIndex: 30 // Ensure it's above other elements
                     }}
-                    onClick={(e) => {
-                      console.log('Kanji element clicked:', kanji);
-                      // Handle the click directly and prevent defaults
+                    onContextMenu={(e) => {
+                      // Show dictionary on right-click instead of context menu
                       e.preventDefault();
-                      e.stopPropagation();
-                      // Directly fetch details instead of just setting selectedKanji
+                      console.log('Right-click on kanji, showing dictionary:', kanji);
                       setSelectedKanji(kanji);
                       fetchKanjiDetails(kanji);
-                    }}
-                    onContextMenu={(e) => {
-                      // Prevent context menu from showing on right-click
-                      e.preventDefault();
                       return false;
                     }}
                     onMouseDown={(e) => {
-                      // Only handle right-click drag here
-                      if (e.button === 2) { // Right mouse button
-                        console.log('Right click on kanji, starting drag:', kanji);
+                      // Use left-click for dragging (button 0 is left mouse button)
+                      if (e.button === 0) { // Left mouse button
+                        console.log('Left click on kanji, starting drag:', kanji);
                         const rect = e.currentTarget.getBoundingClientRect();
                         handleSidebarDragStart(kanji, e.clientX, e.clientY, rect);
                         e.preventDefault();
