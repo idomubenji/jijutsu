@@ -2,11 +2,17 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Gamepad2, BookOpen } from 'lucide-react';
+import { Gamepad2, BookOpen, DollarSign } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function GameNav() {
   const pathname = usePathname();
+  
+  // Function to handle the donation button click
+  const handleDonateClick = () => {
+    // Open Stripe donation link in a new tab
+    window.open('https://donate.stripe.com/test_eVa2bKdGjesc9oIcMM', '_blank');
+  };
   
   return (
     <div className="fixed top-4 left-4 z-50 flex items-center gap-4">
@@ -38,6 +44,14 @@ export default function GameNav() {
         >
           <BookOpen size={20} />
         </Link>
+        
+        <button
+          onClick={handleDonateClick}
+          className="flex items-center justify-center w-9 h-9 rounded-full transition-colors text-white hover:bg-[#78B693]"
+          aria-label="Donate"
+        >
+          <DollarSign size={20} />
+        </button>
       </div>
       
       <div className="bg-gray-700/90 dark:bg-gray-300/90 rounded-full p-1.5 backdrop-blur-sm shadow-sm transition-colors">
