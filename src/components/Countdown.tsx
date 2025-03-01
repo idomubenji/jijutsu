@@ -48,23 +48,23 @@ export function Countdown({ targetDate, onComplete }: CountdownProps) {
   return (
     <div className="flex flex-wrap justify-center gap-4 text-center my-8">
       <div className="flex flex-col items-center">
-        <div className="text-4xl font-bold">{timeLeft.days}</div>
-        <div className="text-sm uppercase text-stone-600 dark:text-stone-400">Days</div>
+        <span className="text-4xl font-bold text-[#F2E8DC] dark:text-[#38332E]">{timeLeft.days}</span>
+        <span className="text-sm text-[#F2E8DC] dark:text-[#38332E]">Days</span>
       </div>
-      <div className="text-4xl font-bold">:</div>
+      <div className="text-4xl font-bold text-[#F2E8DC] dark:text-[#38332E]">:</div>
       <div className="flex flex-col items-center">
-        <div className="text-4xl font-bold">{timeLeft.hours.toString().padStart(2, '0')}</div>
-        <div className="text-sm uppercase text-stone-600 dark:text-stone-400">Hours</div>
+        <span className="text-4xl font-bold text-[#F2E8DC] dark:text-[#38332E]">{timeLeft.hours.toString().padStart(2, '0')}</span>
+        <span className="text-sm text-[#F2E8DC] dark:text-[#38332E]">Hours</span>
       </div>
-      <div className="text-4xl font-bold">:</div>
+      <div className="text-4xl font-bold text-[#F2E8DC] dark:text-[#38332E]">:</div>
       <div className="flex flex-col items-center">
-        <div className="text-4xl font-bold">{timeLeft.minutes.toString().padStart(2, '0')}</div>
-        <div className="text-sm uppercase text-stone-600 dark:text-stone-400">Minutes</div>
+        <span className="text-4xl font-bold text-[#F2E8DC] dark:text-[#38332E]">{timeLeft.minutes.toString().padStart(2, '0')}</span>
+        <span className="text-sm text-[#F2E8DC] dark:text-[#38332E]">Minutes</span>
       </div>
-      <div className="text-4xl font-bold">:</div>
+      <div className="text-4xl font-bold text-[#F2E8DC] dark:text-[#38332E]">:</div>
       <div className="flex flex-col items-center">
-        <div className="text-4xl font-bold">{timeLeft.seconds.toString().padStart(2, '0')}</div>
-        <div className="text-sm uppercase text-stone-600 dark:text-stone-400">Seconds</div>
+        <span className="text-4xl font-bold text-[#F2E8DC] dark:text-[#38332E]">{timeLeft.seconds.toString().padStart(2, '0')}</span>
+        <span className="text-sm text-[#F2E8DC] dark:text-[#38332E]">Seconds</span>
       </div>
     </div>
   );
