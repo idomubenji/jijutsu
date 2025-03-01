@@ -12,6 +12,7 @@ import MainLayout from '@/components/MainLayout';
 import { useKanjiRadicals } from '@/hooks/useKanjiRadicals';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import GameNav from '@/components/GameNav';
+import { AuthStateListener } from '@/components/AuthStateListener';
 import './animations.css';
 
 // Types for game elements
@@ -320,12 +321,15 @@ export default function GamePage() {
     }
     
     try {
+      console.log('Looking up kanji in dex:', kanji);
       // First get the kanji_id from kanji_dex table
       const { data: kanjiData, error: kanjiError } = await supabase
         .from('kanji_dex')
-        .select('id')
+        .select('id, kanji, dex_number')  // Select more fields for debugging
         .eq('kanji', kanji)
         .single();
+
+      console.log('Query result:', { data: kanjiData, error: kanjiError });
 
       if (kanjiError) {
         console.error('Error finding kanji in dex:', kanjiError);
@@ -334,8 +338,12 @@ export default function GamePage() {
 
       if (!kanjiData?.id) {
         console.error('Kanji not found in dex:', kanji);
+        // Let's also check what we got back
+        console.log('Received data:', kanjiData);
         return;
       }
+
+      console.log('Found kanji in dex:', kanjiData);
 
       // Insert into user_kanji table
       const { error: insertError } = await supabase
@@ -1138,6 +1146,7 @@ export default function GamePage() {
 
   return (
     <div className="min-h-screen flex bg-[#F2E8DC] dark:bg-[#38332E]">
+      <AuthStateListener />
       <GameNav />
       
       {/* Game Instructions Dialog */}
