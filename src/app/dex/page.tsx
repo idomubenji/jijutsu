@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import DexGrid from "@/components/DexGrid";
 import GameNav from "@/components/GameNav";
+import { supabase } from '@/lib/supabase';
 
 interface KanjiData {
   kanji: string;
@@ -24,57 +25,126 @@ interface DexItem {
   meaning?: string;
 }
 
+interface UserKanjiResponse {
+  kanji_id: string;
+  kanji_dex: {
+    dex_number: number;
+  };
+}
+
 export default function DexPage() {
   const [kanjiData, setKanjiData] = useState<KanjiData[]>([]);
   const [radicalData, setRadicalData] = useState<RadicalData[]>([]);
-  const [unlockedKanji, setUnlockedKanji] = useState<DexItem[]>([]);
-  const [unlockedRadicals, setUnlockedRadicals] = useState<DexItem[]>([]);
+  const [unlockedKanjiNumbers, setUnlockedKanjiNumbers] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
 
+  // Convert unlocked numbers to DexItems with kanji data
+  const unlockedKanjiItems = useMemo<DexItem[]>(() => {
+    return Array.from(unlockedKanjiNumbers).map(dexNumber => {
+      const kanjiEntry = kanjiData.find(k => k.dex_number === dexNumber);
+      return {
+        index: dexNumber,
+        unlocked: true,
+        character: kanjiEntry?.kanji,
+        meaning: kanjiEntry?.meanings[0]
+      };
+    });
+  }, [unlockedKanjiNumbers, kanjiData]);
+
+  // Create unlocked radical items (all radicals are unlocked)
+  const unlockedRadicalItems = useMemo<DexItem[]>(() => {
+    return Array.from({ length: 252 }, (_, i) => ({
+      index: i + 1,
+      unlocked: true
+    }));
+  }, []);
+
+  // Load user's discovered kanji from Supabase
+  const loadUserKanji = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_kanji')
+        .select(`
+          kanji_id,
+          kanji_dex!inner (
+            dex_number
+          )
+        `)
+        .eq('user_id', userId)
+        .returns<UserKanjiResponse[]>();
+
+      if (error) {
+        console.error('Error loading user kanji:', error);
+        return;
+      }
+
+      // Create a set of unlocked dex numbers
+      const unlockedDexNumbers = new Set(
+        (data || []).map(row => row.kanji_dex.dex_number)
+      );
+      setUnlockedKanjiNumbers(unlockedDexNumbers);
+    } catch (error) {
+      console.error('Error in loadUserKanji:', error);
+    }
+  };
+
+  // Check authentication status on mount
   useEffect(() => {
-    const fetchData = async () => {
+    const checkUser = async () => {
       try {
-        const kanjiResponse = await fetch("/api/data/kanji");
-        const radicalResponse = await fetch("/api/data/radicals");
-        
-        const kanjiData: KanjiData[] = await kanjiResponse.json();
-        const radicalData: RadicalData[] = await radicalResponse.json();
-        
-        setKanjiData(kanjiData);
-        setRadicalData(radicalData);
-        
-        // For demonstration, we'll set a few items as unlocked
-        // In a real application, this would come from user data
-        const sampleUnlockedKanji = [1, 10, 100].map(index => {
-          const kanji = kanjiData.find(k => k.dex_number === index);
-          return {
-            index,
-            unlocked: true,
-            character: kanji?.kanji,
-            meaning: kanji?.meanings[0] || "",
-          };
-        });
-        
-        const sampleUnlockedRadicals = [1, 5, 10].map(index => {
-          const radical = radicalData.find(r => r.ID === index);
-          return {
-            index,
-            unlocked: true,
-            character: radical?.["Radical Shape"],
-            meaning: radical?.["English Name"] || "",
-          };
-        });
-        
-        setUnlockedKanji(sampleUnlockedKanji);
-        setUnlockedRadicals(sampleUnlockedRadicals);
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user || null);
+
+        if (session?.user) {
+          await loadUserKanji(session.user.id);
+        }
+
+        // Set up auth state change listener
+        const { data: { subscription } } = await supabase.auth.onAuthStateChange(
+          async (_event, session) => {
+            setUser(session?.user || null);
+            if (session?.user) {
+              await loadUserKanji(session.user.id);
+            } else {
+              setUnlockedKanjiNumbers(new Set()); // Clear unlocked kanji when user logs out
+            }
+          }
+        );
+
+        return () => {
+          subscription?.unsubscribe();
+        };
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error('Error checking auth state:', error);
+      }
+    };
+
+    checkUser();
+  }, []);
+
+  // Load kanji data
+  useEffect(() => {
+    const loadKanjiData = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('kanji_dex')
+          .select('kanji, dex_number, meanings')
+          .order('dex_number');
+
+        if (error) {
+          throw error;
+        }
+
+        setKanjiData(data || []);
+      } catch (error) {
+        console.error('Error loading kanji data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    loadKanjiData();
   }, []);
 
   const handleKanjiClick = (index: number) => {
@@ -107,7 +177,7 @@ export default function DexPage() {
           <DexGrid 
             title="部首図鑑" 
             totalItems={252} 
-            unlockedItems={unlockedRadicals}
+            unlockedItems={unlockedRadicalItems}
             onItemClick={handleRadicalClick}
           />
         </div>
@@ -116,7 +186,7 @@ export default function DexPage() {
           <DexGrid 
             title="漢字図鑑" 
             totalItems={6355} 
-            unlockedItems={unlockedKanji}
+            unlockedItems={unlockedKanjiItems}
             onItemClick={handleKanjiClick}
           />
         </div>
