@@ -149,6 +149,7 @@ export default function DexPage() {
   // Load user's discovered kanji from Supabase
   const loadUserKanji = async (userId: string) => {
     try {
+      console.log('----- DEX PAGE LOAD USER KANJI START -----');
       console.log('Loading user kanji for user:', userId);
       const { data: userKanjiData, error: userKanjiError } = await supabase
         .from('user_kanji')
@@ -166,6 +167,7 @@ export default function DexPage() {
 
       if (userKanjiError) {
         console.error('Error loading user kanji:', userKanjiError);
+        console.log('----- DEX PAGE LOAD USER KANJI END -----');
         return;
       }
 
@@ -173,6 +175,7 @@ export default function DexPage() {
       
       if (!userKanjiData) {
         console.log('No user kanji data found');
+        console.log('----- DEX PAGE LOAD USER KANJI END -----');
         return;
       }
 
@@ -201,8 +204,10 @@ export default function DexPage() {
       setUnlockedKanjiNumbers(unlockedDexNumbers);
       setUnlockedKanjiDetails(detailsMap);
       setUnlockedRadicalCount(unlockedRadicals);
+      console.log('----- DEX PAGE LOAD USER KANJI END -----');
     } catch (error) {
       console.error('Error in loadUserKanji:', error);
+      console.log('----- DEX PAGE LOAD USER KANJI END -----');
     }
   };
 
@@ -210,32 +215,45 @@ export default function DexPage() {
   useEffect(() => {
     const checkUser = async () => {
       try {
+        console.log('----- DEX PAGE AUTH CHECK START -----');
         const { data: { session } } = await supabase.auth.getSession();
+        console.log('Dex page auth check - session:', session ? 'Found session' : 'No session');
+        if (session?.user) {
+          console.log('Dex page - user authenticated:', {
+            id: session.user.id,
+            email: session.user.email
+          });
+        }
         setUser(session?.user || null);
 
         if (session?.user) {
+          console.log('Dex page - loading kanji for user ID:', session.user.id);
           await loadUserKanji(session.user.id);
         }
 
         // Set up auth state change listener
         const { data: { subscription } } = await supabase.auth.onAuthStateChange(
           async (_event, session) => {
+            console.log('Dex page - auth state changed, session:', session ? 'Active' : 'None');
             setUser(session?.user || null);
             if (session?.user) {
+              console.log('Dex page - auth changed, loading kanji for user ID:', session.user.id);
               await loadUserKanji(session.user.id);
             } else {
+              console.log('Dex page - user logged out, clearing unlocked kanji');
               setUnlockedKanjiNumbers(new Set()); // Clear unlocked kanji when user logs out
               setUnlockedKanjiDetails(new Map()); // Also clear the details map
               setUnlockedRadicalCount(10); // Reset to base radicals for non-logged in users
             }
           }
         );
+        console.log('----- DEX PAGE AUTH CHECK END -----');
 
         return () => {
           subscription?.unsubscribe();
         };
       } catch (error) {
-        console.error('Error checking auth state:', error);
+        console.error('Error checking auth state in Dex page:', error);
       }
     };
 

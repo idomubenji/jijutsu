@@ -16,10 +16,18 @@ export function useKanjiRadicals() {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    console.log('useKanjiRadicals: Starting to load kanji radical data...');
     try {
       // The JSON is imported directly so it's available immediately
-      setData(kanjiRadicalData as KanjiRadicalData);
+      console.log('useKanjiRadicals: Importing kanji radical data...');
+      const importedData = kanjiRadicalData as KanjiRadicalData;
+      console.log('useKanjiRadicals: Data import successful, sample data:', 
+        Object.keys(importedData.radicalToKanji).length + ' radicals,',
+        Object.keys(importedData.kanjiToRadicals).length + ' kanji');
+      
+      setData(importedData);
       setLoading(false);
+      console.log('useKanjiRadicals: Data loaded and loading state set to false');
     } catch (err) {
       console.error('Error loading kanji radical data:', err);
       setError(err instanceof Error ? err : new Error(String(err)));

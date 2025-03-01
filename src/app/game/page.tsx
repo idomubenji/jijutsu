@@ -1,18 +1,18 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { SignInForm } from '@/components/SignInForm';
 import { SignupForm } from '@/components/SignupForm';
-import { supabase } from '@/lib/supabase';
+import { supabase, restartSupabaseConnection, checkSupabaseHealth } from '@/lib/supabase';
 import { LogOut, Info, X, Trash2 } from 'lucide-react';
 import { useKanjiRadicals } from '@/hooks/useKanjiRadicals';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import GameNav from '@/components/GameNav';
 import { AuthStateListener } from '@/components/AuthStateListener';
 import './animations.css';
-import { checkSupabaseHealth } from '@/lib/supabase';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 // Types for game elements
 interface ElementPosition {
@@ -64,31 +64,88 @@ interface UserAuth {
   email?: string;
 }
 
+// Add the interface for user kanji responses from Supabase
+interface UserKanjiResponse {
+  kanji_id: string;
+  kanji_dex: {
+    id: string;
+    dex_number: number;
+    kanji: string;
+    meanings: string[];
+  };
+}
+
+// Add interface for Supabase errors
+interface SupabaseError {
+  message: string;
+  code?: string;
+  details?: string;
+}
+
 export default function GamePage() {
+  // Use the supabase client from imports, not a new instance
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  
+  // Game state
+  const { data: kanjiData, loading: loadingGameData } = useKanjiRadicals();
+  
+  // Add dark mode toggle
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  
+  // Add notification state
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  
+  // Add loading states
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadingData, setLoadingData] = useState(true);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<{
+    connected: boolean;
+    message: string;
+    lastChecked: Date | null;
+  }>({
+    connected: true,
+    message: "",
+    lastChecked: null
+  });
+  
+  // Add kanji discovery tracking state
+  const [discoveredKanji, setDiscoveredKanji] = useState<Set<string>>(new Set());
+  const [userKanjiCount, setUserKanjiCount] = useState(0);
+  const [isLoadingUserKanji, setIsLoadingUserKanji] = useState(false);
+  const [unlockedRadicalCount, setUnlockedRadicalCount] = useState(10); // Start with 10 radicals
+  
+  // Add supabase kanji state
+  const [supabaseKanji, setSupabaseKanji] = useState<string[]>([]);
+  
+  // Add user state
+  const [user, setUser] = useState<UserAuth | null>(null);
+  
+  // Add state for tracking if we've synced kanji
+  const [hasSyncedKanji, setHasSyncedKanji] = useState(false);
+  
   // Auth state
   const [isSignInOpen, setIsSignInOpen] = useState(false);
   const [isSignUpOpen, setIsSignUpOpen] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
-  const [user, setUser] = useState<UserAuth | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Game state
-  const { data: kanjiData, loading: loadingData } = useKanjiRadicals();
+  
   const [elements, setElements] = useState<GameElement[]>([]);
-  const [discoveredKanji, setDiscoveredKanji] = useState<Set<string>>(new Set());
-  const [supabaseKanji, setSupabaseKanji] = useState<string[]>([]);
-  const gameAreaRef = useRef<HTMLDivElement>(null);
   
   // Game instruction dialog
   const [showInstructions, setShowInstructions] = useState(false);
   
-  // Notification system
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  
   // Tracking drag state
   const [draggedElementId, setDraggedElementId] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState<ElementPosition>({ x: 0, y: 0 });
+  const [offsetX, setOffsetX] = useState(0);
+  const [offsetY, setOffsetY] = useState(0);
+  const [sidebarDragging, setSidebarDragging] = useState(false);
+  const [sidebarDraggedChar, setSidebarDraggedChar] = useState('');
+  
+  // Touchscreen support
+  const [touchSupport, setTouchSupport] = useState(false);
+  const touchOffsetRef = useRef({ x: 0, y: 0 });
   
   // Add state for tracking trash can hover
   const [isOverTrash, setIsOverTrash] = useState(false);
@@ -99,9 +156,6 @@ export default function GamePage() {
   
   // Add this to the existing game state variables
   const [isDraggingFromSidebar, setIsDraggingFromSidebar] = useState(false);
-  const [sidebarDraggedChar, setSidebarDraggedChar] = useState<string | null>(null);
-  
-  // Add these state variables to track mouse position
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   
   // Add state for tracking which elements are being hovered
@@ -110,14 +164,8 @@ export default function GamePage() {
   // Add a state to track connections between elements
   const [connections, setConnections] = useState<{from: string, to: string}[]>([]);
   
-  // Add state for tracking dark mode
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  
   // Add state for unlocked radicals
   const [sortedRadicals, setSortedRadicals] = useState<string[]>([]);
-  const [unlockedRadicalCount, setUnlockedRadicalCount] = useState<number>(10); // Start with 10
-  const [userKanjiCount, setUserKanjiCount] = useState<number>(0);
   
   // Add a debounce map to track recent discoveries
   const recentDiscoveries = new Map<string, number>();
@@ -132,14 +180,16 @@ export default function GamePage() {
   // Add this state declaration near the other useState hooks
   const [lastAddedElementId, setLastAddedElementId] = useState<string | null>(null);
   
-  // Connection status state
-  const [connectionStatus, setConnectionStatus] = useState({
-    connected: true,
-    message: '',
-    lastChecked: new Date()
-  });
-  const [isRetrying, setIsRetrying] = useState(false);
+  // Reference to the game area
+  const gameAreaRef = useRef<HTMLDivElement>(null);
   
+  // Drag offset for positioning elements
+  const dragOffset = { x: 0, y: 0 };
+  const setDragOffset = (offset: { x: number, y: number }) => {
+    dragOffset.x = offset.x;
+    dragOffset.y = offset.y;
+  };
+
   // Detect dark mode
   useEffect(() => {
     const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -204,7 +254,7 @@ export default function GamePage() {
   
   // Initialize the game with all available radicals
   useEffect(() => {
-    if (!kanjiData || loadingData) return;
+    if (!kanjiData || loadingGameData) return;
     
     // Get all basic radicals (those that appear as keys in radicalToKanji)
     const allRadicals = Object.keys(kanjiData.radicalToKanji);
@@ -223,7 +273,7 @@ export default function GamePage() {
     
     // Show tip on first load
     addNotification('Drag radicals into the workspace and combine them to discover kanji!', 'info');
-  }, [kanjiData, loadingData]);
+  }, [kanjiData, loadingGameData]);
 
   // Load saved kanji from localStorage when component mounts
   useEffect(() => {
@@ -283,96 +333,227 @@ export default function GamePage() {
     }, 5000);
   }, []);
 
-  // Extract fetchUserKanjiData to its own function so it can be reused
-  const fetchUserKanjiData = useCallback(async () => {
+  // Fetch user kanji data from Supabase
+  const fetchUserKanjiData = useCallback(async (forceRefresh = false) => {
+    // Skip if not logged in
     if (!user) {
-      console.log('No user, skipping fetch');
+      console.log('fetchUserKanjiData: No user logged in, skipping');
+      setIsLoadingUserKanji(false);
       return;
     }
-
+    
+    // Skip if already loaded and we're not forcing a refresh
+    if (supabaseKanji.length > 0 && !forceRefresh) {
+      console.log('fetchUserKanjiData: Already have kanji data and no force refresh, skipping');
+      return;
+    }
+    
+    console.log('fetchUserKanjiData: Fetching kanji data');
+    setIsLoadingUserKanji(true);
+    
     try {
-      console.log('Fetching user kanji data...');
+      // First, get the count of user's kanji to update the progress bar
+      console.log('Fetching kanji count for user ID:', user.id);
       
-      // Create a timeout promise to handle network issues
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Request timed out')), 15000)
-      );
+      // Parameters for the retry logic
+      const maxRetries = 3;
+      const timeout = 5000; // 5 second timeout
+      let retries = 0;
       
-      // First get the count of kanji
-      console.log('Querying user kanji count for user ID:', user.id);
-      const countPromise = supabase
-        .from('user_kanji')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+      let kanjiCount = 0;
+      let countError: SupabaseError | null = null;
       
-      // Race between the request and the timeout
-      const { count, error: countError } = await Promise.race([
-        countPromise,
-        timeoutPromise.then(() => { throw new Error('Timeout exceeded'); })
-      ]) as { count: number; error: SupabaseError | null };
-
-      if (countError) {
-        console.error('Error fetching user kanji count:', countError.message || JSON.stringify(countError));
-        if (countError.code === 'PGRST301') {
-          console.error('Authentication error - user may not be properly authenticated');
-          addNotification('Authentication error. Please try signing out and back in.', 'info');
-        } else {
-          addNotification('Error loading your kanji collection. Please try again later.', 'info');
+      // Retry loop for getting the kanji count
+      while (retries <= maxRetries && kanjiCount === 0 && !countError) {
+        try {
+          // Use a regular promise with AbortController for timeout handling
+          const abortController = new AbortController();
+          const timeoutId = setTimeout(() => abortController.abort('Timeout exceeded'), timeout);
+          
+          console.log(`Attempt ${retries + 1}/${maxRetries + 1} - Fetching kanji count...`);
+          
+          try {
+            // Execute the query directly
+            const { count, error } = await supabase
+              .from('user_kanji')
+              .select('*', { count: 'exact', head: true })
+              .eq('user_id', user.id);
+            
+            clearTimeout(timeoutId);
+            
+            if (error) {
+              console.error(`Attempt ${retries + 1}/${maxRetries + 1} - Error getting kanji count:`, error);
+              countError = error;
+              retries++;
+              
+              if (retries <= maxRetries) {
+                console.log(`Retrying count in ${retries * 1000}ms...`);
+                await new Promise(resolve => setTimeout(resolve, retries * 1000));
+              }
+            } else {
+              kanjiCount = count || 0;
+              console.log(`Successfully got kanji count: ${kanjiCount}`);
+            }
+          } catch (fetchError) {
+            clearTimeout(timeoutId);
+            
+            // Handle network errors
+            console.error(`Network error during kanji count fetch: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+            
+            // Check if we're offline
+            if (!navigator.onLine) {
+              console.log('Device appears to be offline. Will try to use cached data if available.');
+              
+              // If we're offline, try to use localStorage data as a fallback
+              try {
+                const savedKanji = localStorage.getItem('jijutsu_discovered_kanji');
+                if (savedKanji) {
+                  const parsedKanji = JSON.parse(savedKanji);
+                  if (Array.isArray(parsedKanji) && parsedKanji.length > 0) {
+                    console.log(`Using ${parsedKanji.length} kanji from localStorage as fallback`);
+                    setSupabaseKanji(parsedKanji);
+                    setUserKanjiCount(parsedKanji.length);
+                    setUnlockedRadicalCount(10 + Math.floor(parsedKanji.length / 10));
+                    setIsLoadingUserKanji(false);
+                    return;
+                  }
+                }
+              } catch (lsError) {
+                console.error('Error accessing localStorage:', lsError);
+              }
+            }
+            
+            retries++;
+            if (retries <= maxRetries) {
+              console.log(`Retrying count in ${retries * 1000}ms after network error...`);
+              await new Promise(resolve => setTimeout(resolve, retries * 1000));
+            } else {
+              countError = new Error(`Network error: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+            }
+          }
+        } catch (outerError) {
+          console.error(`Unexpected error in retry loop: ${outerError instanceof Error ? outerError.message : String(outerError)}`);
+          retries++;
+          if (retries <= maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, retries * 1000));
+          } else {
+            countError = new Error(`Unexpected error: ${outerError instanceof Error ? outerError.message : String(outerError)}`);
+          }
         }
+      }
+      
+      if (countError) {
+        console.error('Failed to get kanji count after all retries:', countError);
+        addNotification('Error loading your kanji collection. Please try again later.', 'info');
+        setIsLoadingUserKanji(false);
+        // Try to restart the connection in the background
+        restartSupabaseConnection();
         return;
       }
-
-      console.log(`Found ${count || 0} kanji records for user`);
       
-      // Set the user's kanji count
-      setUserKanjiCount(count || 0);
+      // Update the progress state
+      setUserKanjiCount(kanjiCount);
+      setUnlockedRadicalCount(10 + Math.floor(kanjiCount / 10));
+      console.log(`Updated user kanji count: ${kanjiCount}, unlocking ${10 + Math.floor(kanjiCount / 10)} radicals`);
       
-      // Calculate unlocked radicals: 10 base + 1 per 10 kanji created
-      const unlockedRadicals = 10 + Math.floor((count || 0) / 10);
-      setUnlockedRadicalCount(unlockedRadicals);
-      
-      // Add notification about unlocked radicals
-      if ((count || 0) > 0 && (count || 0) % 10 === 0) {
-        addNotification(`You've unlocked a new radical!`, 'success');
-      }
-
-      // If count is 0, we can skip the next query
-      if (count === 0) {
+      // If count is 0, we know the user has no kanji, so we can skip the second query
+      if (kanjiCount === 0) {
+        console.log('User has no kanji, skipping details query');
         setSupabaseKanji([]);
-        setDiscoveredKanji(new Set());
+        setIsLoadingUserKanji(false);
         return;
       }
 
-      // Then get the actual kanji characters
-      console.log('Fetching kanji details with query:', {
-        table: 'user_kanji',
-        select: 'kanji_id, kanji_dex:kanji_id(kanji)',
-        filter: { user_id: user.id }
-      });
+      // Then get the actual kanji characters - improved query to ensure we get proper data
+      console.log('Fetching kanji details for user ID:', user.id);
       
-      // Same timeout pattern for the second request
-      const kanjiPromise = supabase
-        .from('user_kanji')
-        .select(`
-          kanji_id,
-          kanji_dex:kanji_id(kanji)
-        `)
-        .eq('user_id', user.id);
+      // Reset retries for the second query
+      retries = 0;
+      let userKanjiData: UserKanjiResponse[] | null = null;
+      let kanjiError: SupabaseError | null = null;
+      
+      // Use the same retry pattern for fetching kanji details
+      while (retries <= maxRetries && userKanjiData === null && !kanjiError) {
+        try {
+          // Use a regular promise race with setTimeout for timeout handling
+          const abortController = new AbortController();
+          const timeoutId = setTimeout(() => abortController.abort(), timeout);
+          
+          console.log(`Attempt ${retries + 1}/${maxRetries + 1} - Fetching kanji details...`);
+          
+          try {
+            // Execute the query directly
+            const { data, error } = await supabase
+              .from('user_kanji')
+              .select(`
+                kanji_id,
+                kanji_dex!inner (
+                  id,
+                  dex_number,
+                  kanji,
+                  meanings
+                )
+              `)
+              .eq('user_id', user.id)
+              .returns<UserKanjiResponse[]>();
+            
+            clearTimeout(timeoutId);
+            
+            if (error) {
+              console.error(`Attempt ${retries + 1}/${maxRetries + 1} - Error fetching kanji details:`, error);
+              kanjiError = error;
+            } else {
+              userKanjiData = data;
+              console.log(`Successfully got kanji details for ${data?.length || 0} kanji`);
+            }
+          } catch (fetchError) {
+            clearTimeout(timeoutId);
+            
+            // Handle network errors
+            console.error(`Network error during kanji details fetch: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+            
+            // Check if we're offline (already handled in the first query)
+            if (!navigator.onLine) {
+              console.log('Device still appears to be offline, using kanji count only');
+              setIsLoadingUserKanji(false);
+              return;
+            }
+            
+            retries++;
+            if (retries <= maxRetries) {
+              console.log(`Retrying kanji details in ${retries * 1000}ms...`);
+              await new Promise(resolve => setTimeout(resolve, retries * 1000));
+            } else {
+              kanjiError = new Error(`Network error: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+            }
+          }
+        } catch (error) {
+          console.error(`Attempt ${retries + 1}/${maxRetries + 1} - Kanji details fetch error:`, error);
+          retries++;
+          if (retries <= maxRetries) {
+            console.log(`Retrying kanji details in ${retries * 1000}ms...`);
+            await new Promise(resolve => setTimeout(resolve, retries * 1000));
+          } else {
+            kanjiError = error as SupabaseError;
+          }
+        }
         
-      // Need to cast as unknown first due to type mismatch
-      const kanjiResponse = await Promise.race([
-        kanjiPromise,
-        timeoutPromise.then(() => { throw new Error('Timeout exceeded on kanji fetch'); })
-      ]) as unknown;
+        if (kanjiError) {
+          retries++;
+          if (retries <= maxRetries) {
+            console.log(`Retrying kanji details in ${retries * 1000}ms after error...`);
+            await new Promise(resolve => setTimeout(resolve, retries * 1000));
+            kanjiError = null; // Clear error to allow retry
+          }
+        }
+      }
       
-      const { data: userKanjiData, error: kanjiError } = kanjiResponse as { 
-        data: { kanji_id: string; kanji_dex: { kanji: string } | null }[]; 
-        error: SupabaseError | null 
-      };
-
       if (kanjiError) {
-        console.error('Error fetching user kanji:', kanjiError.message || JSON.stringify(kanjiError));
+        console.error('Error fetching user kanji after all retries:', kanjiError instanceof Error ? kanjiError.message : JSON.stringify(kanjiError));
         addNotification('Error loading your kanji details. Please try again later.', 'info');
+        setIsLoadingUserKanji(false);
+        // Try to restart the connection in the background
+        restartSupabaseConnection();
         return;
       }
 
@@ -380,74 +561,59 @@ export default function GamePage() {
       
       // Extract kanji characters from the nested JSON response
       if (userKanjiData && userKanjiData.length > 0) {
-        // Define a more specific type to handle the nested structure
-        interface KanjiDexResponse {
-          kanji_id: string;
-          kanji_dex: { kanji: string } | null;
-        }
-        
-        const typedData = userKanjiData as unknown as KanjiDexResponse[];
-        
-        const kanjiList = typedData
-          .map(item => {
-            if (!item.kanji_dex?.kanji) {
-              console.warn('Found kanji entry with missing kanji value:', item);
-            }
-            return item.kanji_dex?.kanji;
-          })
-          .filter(Boolean) as string[];
+        const kanjiList = userKanjiData
+          .filter(item => item.kanji_dex && item.kanji_dex.kanji)
+          .map(item => item.kanji_dex.kanji);
         
         console.log('Extracted kanji list:', kanjiList);
         
-        setSupabaseKanji(kanjiList);
-        
-        // Also update the local kanji set for compatibility
-        setDiscoveredKanji(new Set(kanjiList));
+        if (kanjiList.length === 0) {
+          console.warn('No valid kanji found in the response');
+          addNotification('Error processing your kanji collection. Please try again later.', 'info');
+        } else {
+          // Update the discovered kanji state
+          setSupabaseKanji(kanjiList);
+          console.log(`Updated supabaseKanji with ${kanjiList.length} kanji`);
+          
+          // Also update the discoveredKanji set for compatibility with the game logic
+          setDiscoveredKanji(new Set(kanjiList));
+        }
       } else {
-        // No kanji found, clear lists
-        console.log('No kanji data found for user, clearing lists');
+        console.log('No kanji data found for user');
         setSupabaseKanji([]);
-        setDiscoveredKanji(new Set());
       }
     } catch (error) {
-      // Added more detailed error handling with proper object stringification
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      const errorDetail = error instanceof Error ? JSON.stringify(error, Object.getOwnPropertyNames(error)) : JSON.stringify(error);
-      console.error(`Error fetching user kanji: ${errorMessage}`, error);
-      console.debug('Error details:', errorDetail);
-      
-      // Handle network errors specifically
-      if (error instanceof TypeError && errorMessage.includes('Failed to fetch')) {
-        console.error('Network error detected when fetching kanji data');
-        addNotification('Network error. Please check your internet connection and try again.', 'info');
-      } else {
-        addNotification('Error loading your kanji. Please try again later.', 'info');
-      }
+      console.error('Unexpected error in fetchUserKanjiData:', error);
+      addNotification('Error loading your kanji collection. Please try again later.', 'info');
+      // Try to restart the connection in the background
+      restartSupabaseConnection();
+    } finally {
+      setIsLoadingUserKanji(false);
     }
-  }, [user, addNotification]); // Add dependencies here
-
-  // Fetch user's kanji count and kanji list from Supabase when user changes
-  useEffect(() => {
-    // If logged out, we don't need to fetch anything
-    if (!user) {
-      setUserKanjiCount(0);
-      setSupabaseKanji([]); // Clear Supabase kanji when logging out
-      return;
-    }
-
-    // Fetch user's kanji count and kanji list from Supabase
-    fetchUserKanjiData();
-  }, [user, discoveredKanji.size, fetchUserKanjiData]); // Added fetchUserKanjiData as a dependency
+  }, [user, supabaseKanji.length, setSupabaseKanji, setUserKanjiCount, setUnlockedRadicalCount, setDiscoveredKanji, addNotification]);
 
   // Function to record kanji discovery in Supabase
   const recordKanjiDiscovery = useCallback(async (kanji: string) => {
-    if (!user) return; // Only record for authenticated users
+    console.log('----- KANJI DISCOVERY TRACE START -----');
+    console.log('Attempting to record kanji discovery for:', kanji);
+    console.log('User authenticated:', !!user);
+    console.log('User details:', user ? { id: user.id, email: user.email } : 'Not logged in');
+    
+    if (!user) {
+      console.log('No user logged in, aborting kanji discovery');
+      console.log('----- KANJI DISCOVERY TRACE END -----');
+      return; // Only record for authenticated users
+    }
     
     // Check if this kanji was recently discovered to prevent loops
     const lastDiscoveryTime = recentDiscoveries.get(kanji);
     const now = Date.now();
     if (lastDiscoveryTime && (now - lastDiscoveryTime) < DISCOVERY_COOLDOWN) {
       console.log('Skipping duplicate discovery attempt for:', kanji);
+      console.log('Last discovery time:', new Date(lastDiscoveryTime).toISOString());
+      console.log('Current time:', new Date(now).toISOString());
+      console.log('Cooldown period (ms):', DISCOVERY_COOLDOWN);
+      console.log('----- KANJI DISCOVERY TRACE END -----');
       return;
     }
     recentDiscoveries.set(kanji, now);
@@ -460,36 +626,36 @@ export default function GamePage() {
     }
 
     try {
-      console.log('Starting kanji discovery process for:', kanji);
+      console.log('Starting kanji discovery DB operations');
       console.log('User ID:', user.id);
       
-      // First check if user already has this kanji
+      // Improved: First check if user already has any kanji with this character
+      console.log('Checking if user already has discovered kanji');
       const { data: existingKanji, error: existingError } = await supabase
         .from('user_kanji')
         .select('kanji_id')
-        .eq('user_id', user.id)
-        .single();
+        .eq('user_id', user.id);
 
-      if (existingKanji) {
-        console.log('User already has this kanji:', kanji);
-        return;
-      }
-
-      if (existingError && existingError.code !== 'PGRST116') {  // PGRST116 means no rows returned
+      if (existingError) {
         console.error('Error checking existing kanji:', existingError);
+        console.log('----- KANJI DISCOVERY TRACE END -----');
         return;
       }
       
+      console.log('Existing kanji for user:', existingKanji);
+      
       // Get the kanji_id from kanji_dex table
+      console.log('Searching for kanji in dex:', kanji);
       const { data: kanjiData, error: kanjiError } = await supabase
         .from('kanji_dex')
         .select('id, kanji, dex_number, meanings')
-        .eq('kanji', kanji)
-        .single();
-
+        .eq('kanji', kanji);
+      
+      // Log more details for debugging
       console.log('Kanji lookup query result:', {
         kanji: kanji,
-        data: kanjiData,
+        dataReceived: kanjiData,
+        dataLength: kanjiData?.length,
         error: kanjiError ? {
           message: kanjiError.message,
           code: kanjiError.code,
@@ -499,116 +665,235 @@ export default function GamePage() {
 
       if (kanjiError) {
         console.error('Error finding kanji in dex:', kanjiError);
+        addNotification(`Error finding kanji "${kanji}" in our database.`, 'info');
+        console.log('----- KANJI DISCOVERY TRACE END -----');
         return;
       }
 
-      if (!kanjiData?.id) {
-        console.error('Kanji not found in dex. Details:', {
+      // Check if we got any matching kanji
+      if (!kanjiData || kanjiData.length === 0) {
+        console.error('Kanji not found in dex:', kanji);
+        addNotification(`Kanji "${kanji}" not found in our database.`, 'info');
+        console.log('----- KANJI DISCOVERY TRACE END -----');
+        return;
+      }
+
+      // Get the first matching kanji (should be only one)
+      const kanjiRecord = kanjiData[0];
+      
+      if (!kanjiRecord?.id) {
+        console.error('Kanji record missing ID. Details:', {
           searchedKanji: kanji,
-          receivedData: kanjiData,
-          dexNumber: kanjiData?.dex_number,
-          meanings: kanjiData?.meanings
+          receivedData: kanjiRecord
         });
+        console.log('----- KANJI DISCOVERY TRACE END -----');
         return;
       }
 
       console.log('Found kanji in dex:', {
-        id: kanjiData.id,
-        kanji: kanjiData.kanji,
-        dexNumber: kanjiData.dex_number,
-        meanings: kanjiData.meanings
+        id: kanjiRecord.id,
+        kanji: kanjiRecord.kanji,
+        dexNumber: kanjiRecord.dex_number,
+        meanings: kanjiRecord.meanings
       });
 
+      // Check if this kanji is already in the user's collection
+      const isAlreadyDiscovered = existingKanji?.some(
+        entry => entry.kanji_id === kanjiRecord.id
+      );
+      
+      console.log('Is kanji already discovered by user:', isAlreadyDiscovered);
+      
+      if (isAlreadyDiscovered) {
+        console.log('User already has this kanji, aborting insert');
+        console.log('----- KANJI DISCOVERY TRACE END -----');
+        return;
+      }
+
       // Insert into user_kanji table
+      console.log('Inserting new kanji discovery into user_kanji table');
+      console.log('Insert data:', {
+        user_id: user.id,
+        kanji_id: kanjiRecord.id
+      });
+      
       const { data: insertData, error: insertError } = await supabase
         .from('user_kanji')
         .insert([{
           user_id: user.id,
-          kanji_id: kanjiData.id
+          kanji_id: kanjiRecord.id
         }])
         .select();
 
       if (insertError) {
         // If it's a duplicate, that's fine - user already discovered this kanji
         if (insertError.code === '23505') { // Postgres unique violation code
-          console.log('Kanji already discovered by user:', {
+          console.log('Kanji already discovered by user (constraint violation):', {
             userId: user.id,
-            kanjiId: kanjiData.id
+            kanjiId: kanjiRecord.id,
+            error: insertError
           });
+          console.log('----- KANJI DISCOVERY TRACE END -----');
           return;
         }
         console.error('Error recording kanji discovery:', {
           error: insertError,
           userId: user.id,
-          kanjiId: kanjiData.id
+          kanjiId: kanjiRecord.id
         });
+        console.log('----- KANJI DISCOVERY TRACE END -----');
         return;
       }
 
       console.log('Successfully recorded kanji discovery:', {
         userId: user.id,
-        kanjiId: kanjiData.id,
+        kanjiId: kanjiRecord.id,
         insertedData: insertData
       });
 
       // Successfully recorded kanji, update count and kanji list
       setUserKanjiCount(prev => {
         const newCount = prev + 1;
+        console.log('Updated user kanji count:', newCount);
         // Check if this unlocks a new radical
         if (newCount % 10 === 0) {
           // Increment the unlocked radical count
-          setUnlockedRadicalCount(10 + Math.floor(newCount / 10));
+          const newRadicalCount = 10 + Math.floor(newCount / 10);
+          console.log('Unlocked new radical, new count:', newRadicalCount);
+          setUnlockedRadicalCount(newRadicalCount);
           addNotification(`You've unlocked a new radical!`, 'success');
         }
         return newCount;
       });
 
-        // Add the new kanji to the Supabase kanji list
-        setSupabaseKanji(prev => [...prev, kanji]);
-        // Also update the local kanji set for compatibility
-        setDiscoveredKanji(prev => new Set([...prev, kanji]));
-
+      // Add the new kanji to the Supabase kanji list
+      setSupabaseKanji(prev => {
+        const newList = [...prev, kanji];
+        console.log('Updated supabaseKanji list to:', newList);
+        return newList;
+      });
+      
+      // Also update the local kanji set for compatibility
+      setDiscoveredKanji(prev => {
+        const newSet = new Set([...prev, kanji]);
+        console.log('Updated discoveredKanji set to:', Array.from(newSet));
+        return newSet;
+      });
+      
+      // After successfully saving to database, trigger a refresh of user kanji data
+      fetchUserKanjiData(true);
+      
+      console.log('----- KANJI DISCOVERY TRACE END -----');
     } catch (error) {
       console.error('Unexpected error in recordKanjiDiscovery:', error);
+      addNotification('Error recording your kanji discovery. Please try again.', 'info');
+      console.log('----- KANJI DISCOVERY TRACE END -----');
     }
-  }, [user, addNotification]);
+  }, [user, addNotification, fetchUserKanjiData, hasSyncedKanji]);
+  
+  // Fetch user's kanji count and kanji list from Supabase when user changes
+  useEffect(() => {
+    // If logged out, we don't need to fetch anything
+    if (!user) {
+      setUserKanjiCount(0);
+      setSupabaseKanji([]); // Clear Supabase kanji when logging out
+      return;
+    }
+
+    // Fetch user's kanji count and kanji list from Supabase
+    fetchUserKanjiData();
+  }, [user, fetchUserKanjiData]); // Added fetchUserKanjiData as a dependency
 
   // Check if user is authenticated on component mount
   useEffect(() => {
     const checkUser = async () => {
+      console.log('----- AUTH CHECK TRACE START -----');
       setIsLoading(true);
       try {
         // Get current session
-        const { data: { session } } = await supabase.auth.getSession();
-        setUser(session?.user || null);
+        console.log('Getting current auth session...');
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        // Set up auth state change listener
-        const { data: { subscription } } = await supabase.auth.onAuthStateChange(
-          (_event, session) => {
-            const previousUser = user;
-            const currentUser = session?.user || null;
-            
-            // If user just signed in (previously null, now has value)
-            if (!previousUser && currentUser) {
-              syncLocalKanjiToDatabase(currentUser);
-            }
-            
-            setUser(currentUser);
-          }
-        );
+        if (sessionError) {
+          console.error('Error getting auth session:', sessionError);
+          console.log('----- AUTH CHECK TRACE END -----');
+          setIsLoading(false);
+          return;
+        }
         
-        return () => {
-          subscription?.unsubscribe();
-        };
+        console.log('Auth session result:', session ? 'Session found' : 'No session');
+        if (session?.user) {
+          console.log('User authenticated:', {
+            id: session.user.id,
+            email: session.user.email,
+            lastSignIn: new Date(session.user.last_sign_in_at || '').toISOString()
+          });
+          
+          // Set user before calling any dependent functions
+          setUser(session.user);
+          setHasSyncedKanji(false); // Reset sync flag to ensure we sync on sign-in
+        } else {
+          setUser(null);
+        }
+        
+        console.log('----- AUTH CHECK TRACE END -----');
       } catch (error) {
-        console.error('Error checking auth state:', error);
+        console.error('Error in checkUser:', error);
+        console.log('----- AUTH CHECK TRACE END -----');
       } finally {
         setIsLoading(false);
       }
     };
 
     checkUser();
-  }, []);
+  }, []); // Run only once on component mount, not when user changes
+
+  // Keep only one auth listener to avoid duplicates
+  useEffect(() => {
+    console.log('Setting up auth state listener...');
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event);
+        console.log('New session:', session ? 'Session exists' : 'No session');
+        
+        const previousUser = user;
+        const currentUser = session?.user || null;
+        
+        console.log('Previous user:', previousUser ? `ID: ${previousUser.id}` : 'null');
+        console.log('Current user:', currentUser ? `ID: ${currentUser.id}` : 'null');
+        
+        // If user just signed in (previously null, now has value)
+        if (!previousUser && currentUser) {
+          console.log('User signed in - updating state');
+          setUser(currentUser);
+          setHasSyncedKanji(false); // Reset sync flag to ensure we sync
+          await fetchUserKanjiData(true); // Force refresh
+        } 
+        // If user just signed out (previously had value, now null)
+        else if (previousUser && !currentUser) {
+          console.log('User signed out - clearing state');
+          setUser(null);
+          setDiscoveredKanji(new Set());
+          setSupabaseKanji([]);
+          setUserKanjiCount(0);
+          setHasSyncedKanji(false);
+        } 
+        // User changed - update user
+        else if (previousUser?.id !== currentUser?.id) {
+          console.log('Different user signed in - updating state');
+          setUser(currentUser);
+          setHasSyncedKanji(false); // Reset sync flag for new user
+          await fetchUserKanjiData(true); // Force refresh
+        }
+      }
+    );
+    
+    return () => {
+      console.log('Cleaning up auth listener');
+      subscription.unsubscribe();
+    };
+  }, [recordKanjiDiscovery, addNotification, fetchUserKanjiData, hasSyncedKanji]);
 
   // Add this new handler for starting drags from the sidebar
   const handleSidebarDragStart = (radical: string, clientX: number, clientY: number, elementRect: DOMRect) => {
@@ -804,7 +1089,7 @@ export default function GamePage() {
                   
                   // Add the kanji as a new element in the workspace
                   const newKanjiElement: GameElement = {
-                    id: `kanji-${Date.now()}-${kanji}`,
+                    id: generateUniqueId('kanji', kanji),
                     type: 'kanji',
                     char: kanji,
                     position: {
@@ -865,7 +1150,7 @@ export default function GamePage() {
           const boundedY = Math.max(0, Math.min(relativeY, gameRect.height - elementHeight));
           
           // Create the new element
-          const newId = `element-${Date.now()}-${sidebarDraggedChar}-${Math.random().toString(36).substr(2, 9)}`;
+          const newId = generateUniqueId('element', sidebarDraggedChar);
           
           const newElement: GameElement = {
             id: newId,
@@ -887,7 +1172,7 @@ export default function GamePage() {
       
       // Reset sidebar drag state
       setIsDraggingFromSidebar(false);
-      setSidebarDraggedChar(null);
+      setSidebarDraggedChar('');
       setIsOverTrash(false);
     } 
     // Handle the case for regular dragged elements
@@ -933,7 +1218,7 @@ export default function GamePage() {
     const boundedY = Math.max(0, Math.min(relativeY, gameRect.height - elementHeight));
     
     // Create new element ID with randomness to ensure uniqueness
-    const newId = `element-${Date.now()}-${radical}-${Math.random().toString(36).substr(2, 9)}`;
+    const newId = generateUniqueId('element', radical);
     
     // Add new element to game
     const newElement: GameElement = {
@@ -1084,12 +1369,23 @@ export default function GamePage() {
         lastChecked: new Date()
       });
     }
-  }, [connectionStatus, addNotification]);
+  }, [connectionStatus.lastChecked, connectionStatus.connected, addNotification]);
 
-  // Add health check effect
+  // Add health check effect - TEMPORARILY DISABLED to fix infinite loop
+  /*
   useEffect(() => {
+    // Run an initial health check
     runHealthCheck();
-  }, [runHealthCheck]); // Run only when runHealthCheck changes
+    
+    // Set up an interval to run health checks periodically (every 30 seconds)
+    const intervalId = setInterval(() => {
+      runHealthCheck();
+    }, 30000); // 30 seconds
+    
+    // Clean up the interval when the component unmounts
+    return () => clearInterval(intervalId);
+  }, [runHealthCheck]);
+  */
 
   // Find all elements connected in a cluster using breadth-first search
   const findConnectedElements = (startId: string, elements: GameElement[]): Set<string> => {
@@ -1119,37 +1415,58 @@ export default function GamePage() {
   };
 
   // Function to sync localStorage kanji to database when user signs in
-  const syncLocalKanjiToDatabase = useCallback(async (currentUser: UserAuth) => {
-    if (!currentUser) {
-      console.error('No user provided to syncLocalKanjiToDatabase');
-      return;
-    }
-    
-    if (discoveredKanji.size === 0) {
-      console.log('No local kanji to sync to database');
+  const syncLocalKanjiToDatabase = useCallback(async (userId: string) => {
+    if (hasSyncedKanji) {
+      console.log('Already synced kanji, skipping');
       return;
     }
     
     try {
-      console.log(`Syncing ${discoveredKanji.size} kanji from localStorage to database for user ${currentUser.id}`);
-      addNotification(`Syncing ${discoveredKanji.size} kanji to your account...`, 'info');
-      
-      // Convert the Set to an array
-      const kanjiArray = Array.from(discoveredKanji);
-      
-      // Record each kanji to the database
-      for (const kanji of kanjiArray) {
-        await recordKanjiDiscovery(kanji);
+      // Get kanji from localStorage
+      const savedKanji = localStorage.getItem('jijutsu_discovered_kanji');
+      if (!savedKanji) {
+        console.log('No local kanji to sync to database');
+        return;
       }
+
+      const localKanji = JSON.parse(savedKanji);
+      if (!Array.isArray(localKanji) || localKanji.length === 0) {
+        console.log('No local kanji to sync (empty array)');
+        return;
+      }
+
+      console.log(`Syncing ${localKanji.length} kanji from localStorage to database for user ${userId}`);
+      console.log('Kanji to sync:', localKanji);
+
+      // For each kanji in localStorage, add it to the user's account
+      for (const kanji of localKanji) {
+        await recordKanjiDiscovery(kanji);
+        // Add notification for each synced kanji
+        addNotification(`Syncing 1 kanji to your account...`, 'success');
+      }
+
+      // Clear localStorage after successful sync
+      localStorage.removeItem('jijutsu_discovered_kanji');
       
-      addNotification(`Successfully synced ${kanjiArray.length} kanji to your account!`, 'success');
+      // Force refresh user kanji data
+      await fetchUserKanjiData();
       
+      // Mark as synced
+      setHasSyncedKanji(true);
+      
+      console.log('Sync completed successfully');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      addNotification('Error syncing your kanji collection.', 'info');
-      console.error('Error syncing localStorage kanji to database:', errorMessage, error);
+      console.error('Error syncing local kanji to database:', error);
     }
-  }, [discoveredKanji, addNotification, recordKanjiDiscovery]);
+  }, [recordKanjiDiscovery, addNotification, fetchUserKanjiData, hasSyncedKanji]);
+
+  // Keep this effect to handle loading kanji data when user changes
+  useEffect(() => {
+    if (user?.id) {
+      // When user changes, fetch their kanji data
+      fetchUserKanjiData();
+    }
+  }, [user, fetchUserKanjiData]);
 
   // Add a function to fetch kanji details from Supabase
   const fetchKanjiDetails = useCallback(async (kanji: string) => {
@@ -1229,76 +1546,91 @@ export default function GamePage() {
   // Fetch user data and kanji on initial load and auth state change
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const checkAuth = async () => {
+    // Initial check on mount - just get the session once
+    const initialCheck = async () => {
       try {
+        console.log('Performing initial auth check...');
         const { data: { session } } = await supabase.auth.getSession();
         setUser(session?.user || null);
         
         if (session?.user) {
+          console.log('User found in initial check, fetching kanji data...');
           await fetchUserKanjiData();
-        } else {
-          // Load saved kanji from localStorage for non-logged in users
-          // loadSavedKanji(); - removing this call as function doesn't exist
         }
 
         setIsLoading(false);
-
       } catch (error) {
-        console.error('Error checking auth state:', error);
+        console.error('Error in initial auth check:', error);
         setIsLoading(false);
       }
     };
 
-    checkAuth();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.id);
-        setUser(session?.user || null);
-        
-        if (session?.user) {
-          await fetchUserKanjiData();
-        } else {
-          // Clear kanji data when user logs out
-          setDiscoveredKanji(new Set());
-          setUnlockedRadicalCount(10);
-          // loadSavedKanji(); - removing this call as function doesn't exist
-        }
-      }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [fetchUserKanjiData]); // Added fetchUserKanjiData as a dependency
-
-  // Sync kanji to database when user logs in
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (user && discoveredKanji.size > 0) {
-      console.log('User signed in with local kanji, syncing to database...');
-      syncLocalKanjiToDatabase(user);
-    }
-  }, [discoveredKanji, user, syncLocalKanjiToDatabase]);
+    initialCheck();
+    
+    // We don't setup auth listeners here anymore - it's done in the dedicated effect
+  }, [fetchUserKanjiData]); // Only depend on fetchUserKanjiData
 
   // Define findPossibleKanji function with useCallback
   const findPossibleKanji = useCallback((chars: string[], kanjiData: KanjiRadicalsData): string[] => {
     if (!chars.length || !kanjiData) return [];
     
-    // Implementation details...
-    return []; // Placeholder return
+    console.log('Finding possible kanji for radicals:', chars);
+    
+    // Check which kanji can be formed with these radicals
+    const possibleKanjiList: string[] = [];
+    
+    // Go through the kanji in our data
+    Object.entries(kanjiData.kanjiToRadicals).forEach(([kanji, requiredRadicals]) => {
+      // Check if all required radicals for this kanji are in our set
+      const hasAllRadicals = requiredRadicals.every(radical => chars.includes(radical));
+      
+      // Also make sure we have exactly the required radicals (no extras)
+      const hasExactRadicals = requiredRadicals.length === chars.length && 
+        chars.every(radical => requiredRadicals.includes(radical));
+      
+      if (hasAllRadicals && hasExactRadicals) {
+        possibleKanjiList.push(kanji);
+        console.log(`Found matching kanji: ${kanji} with radicals:`, requiredRadicals);
+      }
+    });
+    
+    return possibleKanjiList;
   }, []);
 
   // Define handleRetryConnection function
   const handleRetryConnection = async () => {
     setIsRetrying(true);
     try {
-      // Implementation details...
-      console.error('Retry connection implementation needed');
+      console.log('Attempting to retry connection...');
+      
+      // Try to run a health check
+      const result = await checkSupabaseHealth();
+      
+      if (result.success) {
+        console.log('Connection restored successfully!');
+        setConnectionStatus({
+          connected: true,
+          lastChecked: new Date(),
+          message: 'Connection re-established'
+        });
+        addNotification('Connection restored successfully!', 'success');
+      } else {
+        console.error('Failed to restore connection', result);
+        setConnectionStatus({
+          connected: false,
+          lastChecked: new Date(),
+          message: result.message || 'Failed to connect'
+        });
+        addNotification('Failed to restore connection. Please try again.', 'info');
+      }
     } catch (error) {
-      // Error handling...
       console.error('Error during retry:', error);
+      setConnectionStatus({
+        connected: false,
+        lastChecked: new Date(),
+        message: error instanceof Error ? error.message : 'Error during retry'
+      });
+      addNotification('Error while trying to reconnect. Please try again.', 'info');
     } finally {
       setIsRetrying(false);
     }
@@ -1320,24 +1652,126 @@ export default function GamePage() {
 
   // Define handleOpenAuth function
   const handleOpenAuth = (mode: 'signin' | 'signup') => {
-    // Implementation details...
     console.log(`Opening auth mode: ${mode}`);
+    if (mode === 'signin') {
+      setIsSignInOpen(true);
+      setIsSignUpOpen(false);
+    } else {
+      setIsSignUpOpen(true);
+      setIsSignInOpen(false);
+    }
+    setAuthMode(mode);
   };
 
   // Define handleAuthSuccess function
   const handleAuthSuccess = () => {
-    // Implementation details...
+    console.log('Auth success callback triggered');
+    setIsSignInOpen(false);
+    setIsSignUpOpen(false);
+    
+    // Reset the sync flag to force syncing local data to db
+    setHasSyncedKanji(false);
+    
+    // Get the current session after successful auth
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      console.log('Getting session after auth success:', session ? 'Session found' : 'No session');
+      
+      if (error) {
+        console.error('Error getting session after auth:', error);
+        return;
+      }
+      
+      if (session?.user) {
+        console.log('User authenticated after success:', session.user);
+        setUser(session.user);
+        // Don't call fetchUserKanjiData directly here
+        // The useEffect with the user dependency will handle that
+      }
+    });
   };
-
-  // Define sidebarRadicals
-  const sidebarRadicals = [{ char: '木' }, { char: '火' }, { char: '水' }]; // Example radicals
 
   // Define resetProgress function
   const resetProgress = () => {
-    console.log('Reset progress implementation needed');
+    if (!user) {
+      console.log('No user signed in, nothing to reset');
+      addNotification('Please sign in to reset your progress.', 'info');
+      return;
+    }
+    
+    // Ask for confirmation
+    if (!window.confirm('Are you sure you want to reset your progress? This will delete all your discovered kanji.')) {
+      return;
+    }
+    
+    (async () => {
+      try {
+        console.log('Resetting user progress...');
+        addNotification('Resetting your progress...', 'info');
+        
+        // Delete all user's kanji from user_kanji table
+        const { error } = await supabase
+          .from('user_kanji')
+          .delete()
+          .eq('user_id', user.id);
+          
+        if (error) {
+          console.error('Error resetting progress:', error);
+          addNotification('Failed to reset your progress. Please try again later.', 'info');
+          return;
+        }
+        
+        // Reset local state
+        setDiscoveredKanji(new Set());
+        setSupabaseKanji([]);
+        setUserKanjiCount(0);
+        setUnlockedRadicalCount(10); // Reset to initial value
+        
+        // Clear game area
+        clearGameArea();
+        
+        console.log('Successfully reset user progress');
+        addNotification('Your progress has been reset!', 'success');
+      } catch (error) {
+        console.error('Error in reset progress:', error);
+        addNotification('Failed to reset your progress. Please try again later.', 'info');
+      }
+    })();
   };
 
+  // Add this function near the top of your component, below other state declarations
+  const generateUniqueId = useCallback((prefix: string, kanji: string) => {
+    return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${kanji}`;
+  }, []);
+
+  // Update useEffect to check loadingData state
+  useEffect(() => {
+    console.log('Kanji data loading status:', loadingGameData);
+    console.log('Is useKanjiRadicals data loaded:', kanjiData !== null);
+    
+    // Set loadingData based on kanjiData and loadingGameData
+    if (!loadingGameData && kanjiData) {
+      console.log('Setting loadingData to false, kanji data is loaded');
+      setLoadingData(false);
+    }
+  }, [loadingGameData, kanjiData]);
+
+  // Calculate sidebarRadicals based on unlocked radical count
+  const sidebarRadicals = useMemo(() => {
+    // Make sure we have sorted radicals data before calculating
+    if (!sortedRadicals || sortedRadicals.length === 0) {
+      return [];
+    }
+    
+    // Take the first unlockedRadicalCount radicals from the sorted list
+    // and convert them to the format expected by the UI
+    return sortedRadicals
+      .slice(0, unlockedRadicalCount)
+      .filter(radical => kanjiData?.radicalToKanji[radical]) // Ensure radical exists in data
+      .map(radical => ({ char: radical }));
+  }, [sortedRadicals, unlockedRadicalCount, kanjiData]);
+
   if (loadingData) {
+    console.log('Rendering loading screen, loadingData =', loadingData);
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F2E8DC] dark:bg-[#38332E]">
         <GameNav />
@@ -1348,7 +1782,6 @@ export default function GamePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F2E8DC] dark:bg-[#38332E]">
-      <AuthStateListener />
       <GameNav />
       
       {/* Connection status indicator */}
@@ -1665,9 +2098,28 @@ export default function GamePage() {
               </Button>
             ) : (
               <>
-                <Dialog open={isSignInOpen} onOpenChange={setIsSignInOpen}>
+                {/* Sign In Dialog */}
+                <Dialog 
+                  open={isSignInOpen} 
+                  onOpenChange={(open) => {
+                    console.log('Sign In dialog onOpenChange:', open);
+                    // If we're closing this dialog via the X button, 
+                    // make sure we're not opening the other one
+                    if (!open) {
+                      setIsSignInOpen(false);
+                    }
+                  }}
+                >
                   <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" onClick={() => handleOpenAuth('signin')}>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => {
+                        console.log('Sign In button clicked');
+                        setIsSignInOpen(true);
+                        setIsSignUpOpen(false);
+                      }}
+                    >
                       Sign in
                     </Button>
                   </DialogTrigger>
@@ -1677,16 +2129,39 @@ export default function GamePage() {
                     </DialogHeader>
                     <div className="py-4 text-white dark:text-black">
                       <SignInForm 
-                        onSwitchToSignUp={() => handleOpenAuth('signup')}
+                        onSwitchToSignUp={() => {
+                          console.log('Switching from sign in to sign up');
+                          setIsSignInOpen(false);
+                          setTimeout(() => setIsSignUpOpen(true), 50);
+                        }}
                         onSuccess={handleAuthSuccess}
                       />
                     </div>
                   </DialogContent>
                 </Dialog>
 
-                <Dialog open={isSignUpOpen} onOpenChange={setIsSignUpOpen}>
+                {/* Sign Up Dialog */}
+                <Dialog 
+                  open={isSignUpOpen} 
+                  onOpenChange={(open) => {
+                    console.log('Sign Up dialog onOpenChange:', open);
+                    // If we're closing this dialog via the X button, 
+                    // make sure we're not opening the other one
+                    if (!open) {
+                      setIsSignUpOpen(false);
+                    }
+                  }}
+                >
                   <DialogTrigger asChild>
-                    <Button variant="default" size="sm" onClick={() => handleOpenAuth('signup')}>
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      onClick={() => {
+                        console.log('Sign Up button clicked');
+                        setIsSignUpOpen(true);
+                        setIsSignInOpen(false);
+                      }}
+                    >
                       Sign up
                     </Button>
                   </DialogTrigger>
@@ -1825,21 +2300,26 @@ export default function GamePage() {
             
             {/* Progress bar for unlocking the next radical */}
             {user && (
-              <div className="mt-2 mb-3">
-                <div className="w-full bg-stone-200 dark:bg-stone-700 rounded-full h-2 overflow-hidden">
-                  <div 
-                    className="bg-[#78B693] h-full rounded-full transition-all duration-300 ease-out"
-                    style={{ 
-                      width: `${(userKanjiCount % 10) * 10}%`,
-                      minWidth: userKanjiCount > 0 ? '5%' : '0%'
-                    }}
-                  />
-                </div>
-                <div className="flex justify-between mt-1 text-xs text-stone-500 dark:text-stone-400">
-                  <span>{10 - (userKanjiCount % 10)} until next radical</span>
-                  <span>{sidebarRadicals.length} of {sortedRadicals.length} radicals</span>
-                </div>
-              </div>
+              (() => {
+                console.log('Progress bar rendering with userKanjiCount:', userKanjiCount, 'percent:', (userKanjiCount % 10) * 10);
+                return (
+                  <div className="mt-2 mb-3">
+                    <div className="w-full bg-stone-200 dark:bg-stone-700 rounded-full h-2 overflow-hidden">
+                      <div 
+                        className="bg-[#78B693] h-full rounded-full transition-all duration-300 ease-out"
+                        style={{ 
+                          width: `${(userKanjiCount % 10) * 10}%`,
+                          minWidth: userKanjiCount > 0 ? '5%' : '0%'
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-between mt-1 text-xs text-stone-500 dark:text-stone-400">
+                      <span>{10 - (userKanjiCount % 10)} until next radical</span>
+                      <span>{sidebarRadicals.length} of {sortedRadicals.length} radicals</span>
+                    </div>
+                  </div>
+                );
+              })()
             )}
             
             {/* Unlocked radicals grid */}
