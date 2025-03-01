@@ -1178,9 +1178,17 @@ export default function GamePage() {
         // For logged in users, delete all kanji from Supabase
         const deleteUserKanji = async () => {
           try {
-            const { error } = await supabase
+            // Ensure we're only deleting the current user's data
+            if (!user.id) {
+              console.error('User ID is missing');
+              addNotification('Failed to reset progress: User ID is missing', 'info');
+              return;
+            }
+
+            // Use the auth.uid() from RLS policies by using the authenticated client
+            const { error, count } = await supabase
               .from('user_kanji')
-              .delete()
+              .delete({ count: 'exact' }) // Get count of deleted rows
               .eq('user_id', user.id);
             
             if (error) {
@@ -1193,7 +1201,8 @@ export default function GamePage() {
             setUserKanjiCount(0);
             setSupabaseKanji([]);
             setUnlockedRadicalCount(10); // Reset to default 10 radicals
-            addNotification('Progress has been reset', 'info');
+            clearGameArea(); // Clear the game area too
+            addNotification(`Progress has been reset. ${count || 'All'} kanji removed.`, 'info');
           } catch (error) {
             console.error('Error in deleteUserKanji:', error);
             addNotification('Failed to reset progress', 'info');
