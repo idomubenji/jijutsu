@@ -1180,32 +1180,54 @@ export default function GamePage() {
           try {
             // Ensure we're only deleting the current user's data
             if (!user.id) {
-              console.error('User ID is missing');
+              console.error('Error: User ID is missing');
               addNotification('Failed to reset progress: User ID is missing', 'info');
               return;
             }
 
-            // Use the auth.uid() from RLS policies by using the authenticated client
-            const { error, count } = await supabase
-              .from('user_kanji')
-              .delete({ count: 'exact' }) // Get count of deleted rows
-              .eq('user_id', user.id);
+            console.log('Attempting to delete kanji for user ID:', user.id);
             
-            if (error) {
-              console.error('Error deleting user kanji:', error);
-              addNotification('Failed to reset progress', 'info');
+            // First, check if we can read the user's kanji to verify auth is working
+            const { data: userKanji, error: readError } = await supabase
+              .from('user_kanji')
+              .select('*')
+              .eq('user_id', user.id);
+              
+            if (readError) {
+              console.error('Error reading user kanji before deletion:', readError);
+              addNotification('Failed to reset: Cannot read user data', 'info');
               return;
             }
+            
+            console.log(`Found ${userKanji?.length || 0} kanji records for user`);
+            
+            // Now attempt to delete the records
+            const { error: deleteError, count } = await supabase
+              .from('user_kanji')
+              .delete({ count: 'exact' })
+              .eq('user_id', user.id);
+            
+            if (deleteError) {
+              console.error('Error deleting user kanji:', deleteError);
+              // Show more detailed error message
+              const errorMessage = deleteError.message || 'Unknown error';
+              addNotification(`Failed to reset progress: ${errorMessage}`, 'info');
+              return;
+            }
+            
+            console.log(`Successfully deleted ${count || 0} kanji records`);
             
             // Reset counts and lists
             setUserKanjiCount(0);
             setSupabaseKanji([]);
             setUnlockedRadicalCount(10); // Reset to default 10 radicals
             clearGameArea(); // Clear the game area too
-            addNotification(`Progress has been reset. ${count || 'All'} kanji removed.`, 'info');
+            addNotification(`Progress has been reset. ${count || 0} kanji removed.`, 'info');
           } catch (error) {
-            console.error('Error in deleteUserKanji:', error);
-            addNotification('Failed to reset progress', 'info');
+            // More detailed error logging
+            console.error('Unexpected error in deleteUserKanji:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            addNotification(`Failed to reset progress: ${errorMessage}`, 'info');
           }
         };
         

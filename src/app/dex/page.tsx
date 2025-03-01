@@ -385,7 +385,7 @@ export default function DexPage() {
           />
         </div>
         
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-auto h-[calc(100vh-10rem)] p-6 order-2 lg:order-2 w-full lg:w-[80%]">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg h-[calc(100vh-10rem)] p-6 order-2 lg:order-2 w-full lg:w-[80%] overflow-hidden flex flex-col">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-bold">漢字図鑑</h2>
             <div className="flex items-center gap-2">
@@ -406,13 +406,15 @@ export default function DexPage() {
               />
             </div>
           </div>
-          <DexGrid 
-            title="" 
-            totalItems={showOnlyUnlocked ? unlockedKanjiItems.length : 6355} 
-            unlockedItems={unlockedKanjiItems}
-            onItemClick={handleKanjiClick}
-            showOnlyUnlocked={showOnlyUnlocked}
-          />
+          <div className="flex-1 overflow-hidden">
+            <DexGrid 
+              title="" 
+              totalItems={showOnlyUnlocked ? unlockedKanjiItems.length : 6355} 
+              unlockedItems={unlockedKanjiItems}
+              onItemClick={handleKanjiClick}
+              showOnlyUnlocked={showOnlyUnlocked}
+            />
+          </div>
         </div>
       </div>
     </div>
