@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 // Import sorted radicals
 import sortedRadicals from '@/../../sorted-radicals.json';
 
@@ -45,6 +46,15 @@ interface UserKanjiResponse {
   };
 }
 
+interface KanjiDetails {
+  id: string;
+  kanji: string;
+  dex_number: number;
+  meanings: string[];
+  on_reading?: string[];
+  kun_reading?: string[];
+}
+
 export default function DexPage() {
   const [kanjiData, setKanjiData] = useState<KanjiData[]>([]);
   const [radicalData, setRadicalData] = useState<RadicalData[]>([]);
@@ -55,6 +65,12 @@ export default function DexPage() {
   const [user, setUser] = useState<any>(null);
   const [showOnlyUnlocked, setShowOnlyUnlocked] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
+  
+  // Add state for kanji details dialog
+  const [selectedKanji, setSelectedKanji] = useState<string | null>(null);
+  const [kanjiDetails, setKanjiDetails] = useState<KanjiDetails | null>(null);
+  const [isKanjiDetailsOpen, setIsKanjiDetailsOpen] = useState(false);
+  const [loadingKanjiDetails, setLoadingKanjiDetails] = useState(false);
 
   // Convert unlocked numbers to DexItems with kanji data
   const unlockedKanjiItems = useMemo<DexItem[]>(() => {
@@ -326,14 +342,43 @@ export default function DexPage() {
     }
   }, [unlockedRadicalCount, radicalData]);
 
-  const handleKanjiClick = (index: number) => {
-    console.log(`Kanji ${index} clicked`);
-    // Future functionality: Toggle unlock state, show details, etc.
+  // Add function to fetch kanji details
+  const fetchKanjiDetails = async (kanji: string) => {
+    if (!kanji) return;
+    
+    console.log('Fetching details for kanji:', kanji);
+    setLoadingKanjiDetails(true);
+    
+    try {
+      const { data, error } = await supabase
+        .from('kanji_dex')
+        .select('id, kanji, dex_number, meanings, on_reading, kun_reading')
+        .eq('kanji', kanji)
+        .single();
+      
+      console.log('Supabase response:', { data, error });
+      
+      if (error) {
+        console.error('Error fetching kanji details:', error);
+        return;
+      }
+      
+      setKanjiDetails(data);
+      setIsKanjiDetailsOpen(true);
+    } catch (error) {
+      console.error('Unexpected error fetching kanji details:', error);
+    } finally {
+      setLoadingKanjiDetails(false);
+    }
   };
 
-  const handleRadicalClick = (index: number) => {
-    console.log(`Radical ${index} clicked`);
-    // Future functionality: Toggle unlock state, show details, etc.
+  // Handle closing the dialog
+  const handleCloseKanjiDetails = () => {
+    setIsKanjiDetailsOpen(false);
+    setTimeout(() => {
+      setKanjiDetails(null);
+      setSelectedKanji(null);
+    }, 300);
   };
 
   // Handle toggle with loading animation
@@ -372,6 +417,84 @@ export default function DexPage() {
     <div className="flex flex-col w-full h-screen bg-[#F2E8DC] dark:bg-[#38332E] overflow-hidden">
       <GameNav />
       
+      {/* Add Kanji Details Dialog */}
+      <Dialog 
+        open={isKanjiDetailsOpen} 
+        onOpenChange={(open) => {
+          console.log('Dialog onOpenChange triggered, new state:', open);
+          setIsKanjiDetailsOpen(open);
+          if (!open) {
+            handleCloseKanjiDetails();
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[400px] bg-stone-50/95 dark:bg-stone-800/95 backdrop-blur-sm">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-center text-black dark:text-white">
+              Kanji Details
+            </DialogTitle>
+          </DialogHeader>
+          
+          {loadingKanjiDetails ? (
+            <div className="py-8 flex justify-center">
+              <div className="animate-spin h-8 w-8 border-4 border-[#78B693] border-t-transparent rounded-full"></div>
+            </div>
+          ) : kanjiDetails ? (
+            <div className="py-4 space-y-6">
+              {/* Kanji character - large and centered */}
+              <div className="text-center">
+                <div className="text-7xl font-bold mb-2 text-[#78B693] dark:text-[#78B693]">
+                  {kanjiDetails.kanji}
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  #{kanjiDetails.dex_number}
+                </div>
+              </div>
+              
+              {/* Meanings */}
+              <div className="space-y-2">
+                <h3 className="font-semibold text-black dark:text-white">Meanings</h3>
+                <div className="flex flex-wrap gap-2">
+                  {kanjiDetails.meanings.map((meaning, index) => (
+                    <span key={index} className="px-2 py-1 bg-[#78B693]/20 rounded-md text-sm">
+                      {meaning}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              
+              {/* On readings */}
+              {kanjiDetails.on_reading && kanjiDetails.on_reading.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-black dark:text-white">On Reading</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {kanjiDetails.on_reading.map((reading, index) => (
+                      <span key={index} className="px-2 py-1 bg-blue-500/20 rounded-md text-sm">
+                        {reading}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Kun readings */}
+              {kanjiDetails.kun_reading && kanjiDetails.kun_reading.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-black dark:text-white">Kun Reading</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {kanjiDetails.kun_reading.map((reading, index) => (
+                      <span key={index} className="px-2 py-1 bg-purple-500/20 rounded-md text-sm">
+                        {reading}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
       <h1 className="text-3xl font-bold mt-4 mb-6 text-center">Collection Dex</h1>
       
       <div className="flex-1 flex flex-col lg:flex-row gap-6 px-4 lg:px-8 pb-1 overflow-hidden">
@@ -380,7 +503,16 @@ export default function DexPage() {
             title="部首図鑑" 
             totalItems={showOnlyUnlocked ? unlockedRadicalItems.length : Math.max(...radicalData.map(r => r.dex_number), 0)}
             unlockedItems={unlockedRadicalItems}
-            onItemClick={handleRadicalClick}
+            onItemClick={(index) => {
+              console.log('Radical clicked:', index);
+              // Find the radical data for this index
+              const radicalItem = radicalData.find(r => r.dex_number === index);
+              if (radicalItem?.radical_shape) {
+                console.log('Found radical data:', radicalItem);
+                setSelectedKanji(radicalItem.radical_shape);
+                fetchKanjiDetails(radicalItem.radical_shape);
+              }
+            }}
             showOnlyUnlocked={showOnlyUnlocked}
           />
         </div>
@@ -411,7 +543,16 @@ export default function DexPage() {
               title="" 
               totalItems={showOnlyUnlocked ? unlockedKanjiItems.length : 6355} 
               unlockedItems={unlockedKanjiItems}
-              onItemClick={handleKanjiClick}
+              onItemClick={(index) => {
+                console.log('DexGrid item clicked:', index);
+                // Find the kanji data for this index
+                const kanjiItem = kanjiData.find(k => k.dex_number === index);
+                if (kanjiItem?.kanji) {
+                  console.log('Found kanji data:', kanjiItem);
+                  setSelectedKanji(kanjiItem.kanji);
+                  fetchKanjiDetails(kanjiItem.kanji);
+                }
+              }}
               showOnlyUnlocked={showOnlyUnlocked}
             />
           </div>

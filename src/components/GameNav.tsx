@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Gamepad2, BookOpen } from 'lucide-react';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function GameNav() {
   const pathname = usePathname();
@@ -37,6 +38,10 @@ export default function GameNav() {
         >
           <BookOpen size={20} />
         </Link>
+      </div>
+      
+      <div className="bg-gray-700/90 dark:bg-gray-300/90 rounded-full p-1.5 backdrop-blur-sm shadow-sm transition-colors">
+        <ThemeToggle className="transition-colors" />
       </div>
     </div>
   );
