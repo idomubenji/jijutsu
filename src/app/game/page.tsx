@@ -2086,8 +2086,6 @@ export default function GamePage() {
                     }}
                   >
                     {kanji}
-                    {/* Add a small info indicator - more visible by default */}
-                    <div className="absolute top-0 right-0 w-2 h-2 bg-blue-400 rounded-full opacity-70 group-hover:opacity-100 transition-opacity"></div>
                   </div>
                 );
               })}
