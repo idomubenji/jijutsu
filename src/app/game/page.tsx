@@ -210,6 +210,49 @@ export default function GamePage() {
     }, 5000);
   };
 
+  // Function to record kanji discovery in Supabase
+  const recordKanjiDiscovery = async (kanji: string) => {
+    if (!user) return; // Only record for authenticated users
+    
+    try {
+      // First get the kanji_id from kanji_dex table
+      const { data: kanjiData, error: kanjiError } = await supabase
+        .from('kanji_dex')
+        .select('id')
+        .eq('kanji', kanji)
+        .single();
+
+      if (kanjiError) {
+        console.error('Error finding kanji in dex:', kanjiError);
+        return;
+      }
+
+      if (!kanjiData?.id) {
+        console.error('Kanji not found in dex:', kanji);
+        return;
+      }
+
+      // Insert into user_kanji table
+      const { error: insertError } = await supabase
+        .from('user_kanji')
+        .insert([{
+          user_id: user.id,
+          kanji_id: kanjiData.id
+        }])
+        .select();
+
+      if (insertError) {
+        // If it's a duplicate, that's fine - user already discovered this kanji
+        if (insertError.code === '23505') { // Postgres unique violation code
+          return;
+        }
+        console.error('Error recording kanji discovery:', insertError);
+      }
+    } catch (error) {
+      console.error('Error in recordKanjiDiscovery:', error);
+    }
+  };
+
   // Check if user is authenticated on component mount
   useEffect(() => {
     const checkUser = async () => {
@@ -628,6 +671,8 @@ export default function GamePage() {
         setDiscoveredKanji(prev => new Set([...prev, kanji]));
         // Show notification for discovered kanji
         addNotification(`You discovered ${kanji}!`, 'success', kanji);
+        // Record the discovery in Supabase
+        recordKanjiDiscovery(kanji);
       }
     });
     
