@@ -71,7 +71,7 @@ export default function GamePage() {
   const trashCanRef = useRef<HTMLDivElement>(null);
   
   // Add a state for first-time tutorial
-  const [showTutorialCue, setShowTutorialCue] = useState(true);
+  const [showTutorialCue, setShowTutorialCue] = useState(false);
   
   // Add this to the existing game state variables
   const [isDraggingFromSidebar, setIsDraggingFromSidebar] = useState(false);
@@ -85,6 +85,60 @@ export default function GamePage() {
   
   // Add a state to track connections between elements
   const [connections, setConnections] = useState<{from: string, to: string}[]>([]);
+  
+  // Add state for tracking dark mode
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  
+  // Detect dark mode
+  useEffect(() => {
+    const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    
+    // Check for dark class on html element (for Tailwind dark mode)
+    const checkDarkMode = () => {
+      const isDark = document.documentElement.classList.contains('dark') || 
+                   darkModeMediaQuery.matches;
+      setIsDarkMode(isDark);
+    };
+
+    // Initial check
+    checkDarkMode();
+    
+    // Set up listeners
+    const htmlClassObserver = new MutationObserver(checkDarkMode);
+    htmlClassObserver.observe(document.documentElement, { 
+      attributes: true, 
+      attributeFilter: ['class'] 
+    });
+    
+    darkModeMediaQuery.addEventListener('change', checkDarkMode);
+    
+    return () => {
+      htmlClassObserver.disconnect();
+      darkModeMediaQuery.removeEventListener('change', checkDarkMode);
+    };
+  }, []);
+  
+  // Lock scrolling on the page
+  useEffect(() => {
+    // Save the original body style
+    const originalOverflow = document.body.style.overflow;
+    const originalHeight = document.body.style.height;
+    const originalPosition = document.body.style.position;
+    
+    // Lock scrolling
+    document.body.style.overflow = 'hidden';
+    document.body.style.height = '100vh';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    
+    // Restore original style on unmount
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.height = originalHeight;
+      document.body.style.position = originalPosition;
+      document.body.style.width = '';
+    };
+  }, []);
   
   // Hide tutorial cue after 10 seconds
   useEffect(() => {
@@ -814,17 +868,17 @@ export default function GamePage() {
       
       {/* Game Instructions Dialog */}
       <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
-        <DialogContent className="sm:max-w-[500px] bg-stone-800/80 dark:bg-stone-50/80">
+        <DialogContent className="sm:max-w-[500px] bg-stone-50/80 dark:bg-stone-800/80">
           <DialogHeader>
-            <DialogTitle className="text-2xl text-white dark:text-black">Welcome to Jijutsu! 字術</DialogTitle>
-            <DialogDescription className="text-base mt-2 text-white/80 dark:text-black/70">
+            <DialogTitle className="text-2xl text-black dark:text-white">Welcome to Jijutsu! 字術</DialogTitle>
+            <DialogDescription className="text-base mt-2 text-black/70 dark:text-white/80">
               Discover kanji by combining their component radicals
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-white dark:text-black">How to Play:</h3>
-              <ul className="list-disc pl-5 space-y-2 text-white/80 dark:text-black/70">
+              <h3 className="text-lg font-semibold text-black dark:text-white">How to Play:</h3>
+              <ul className="list-disc pl-5 space-y-2 text-black/70 dark:text-white/80">
                 <li>Drag radicals from the sidebar into the main workspace.</li>
                 <li>Move radicals around and bring them close to each other to combine them.</li>
                 <li>When you have the exact set of radicals needed to form a kanji, they'll merge automatically!</li>
@@ -832,8 +886,8 @@ export default function GamePage() {
               </ul>
             </div>
             <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-white dark:text-black">Tips:</h3>
-              <ul className="list-disc pl-5 space-y-2 text-white/80 dark:text-black/70">
+              <h3 className="text-lg font-semibold text-black dark:text-white">Tips:</h3>
+              <ul className="list-disc pl-5 space-y-2 text-black/70 dark:text-white/80">
                 <li>Start with simple combinations of 2-3 radicals.</li>
                 <li>Experiment! Not all combinations will create kanji.</li>
                 <li>Try to discover as many kanji as you can!</li>
@@ -861,16 +915,11 @@ export default function GamePage() {
         onTouchEnd={() => handleEndDrag()}
         onTouchCancel={() => handleEndDrag()}
       >
-        {/* Jijutsu logo at top left */}
-        <div className="absolute top-6 left-6">
-          <div className="text-3xl font-bold tracking-wide text-[#F2E8DC] dark:text-[#38332E]">字術</div>
-        </div>
-
         {/* Kanji Counter */}
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm">
-          <span className="text-base font-medium">Discovered: </span>
-          <span className="text-xl font-bold text-blue-600">{discoveredKanji.size}</span>
-          <span className="text-sm text-gray-500 ml-1">kanji</span>
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-white/80 dark:bg-stone-800/80 backdrop-blur-sm px-4 py-1 rounded-full shadow-sm flex items-center">
+          <span className="text-base font-medium dark:text-stone-300">Discovered: </span>
+          <span className="text-xl font-bold text-[#78B693] dark:text-[#78B693] ml-2">{discoveredKanji.size}</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">kanji</span>
         </div>
 
         {/* Clear Button */}
@@ -879,7 +928,7 @@ export default function GamePage() {
             variant="outline" 
             size="sm"
             onClick={clearGameArea}
-            className="bg-white/80 backdrop-blur-sm"
+            className="bg-white/80 dark:bg-stone-800/80 backdrop-blur-sm"
           >
             Clear Workspace
           </Button>
@@ -888,7 +937,7 @@ export default function GamePage() {
         {/* Trash Can */}
         <div 
           ref={trashCanRef}
-          className={`absolute left-6 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 ${isOverTrash ? 'bg-red-100 scale-125' : 'bg-gray-100 hover:bg-gray-200'}`}
+          className={`absolute left-6 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 ${isOverTrash ? 'bg-red-100 dark:bg-red-900 scale-125' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
           style={{ 
             boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
             zIndex: 5 // Keep it above background but below dragged elements
@@ -898,10 +947,10 @@ export default function GamePage() {
         >
           <Trash2 
             size={28} 
-            className={`transition-all duration-200 ${isOverTrash ? 'text-red-500 animate-pulse' : 'text-gray-500'}`}
+            className={`transition-all duration-200 ${isOverTrash ? 'text-red-500 dark:text-red-400 animate-pulse' : 'text-gray-500 dark:text-gray-400'}`}
           />
           {isOverTrash && (
-            <div className="absolute bottom-full mb-2 whitespace-nowrap rounded bg-black px-2 py-1 text-xs text-white">
+            <div className="absolute bottom-full mb-2 whitespace-nowrap rounded bg-black dark:bg-white px-2 py-1 text-xs text-white dark:text-black">
               Release to delete
             </div>
           )}
@@ -914,7 +963,7 @@ export default function GamePage() {
             variant="ghost" 
             size="sm" 
             onClick={() => setShowInstructions(true)}
-            className="text-stone-500 hover:text-stone-700 hover:bg-transparent p-0 flex items-center gap-1"
+            className="text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300 hover:bg-transparent p-0 flex items-center gap-1"
           >
             <Info size={16} /> Help
           </Button>
@@ -931,11 +980,15 @@ export default function GamePage() {
               width: '40px',
               height: '40px',
               backgroundColor: element.type === 'kanji' 
-                ? (hoveredElements.has(element.id) ? '#93c5fd' : '#bae6fd') 
-                : (hoveredElements.has(element.id) ? '#bfdbfe' : '#e0f2fe'),
+                ? (hoveredElements.has(element.id) 
+                  ? 'rgba(120, 182, 147, 0.9)' // Slightly more opaque for hovered kanji
+                  : 'rgba(120, 182, 147, 0.8)') // #78B693 with 80% opacity for kanji
+                : (hoveredElements.has(element.id) 
+                  ? 'rgba(120, 182, 147, 0.85)' // Slightly more opaque for hovered radicals
+                  : 'rgba(120, 182, 147, 0.8)'), // #78B693 with 80% opacity for radicals
               userSelect: 'none',
               boxShadow: hoveredElements.has(element.id) 
-                ? '0 0 0 2px #3b82f6, 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)'
+                ? '0 0 0 2px rgba(120, 182, 147, 1), 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)'
                 : '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
               transform: hoveredElements.has(element.id) ? 'scale(1.05)' : 'scale(1)',
               transition: element.isDragging ? 'none' : 'all 0.15s ease-in-out'
@@ -962,7 +1015,9 @@ export default function GamePage() {
           {notifications.map((notification) => {
             // Generate a stable but unique key for each notification item
             const itemKey = `notification-${notification.id}`;
-            const bgColorClass = notification.type === 'success' ? 'bg-green-500' : 'bg-blue-500';
+            const bgColorClass = notification.type === 'success' 
+              ? 'bg-green-500 dark:bg-green-700' 
+              : 'bg-[#78B693]/80 dark:bg-[#78B693]/80';
             
             return (
               <div 
@@ -1113,7 +1168,7 @@ export default function GamePage() {
               top: `${mousePosition.y}px`,
               width: '40px',
               height: '40px',
-              backgroundColor: '#e0f2fe',
+              backgroundColor: 'rgba(120, 182, 147, 0.8)', // #78B693 with 80% opacity
               borderRadius: '0.375rem',
               display: 'flex',
               alignItems: 'center',
@@ -1158,7 +1213,7 @@ export default function GamePage() {
                 y1={fromY}
                 x2={toX}
                 y2={toY}
-                stroke="#3b82f6"
+                stroke="rgba(120, 182, 147, 1)"
                 strokeWidth="2"
                 strokeDasharray="3,3"
                 opacity="0.6"
@@ -1171,8 +1226,8 @@ export default function GamePage() {
       {/* Sidebar */}
       <div className="w-96 border-l border-stone-200 dark:border-stone-700 flex flex-col overflow-y-auto bg-[#E8DED2] dark:bg-[#302B27]">
         {/* Radical container */}
-        <div className="p-3 border-b border-stone-200">
-          <h3 className="font-semibold mb-2">Radicals</h3>
+        <div className="p-3 border-b border-stone-200 dark:border-stone-700">
+          <h3 className="font-semibold mb-2 dark:text-stone-300">Radicals</h3>
           <div className="grid grid-cols-17 gap-1">
             {sidebarRadicals.map(({ char }, index) => {
               // Generate a truly unique key for each radical
@@ -1181,8 +1236,9 @@ export default function GamePage() {
               return (
                 <div
                   key={radicalKey}
-                  className="w-4 h-4 text-xs flex items-center justify-center bg-sky-100 rounded cursor-grab select-none"
+                  className="w-4 h-4 text-xs flex items-center justify-center rounded cursor-grab select-none"
                   style={{
+                    backgroundColor: 'rgba(120, 182, 147, 0.8)',
                     userSelect: 'none'
                   }}
                   onMouseDown={(e) => {
@@ -1208,14 +1264,14 @@ export default function GamePage() {
         {/* Discovered kanji container */}
         <div className="flex-1 p-3 overflow-y-auto">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="font-semibold">Discovered Kanji ({discoveredKanji.size})</h3>
+            <h3 className="font-semibold dark:text-stone-300">Discovered Kanji ({discoveredKanji.size})</h3>
             
             {discoveredKanji.size > 0 && (
               <Button 
                 variant="ghost" 
                 size="sm" 
                 onClick={resetProgress}
-                className="text-red-500 hover:text-red-600 text-xs p-1 h-auto"
+                className="text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 text-xs p-1 h-auto"
               >
                 Reset
               </Button>
@@ -1223,7 +1279,7 @@ export default function GamePage() {
           </div>
           
           {discoveredKanji.size === 0 ? (
-            <div className="text-stone-400 text-sm">
+            <div className="text-stone-400 dark:text-stone-500 text-sm">
               Drag and combine radicals to discover kanji!
             </div>
           ) : (
@@ -1235,8 +1291,11 @@ export default function GamePage() {
                 return (
                   <div
                     key={kanjiKey}
-                    className="w-9 h-9 flex items-center justify-center bg-sky-200 rounded cursor-grab select-none"
-                    style={{ userSelect: 'none' }}
+                    className="w-9 h-9 flex items-center justify-center rounded cursor-grab select-none"
+                    style={{ 
+                      backgroundColor: 'rgba(120, 182, 147, 0.9)',
+                      userSelect: 'none' 
+                    }}
                     onMouseDown={(e) => {
                       const rect = e.currentTarget.getBoundingClientRect();
                       handleSidebarDragStart(kanji, e.clientX, e.clientY, rect);
@@ -1260,10 +1319,10 @@ export default function GamePage() {
         
         {/* User info at bottom */}
         {user && (
-          <div className="p-4 border-t border-stone-200">
+          <div className="p-4 border-t border-stone-200 dark:border-stone-700">
             <div className="text-sm font-medium">
-              <div className="text-stone-600">Logged in as:</div>
-              <div className="text-stone-900">{user.email}</div>
+              <div className="text-stone-600 dark:text-stone-400">Logged in as:</div>
+              <div className="text-stone-900 dark:text-stone-200">{user.email}</div>
             </div>
           </div>
         )}
