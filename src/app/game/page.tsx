@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { SignInForm } from '@/components/SignInForm';
@@ -242,65 +242,6 @@ export default function GamePage() {
     }
 
     // Fetch user's kanji count and kanji list from Supabase
-    const fetchUserKanjiData = async () => {
-      try {
-        // First get the count
-        const { count, error: countError } = await supabase
-          .from('user_kanji')
-          .select('*', { count: 'exact', head: false })
-          .eq('user_id', user.id);
-
-        if (countError) {
-          console.error('Error fetching user kanji count:', countError);
-          return;
-        }
-
-        // Set the user's kanji count
-        setUserKanjiCount(count || 0);
-        
-        // Calculate unlocked radicals: 10 base + 1 per 10 kanji created
-        const unlockedRadicals = 10 + Math.floor((count || 0) / 10);
-        setUnlockedRadicalCount(unlockedRadicals);
-        
-        // Add notification about unlocked radicals
-        if ((count || 0) > 0 && (count || 0) % 10 === 0) {
-          addNotification(`You've unlocked a new radical!`, 'success');
-        }
-
-        // Then get the actual kanji characters
-        const { data: userKanjiData, error: kanjiError } = await supabase
-          .from('user_kanji')
-          .select(`
-            kanji_id,
-            kanji_dex:kanji_id(kanji)
-          `)
-          .eq('user_id', user.id);
-
-        if (kanjiError) {
-          console.error('Error fetching user kanji:', kanjiError);
-          return;
-        }
-
-        // Extract kanji characters from the nested JSON response
-        if (userKanjiData && userKanjiData.length > 0) {
-          const kanjiList = userKanjiData
-            .map(item => item.kanji_dex?.kanji)
-            .filter(Boolean) as string[];
-          
-          setSupabaseKanji(kanjiList);
-          
-          // Also update the local kanji set for compatibility
-          setDiscoveredKanji(new Set(kanjiList));
-        } else {
-          // No kanji found, clear lists
-          setSupabaseKanji([]);
-          setDiscoveredKanji(new Set());
-        }
-      } catch (error) {
-        console.error('Error in fetchUserKanjiData:', error);
-      }
-    };
-
     fetchUserKanjiData();
   }, [user, discoveredKanji.size]); // Refetch when user changes or discoveredKanji changes
 
@@ -315,6 +256,76 @@ export default function GamePage() {
       setNotifications(prev => prev.filter(n => n.id !== id));
     }, 5000);
   };
+
+  // Extract fetchUserKanjiData to its own function so it can be reused
+  const fetchUserKanjiData = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      // First get the count
+      const { count, error: countError } = await supabase
+        .from('user_kanji')
+        .select('*', { count: 'exact', head: false })
+        .eq('user_id', user.id);
+
+      if (countError) {
+        console.error('Error fetching user kanji count:', countError);
+        return;
+      }
+
+      // Set the user's kanji count
+      setUserKanjiCount(count || 0);
+      
+      // Calculate unlocked radicals: 10 base + 1 per 10 kanji created
+      const unlockedRadicals = 10 + Math.floor((count || 0) / 10);
+      setUnlockedRadicalCount(unlockedRadicals);
+      
+      // Add notification about unlocked radicals
+      if ((count || 0) > 0 && (count || 0) % 10 === 0) {
+        addNotification(`You've unlocked a new radical!`, 'success');
+      }
+
+      // Then get the actual kanji characters
+      const { data: userKanjiData, error: kanjiError } = await supabase
+        .from('user_kanji')
+        .select(`
+          kanji_id,
+          kanji_dex:kanji_id(kanji)
+        `)
+        .eq('user_id', user.id);
+
+      if (kanjiError) {
+        console.error('Error fetching user kanji:', kanjiError);
+        return;
+      }
+
+      // Extract kanji characters from the nested JSON response
+      if (userKanjiData && userKanjiData.length > 0) {
+        // Define a more specific type to handle the nested structure
+        interface KanjiDexResponse {
+          kanji_id: string;
+          kanji_dex: { kanji: string } | null;
+        }
+        
+        const typedData = userKanjiData as unknown as KanjiDexResponse[];
+        
+        const kanjiList = typedData
+          .map(item => item.kanji_dex?.kanji)
+          .filter(Boolean) as string[];
+        
+        setSupabaseKanji(kanjiList);
+        
+        // Also update the local kanji set for compatibility
+        setDiscoveredKanji(new Set(kanjiList));
+      } else {
+        // No kanji found, clear lists
+        setSupabaseKanji([]);
+        setDiscoveredKanji(new Set());
+      }
+    } catch (error) {
+      console.error('Error in fetchUserKanjiData:', error);
+    }
+  }, [user]);
 
   // Function to record kanji discovery in Supabase
   const recordKanjiDiscovery = async (kanji: string) => {
@@ -462,7 +473,15 @@ export default function GamePage() {
         // Set up auth state change listener
         const { data: { subscription } } = await supabase.auth.onAuthStateChange(
           (_event, session) => {
-            setUser(session?.user || null);
+            const previousUser = user;
+            const currentUser = session?.user || null;
+            
+            // If user just signed in (previously null, now has value)
+            if (!previousUser && currentUser) {
+              syncLocalKanjiToDatabase(currentUser);
+            }
+            
+            setUser(currentUser);
           }
         );
         
@@ -1201,6 +1220,64 @@ export default function GamePage() {
       localStorage.setItem('jijutsu_has_seen_instructions', 'true');
     }
   }, []);
+
+  // Add a function to sync localStorage kanji to database when user signs in
+  const syncLocalKanjiToDatabase = async (currentUser: any) => {
+    if (!currentUser) return;
+    
+    try {
+      // Get kanji from localStorage
+      const savedKanji = localStorage.getItem('jijutsu_discovered_kanji');
+      if (!savedKanji || JSON.parse(savedKanji).length === 0) return;
+      
+      const localKanji = JSON.parse(savedKanji) as string[];
+      console.log(`Found ${localKanji.length} kanji in localStorage to sync`);
+      
+      // For each kanji in localStorage, add it to the user's account
+      let syncedCount = 0;
+      
+      for (const kanji of localKanji) {
+        // Get the kanji_id from kanji_dex table
+        const { data: kanjiData, error: kanjiError } = await supabase
+          .from('kanji_dex')
+          .select('id')
+          .eq('kanji', kanji)
+          .single();
+
+        if (kanjiError || !kanjiData?.id) {
+          console.error(`Error finding kanji ${kanji} in database:`, kanjiError);
+          continue;
+        }
+
+        // Insert into user_kanji table - if duplicate, that's fine due to unique constraint
+        const { error: insertError } = await supabase
+          .from('user_kanji')
+          .insert([{
+            user_id: currentUser.id,
+            kanji_id: kanjiData.id
+          }]);
+
+        // Ignore unique constraint violations (already saved kanji)
+        if (insertError && insertError.code !== '23505') {
+          console.error(`Error syncing kanji ${kanji}:`, insertError);
+        } else {
+          syncedCount++;
+        }
+      }
+      
+      if (syncedCount > 0) {
+        addNotification(`Synced ${syncedCount} kanji discoveries to your account!`, 'success');
+        // Clear localStorage after successful sync
+        localStorage.removeItem('jijutsu_discovered_kanji');
+      }
+      
+      // Refresh the user's kanji data 
+      await fetchUserKanjiData();
+      
+    } catch (error) {
+      console.error('Error syncing localStorage kanji to database:', error);
+    }
+  };
 
   if (loadingData) {
     return (
