@@ -1,0 +1,2 @@
+- [KANJIDIC](http://www.edrdg.org/kanjidic/kanjidic2/index.html) - For readings and translations of characters
+- [KRADFILE](http://www.edrdg.org/krad/kradinf.html) - For radicals
