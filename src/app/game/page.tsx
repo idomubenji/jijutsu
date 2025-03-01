@@ -42,6 +42,11 @@ interface KanjiRadicalsData {
   kanjiToRadicals: Record<string, string[]>;
 }
 
+// Add an interface for sorted radicals
+interface SortedRadicalsData {
+  sortedRadicals: string[];
+}
+
 export default function GamePage() {
   // Auth state
   const [isSignInOpen, setIsSignInOpen] = useState(false);
@@ -88,6 +93,11 @@ export default function GamePage() {
   
   // Add state for tracking dark mode
   const [isDarkMode, setIsDarkMode] = useState(false);
+  
+  // Add state for unlocked radicals
+  const [sortedRadicals, setSortedRadicals] = useState<string[]>([]);
+  const [unlockedRadicalCount, setUnlockedRadicalCount] = useState<number>(10); // Start with 10
+  const [userKanjiCount, setUserKanjiCount] = useState<number>(0);
   
   // Detect dark mode
   useEffect(() => {
@@ -198,6 +208,60 @@ export default function GamePage() {
     }
   }, [discoveredKanji]);
 
+  // Load sorted radicals from JSON file
+  useEffect(() => {
+    // Fetch the sorted radicals JSON
+    fetch('/sorted-radicals.json')
+      .then(response => response.json())
+      .then(data => {
+        setSortedRadicals(data);
+      })
+      .catch(error => {
+        console.error('Error loading sorted radicals:', error);
+      });
+  }, []);
+
+  // Fetch user's kanji count and update unlocked radicals when user changes
+  useEffect(() => {
+    if (!user) {
+      // If not logged in, set to default (10 radicals)
+      setUnlockedRadicalCount(10);
+      setUserKanjiCount(0);
+      return;
+    }
+
+    // Fetch user's kanji count from Supabase
+    const fetchUserKanjiCount = async () => {
+      try {
+        const { count, error } = await supabase
+          .from('user_kanji')
+          .select('*', { count: 'exact', head: false })
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Error fetching user kanji count:', error);
+          return;
+        }
+
+        // Set the user's kanji count
+        setUserKanjiCount(count || 0);
+        
+        // Calculate unlocked radicals: 10 base + 1 per 10 kanji created
+        const unlockedRadicals = 10 + Math.floor((count || 0) / 10);
+        setUnlockedRadicalCount(unlockedRadicals);
+        
+        // Add notification about unlocked radicals
+        if ((count || 0) > 0 && (count || 0) % 10 === 0) {
+          addNotification(`You've unlocked a new radical!`, 'success');
+        }
+      } catch (error) {
+        console.error('Error in fetchUserKanjiCount:', error);
+      }
+    };
+
+    fetchUserKanjiCount();
+  }, [user, discoveredKanji.size]); // Also update when discoveredKanji changes
+
   // Function to add a notification
   const addNotification = (message: string, type: 'success' | 'info' = 'info', kanji?: string) => {
     // Generate a unique ID with timestamp plus random suffix
@@ -247,6 +311,18 @@ export default function GamePage() {
           return;
         }
         console.error('Error recording kanji discovery:', insertError);
+      } else {
+        // Successfully recorded kanji, update count
+        setUserKanjiCount(prev => {
+          const newCount = prev + 1;
+          // Check if this unlocks a new radical
+          if (newCount % 10 === 0) {
+            // Increment the unlocked radical count
+            setUnlockedRadicalCount(10 + Math.floor(newCount / 10));
+            addNotification(`You've unlocked a new radical!`, 'success');
+          }
+          return newCount;
+        });
       }
     } catch (error) {
       console.error('Error in recordKanjiDiscovery:', error);
@@ -867,10 +943,16 @@ export default function GamePage() {
 
   // Filter elements to get only the unique radicals for the sidebar
   const sidebarRadicals = useMemo(() => {
-    if (!kanjiData) return [];
-    return Object.keys(kanjiData.radicalToKanji)
+    if (!kanjiData || !sortedRadicals.length) return [];
+    
+    // Get the unlocked radicals based on the unlocked count
+    const unlockedRadicals = sortedRadicals.slice(0, unlockedRadicalCount);
+    
+    // Filter available radicals to only include unlocked ones
+    return unlockedRadicals
+      .filter(radical => kanjiData.radicalToKanji[radical]) // Ensure the radical exists in data
       .map(radical => ({ char: radical }));
-  }, [kanjiData]);
+  }, [kanjiData, sortedRadicals, unlockedRadicalCount]);
 
   // Function to clear all elements from the game area
   const clearGameArea = () => {
@@ -1272,7 +1354,41 @@ export default function GamePage() {
       <div className="w-96 border-l border-stone-200 dark:border-stone-700 flex flex-col overflow-y-auto bg-[#E8DED2] dark:bg-[#302B27]">
         {/* Radical container */}
         <div className="p-3 border-b border-stone-200 dark:border-stone-700">
-          <h3 className="font-semibold mb-2 dark:text-stone-300">Radicals</h3>
+          <div className="flex justify-between items-center">
+            <h3 className="font-semibold dark:text-stone-300">Radicals ({sidebarRadicals.length})</h3>
+            <div className="text-xs text-stone-500 dark:text-stone-400">
+              {user ? (
+                <div className="flex items-center gap-1">
+                  <span>Kanji: {userKanjiCount}</span>
+                  <span>•</span>
+                  <span>Next at: {(Math.floor(userKanjiCount / 10) + 1) * 10}</span>
+                </div>
+              ) : (
+                <div>Sign in to track progress</div>
+              )}
+            </div>
+          </div>
+          
+          {/* Progress bar for unlocking the next radical */}
+          {user && (
+            <div className="mt-2 mb-3">
+              <div className="w-full bg-stone-200 dark:bg-stone-700 rounded-full h-2 overflow-hidden">
+                <div 
+                  className="bg-[#78B693] h-full rounded-full transition-all duration-300 ease-out"
+                  style={{ 
+                    width: `${(userKanjiCount % 10) * 10}%`,
+                    minWidth: userKanjiCount > 0 ? '5%' : '0%'
+                  }}
+                />
+              </div>
+              <div className="flex justify-between mt-1 text-xs text-stone-500 dark:text-stone-400">
+                <span>{userKanjiCount} kanji</span>
+                <span>{unlockedRadicalCount - 10 + 1} of {sortedRadicals.length} radicals</span>
+              </div>
+            </div>
+          )}
+          
+          {/* Unlocked radicals grid */}
           <div className="grid grid-cols-17 gap-1">
             {sidebarRadicals.map(({ char }, index) => {
               // Generate a truly unique key for each radical
@@ -1304,6 +1420,44 @@ export default function GamePage() {
               );
             })}
           </div>
+          
+          {/* Show next few locked radicals */}
+          {user && sortedRadicals.length > unlockedRadicalCount && (
+            <div className="mt-3 pt-3 border-t border-stone-200 dark:border-stone-700">
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="text-xs font-medium text-stone-500 dark:text-stone-400">Coming Next</h4>
+                <div className="text-xs text-stone-400 dark:text-stone-500">
+                  Unlock more by creating kanji
+                </div>
+              </div>
+              <div className="grid grid-cols-17 gap-1">
+                {sortedRadicals.slice(unlockedRadicalCount, unlockedRadicalCount + 5)
+                  .filter(radical => kanjiData?.radicalToKanji[radical]) // Ensure the radical exists in data
+                  .map((radical, index) => {
+                    const radicalKey = `locked-radical-${index}-${radical}`;
+                    
+                    return (
+                      <div
+                        key={radicalKey}
+                        className="w-4 h-4 text-xs flex items-center justify-center rounded opacity-50 cursor-not-allowed select-none relative"
+                        style={{
+                          backgroundColor: 'rgba(120, 120, 120, 0.4)',
+                          userSelect: 'none'
+                        }}
+                        title="Keep creating kanji to unlock this radical"
+                      >
+                        <span className="opacity-70">{radical}</span>
+                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-stone-300 dark:bg-stone-600 rounded-full flex items-center justify-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="text-stone-500 dark:text-stone-400">
+                            <path d="M12 2a10 10 0 1 0 10 10H12V2z"/>
+                          </svg>
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
         </div>
         
         {/* Discovered kanji container */}
