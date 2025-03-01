@@ -1703,8 +1703,8 @@ export default function GamePage() {
               height: '40px',
               backgroundColor: element.type === 'kanji' 
                 ? (hoveredElements.has(element.id) 
-                  ? 'rgba(120, 182, 147, 0.9)' // Slightly more opaque for hovered kanji
-                  : 'rgba(120, 182, 147, 0.8)') // #78B693 with 80% opacity for kanji
+                  ? 'rgba(0, 79, 23, 0.9)' // #004F17 with 90% opacity for hovered kanji
+                  : 'rgba(0, 79, 23, 0.8)') // #004F17 with 80% opacity for kanji
                 : (hoveredElements.has(element.id) 
                   ? 'rgba(120, 182, 147, 0.85)' // Slightly more opaque for hovered radicals
                   : 'rgba(120, 182, 147, 0.8)'), // #78B693 with 80% opacity for radicals
@@ -1890,7 +1890,9 @@ export default function GamePage() {
               top: `${mousePosition.y}px`,
               width: '40px',
               height: '40px',
-              backgroundColor: 'rgba(120, 182, 147, 0.8)', // #78B693 with 80% opacity
+              backgroundColor: discoveredKanji.has(sidebarDraggedChar) || supabaseKanji.includes(sidebarDraggedChar)
+                ? 'rgba(0, 79, 23, 0.8)' // Dark green for kanji
+                : 'rgba(120, 182, 147, 0.8)', // Original color for radicals
               borderRadius: '0.375rem',
               display: 'flex',
               alignItems: 'center',
@@ -1984,7 +1986,7 @@ export default function GamePage() {
           )}
           
           {/* Unlocked radicals grid */}
-          <div className="grid grid-cols-17 gap-1 grid-flow-row-dense auto-rows-min">
+          <div className="grid grid-cols-8 gap-2 grid-flow-row-dense auto-rows-min">
             {sidebarRadicals.map(({ char }, index) => {
               // Generate a truly unique key for each radical
               const radicalKey = `sidebar-radical-${index}-${char}-${Math.random().toString(36).slice(2, 5)}`;
@@ -1992,7 +1994,7 @@ export default function GamePage() {
               return (
                 <div
                   key={radicalKey}
-                  className="w-4 h-4 text-xs flex items-center justify-center rounded cursor-grab select-none"
+                  className="w-8 h-8 text-lg flex items-center justify-center rounded cursor-grab select-none"
                   style={{
                     backgroundColor: 'rgba(120, 182, 147, 0.8)',
                     userSelect: 'none'
@@ -2090,7 +2092,7 @@ export default function GamePage() {
                     data-kanji={kanji}
                     className="w-9 h-9 flex items-center justify-center rounded cursor-pointer select-none relative group"
                     style={{ 
-                      backgroundColor: 'rgba(120, 182, 147, 0.9)',
+                      backgroundColor: 'rgba(0, 79, 23, 0.9)', // #004F17 with 90% opacity
                       userSelect: 'none',
                       zIndex: 30 // Ensure it's above other elements
                     }}
