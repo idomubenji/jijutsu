@@ -12,6 +12,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import GameNav from '@/components/GameNav';
 import { AuthStateListener } from '@/components/AuthStateListener';
 import './animations.css';
+import { checkSupabaseHealth, restartSupabaseConnection } from '@/lib/supabase';
 
 // Types for game elements
 interface ElementPosition {
@@ -86,7 +87,7 @@ export default function GamePage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   
   // Tracking drag state
-  const [draggedElement, setDraggedElement] = useState<string | null>(null);
+  const [draggedElementId, setDraggedElementId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState<ElementPosition>({ x: 0, y: 0 });
   
   // Add state for tracking trash can hover
@@ -130,6 +131,10 @@ export default function GamePage() {
   
   // Add this state declaration near the other useState hooks
   const [lastAddedElementId, setLastAddedElementId] = useState<string | null>(null);
+  
+  // Connection status state
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'error' | 'unknown'>('unknown');
+  const [isRetrying, setIsRetrying] = useState(false);
   
   // Detect dark mode
   useEffect(() => {
@@ -285,20 +290,62 @@ export default function GamePage() {
 
   // Extract fetchUserKanjiData to its own function so it can be reused
   const fetchUserKanjiData = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('No user available, skipping kanji data fetch');
+      return;
+    }
+    
+    if (!user.id) {
+      console.error('Error: User object exists but ID is missing');
+      return;
+    }
+    
+    console.log('Fetching kanji data for user ID:', user.id);
     
     try {
+      // Check Supabase connectivity first
+      try {
+        const healthResult = await checkSupabaseHealth();
+        if (!healthResult.success) {
+          console.error('Aborting kanji fetch due to Supabase connectivity issue:', healthResult.message);
+          addNotification('Unable to connect to database. Please check your internet connection.', 'info');
+          return;
+        }
+      } catch (healthError) {
+        console.error('Error checking Supabase health before kanji fetch:', healthError);
+        // Continue anyway, the main query might still work
+      }
+      
       // First get the count
-      const { count, error: countError } = await supabase
+      const countPromise = supabase
         .from('user_kanji')
         .select('*', { count: 'exact', head: false })
         .eq('user_id', user.id);
+        
+      // Add timeout for the request
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timed out after 10 seconds')), 10000)
+      );
+      
+      // Race between the request and the timeout
+      const { count, error: countError } = await Promise.race([
+        countPromise,
+        timeoutPromise.then(() => { throw new Error('Timeout exceeded'); })
+      ]) as any;
 
       if (countError) {
-        console.error('Error fetching user kanji count:', countError);
+        console.error('Error fetching user kanji count:', countError.message || JSON.stringify(countError));
+        if (countError.code === 'PGRST301') {
+          console.error('Authentication error - user may not be properly authenticated');
+          addNotification('Authentication error. Please try signing out and back in.', 'info');
+        } else {
+          addNotification('Error loading your kanji collection. Please try again later.', 'info');
+        }
         return;
       }
 
+      console.log(`Found ${count || 0} kanji records for user`);
+      
       // Set the user's kanji count
       setUserKanjiCount(count || 0);
       
@@ -311,20 +358,42 @@ export default function GamePage() {
         addNotification(`You've unlocked a new radical!`, 'success');
       }
 
+      // If count is 0, we can skip the next query
+      if (count === 0) {
+        setSupabaseKanji([]);
+        setDiscoveredKanji(new Set());
+        return;
+      }
+
       // Then get the actual kanji characters
-      const { data: userKanjiData, error: kanjiError } = await supabase
+      console.log('Fetching kanji details with query:', {
+        table: 'user_kanji',
+        select: 'kanji_id, kanji_dex:kanji_id(kanji)',
+        filter: { user_id: user.id }
+      });
+      
+      // Same timeout pattern for the second request
+      const kanjiPromise = supabase
         .from('user_kanji')
         .select(`
           kanji_id,
           kanji_dex:kanji_id(kanji)
         `)
         .eq('user_id', user.id);
+        
+      const { data: userKanjiData, error: kanjiError } = await Promise.race([
+        kanjiPromise,
+        timeoutPromise.then(() => { throw new Error('Timeout exceeded on kanji fetch'); })
+      ]) as any;
 
       if (kanjiError) {
-        console.error('Error fetching user kanji:', kanjiError);
+        console.error('Error fetching user kanji:', kanjiError.message || JSON.stringify(kanjiError));
+        addNotification('Error loading your kanji details. Please try again later.', 'info');
         return;
       }
 
+      console.log('Received user kanji data:', userKanjiData);
+      
       // Extract kanji characters from the nested JSON response
       if (userKanjiData && userKanjiData.length > 0) {
         // Define a more specific type to handle the nested structure
@@ -336,8 +405,15 @@ export default function GamePage() {
         const typedData = userKanjiData as unknown as KanjiDexResponse[];
         
         const kanjiList = typedData
-          .map(item => item.kanji_dex?.kanji)
+          .map(item => {
+            if (!item.kanji_dex?.kanji) {
+              console.warn('Found kanji entry with missing kanji value:', item);
+            }
+            return item.kanji_dex?.kanji;
+          })
           .filter(Boolean) as string[];
+        
+        console.log('Extracted kanji list:', kanjiList);
         
         setSupabaseKanji(kanjiList);
         
@@ -345,13 +421,26 @@ export default function GamePage() {
         setDiscoveredKanji(new Set(kanjiList));
       } else {
         // No kanji found, clear lists
+        console.log('No kanji data found for user, clearing lists');
         setSupabaseKanji([]);
         setDiscoveredKanji(new Set());
       }
     } catch (error) {
-      console.error('Error in fetchUserKanjiData:', error);
+      // Added more detailed error handling with proper object stringification
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorDetail = error instanceof Error ? JSON.stringify(error, Object.getOwnPropertyNames(error)) : JSON.stringify(error);
+      console.error(`Error fetching user kanji: ${errorMessage}`, error);
+      console.debug('Error details:', errorDetail);
+      
+      // Handle network errors specifically
+      if (error instanceof TypeError && errorMessage.includes('Failed to fetch')) {
+        console.error('Network error detected when fetching kanji data');
+        addNotification('Network error. Please check your internet connection and try again.', 'info');
+      } else {
+        addNotification('Error loading your kanji. Please try again later.', 'info');
+      }
     }
-  }, [user]);
+  }, [user, addNotification]);
 
   // Function to record kanji discovery in Supabase
   const recordKanjiDiscovery = async (kanji: string) => {
@@ -540,7 +629,7 @@ export default function GamePage() {
   // Handle starting a drag operation for elements already in the game area
   const handleStartDrag = (elementId: string, clientX: number, clientY: number, elementRect: DOMRect) => {
     // Set the element being dragged
-    setDraggedElement(elementId);
+    setDraggedElementId(elementId);
     
     // Calculate offset from cursor to element corner
     setDragOffset({
@@ -582,8 +671,8 @@ export default function GamePage() {
     }
     
     // Update hovered elements for both sidebar drags and regular drags
-    if (isDraggingFromSidebar || draggedElement) {
-      const gameElements = elements.filter(el => (el.position.x !== 0 || el.position.y !== 0) && el.id !== draggedElement);
+    if (isDraggingFromSidebar || draggedElementId) {
+      const gameElements = elements.filter(el => (el.position.x !== 0 || el.position.y !== 0) && el.id !== draggedElementId);
       const hoveredElements = new Set<string>();
       const newConnections: {from: string, to: string}[] = [];
       const elementWidth = 40;
@@ -592,11 +681,11 @@ export default function GamePage() {
       // Determine the position of the currently dragged element
       let draggedX = 0;
       let draggedY = 0;
-      const draggedId = draggedElement || 'sidebar';
+      const draggedId = draggedElementId || 'sidebar';
       
-      if (draggedElement) {
+      if (draggedElementId) {
         // If dragging an existing element, get its position from elements state
-        const draggedElementObj = elements.find(el => el.id === draggedElement);
+        const draggedElementObj = elements.find(el => el.id === draggedElementId);
         if (draggedElementObj) {
           draggedX = draggedElementObj.position.x;
           draggedY = draggedElementObj.position.y;
@@ -650,10 +739,10 @@ export default function GamePage() {
     }
     
     // Handle movement for regular drag operations
-    if (draggedElement) {
+    if (draggedElementId) {
       // Update element position, keeping it within game area bounds
       setElements(prev => prev.map(el => {
-        if (el.id === draggedElement) {
+        if (el.id === draggedElementId) {
           // Calculate new position relative to game area
           const newX = clientX - gameRect.left - dragOffset.x;
           const newY = clientY - gameRect.top - dragOffset.y;
@@ -805,25 +894,25 @@ export default function GamePage() {
       setIsOverTrash(false);
     } 
     // Handle the case for regular dragged elements
-    else if (draggedElement) {
+    else if (draggedElementId) {
       // If element is over trash can, delete it
       if (isOverTrash) {
-        setElements(prev => prev.filter(el => el.id !== draggedElement));
+        setElements(prev => prev.filter(el => el.id !== draggedElementId));
         setIsOverTrash(false);
       } else {
         // Update element to no longer be dragging
         setElements(prev => prev.map(el => 
-          el.id === draggedElement 
+          el.id === draggedElementId 
             ? { ...el, isDragging: false } 
             : el
         ));
         
         // Check for collisions and potential merges
-        checkElementCollisions(draggedElement);
+        checkElementCollisions(draggedElementId);
       }
       
       // Reset drag state
-      setDraggedElement(null);
+      setDraggedElementId(null);
     }
   };
   
@@ -1214,35 +1303,109 @@ export default function GamePage() {
 
             console.log('Attempting to delete kanji for user ID:', user.id);
             
+            // Check Supabase connectivity first
+            try {
+              const healthResult = await checkSupabaseHealth();
+              if (!healthResult.success) {
+                console.error('Aborting reset due to Supabase connectivity issue:', healthResult.message);
+                addNotification('Unable to connect to database. Please check your internet connection and try again.', 'info');
+                return;
+              }
+            } catch (healthError) {
+              console.error('Error checking Supabase health before reset:', healthError);
+              // Continue anyway, the main deletion might still work
+            }
+            
+            // Add timeout for the request
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Request timed out after 10 seconds')), 10000)
+            );
+            
             // First, check if we can read the user's kanji to verify auth is working
-            const { data: userKanji, error: readError } = await supabase
+            const readPromise = supabase
               .from('user_kanji')
               .select('*')
               .eq('user_id', user.id);
               
+            const { data: userKanji, error: readError } = await Promise.race([
+              readPromise,
+              timeoutPromise.then(() => { throw new Error('Timeout exceeded on reading kanji'); })
+            ]) as any;
+              
             if (readError) {
-              console.error('Error reading user kanji before deletion:', readError);
-              addNotification('Failed to reset: Cannot read user data', 'info');
+              console.error('Error reading user kanji before deletion:', readError.message || JSON.stringify(readError));
+              
+              if (readError.code === 'PGRST301') {
+                addNotification('Authentication error. Please try signing out and back in.', 'info');
+              } else {
+                addNotification('Failed to reset: Cannot read user data', 'info');
+              }
               return;
             }
             
             console.log(`Found ${userKanji?.length || 0} kanji records for user`);
             
+            if (!userKanji || userKanji.length === 0) {
+              console.log('No kanji found to delete, reset operation complete');
+              setUserKanjiCount(0);
+              setSupabaseKanji([]);
+              setUnlockedRadicalCount(10); // Reset to default 10 radicals
+              clearGameArea(); // Clear the game area too
+              addNotification('No kanji found to delete. Progress has been reset.', 'info');
+              return;
+            }
+            
+            // Now attempt to delete the records - adding more logs
+            console.log('Starting delete operation with query:', { 
+              table: 'user_kanji', 
+              filter: { user_id: user.id } 
+            });
+            
             // Now attempt to delete the records
-            const { error: deleteError, count } = await supabase
+            const deletePromise = supabase
               .from('user_kanji')
               .delete({ count: 'exact' })
               .eq('user_id', user.id);
+              
+            const { error: deleteError, count } = await Promise.race([
+              deletePromise,
+              timeoutPromise.then(() => { throw new Error('Timeout exceeded on delete operation'); })
+            ]) as any;
             
             if (deleteError) {
-              console.error('Error deleting user kanji:', deleteError);
+              console.error('Error deleting user kanji:', deleteError.message || JSON.stringify(deleteError));
               // Show more detailed error message
               const errorMessage = deleteError.message || 'Unknown error';
-              addNotification(`Failed to reset progress: ${errorMessage}`, 'info');
+              
+              if (deleteError.code === 'PGRST301') {
+                addNotification('Authentication error. Please try signing out and back in.', 'info');
+              } else {
+                addNotification(`Failed to reset progress: ${errorMessage}`, 'info');
+              }
               return;
             }
             
             console.log(`Successfully deleted ${count || 0} kanji records`);
+            
+            // Explicitly verify the delete worked by checking again
+            try {
+              const { data: checkKanji, error: checkError } = await supabase
+                .from('user_kanji')
+                .select('*', { count: 'exact' })
+                .eq('user_id', user.id);
+                
+              if (checkError) {
+                console.error('Error verifying deletion:', checkError);
+              } else {
+                console.log(`Verification: ${checkKanji?.length || 0} kanji records remain for user`);
+                if (checkKanji && checkKanji.length > 0) {
+                  console.warn('Not all records were deleted. Remaining count:', checkKanji.length);
+                }
+              }
+            } catch (verifyError) {
+              console.error('Error during verification check:', verifyError);
+              // Continue with the reset even if verification fails
+            }
             
             // Reset counts and lists
             setUserKanjiCount(0);
@@ -1250,11 +1413,30 @@ export default function GamePage() {
             setUnlockedRadicalCount(10); // Reset to default 10 radicals
             clearGameArea(); // Clear the game area too
             addNotification(`Progress has been reset. ${count || 0} kanji removed.`, 'info');
+            
+            // Refresh data to verify the changes took effect
+            try {
+              await fetchUserKanjiData();
+            } catch (refreshError) {
+              console.error('Error refreshing user data after reset:', refreshError);
+              // The reset operation was still successful, so we continue
+            }
           } catch (error) {
             // More detailed error logging
             console.error('Unexpected error in deleteUserKanji:', error);
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            addNotification(`Failed to reset progress: ${errorMessage}`, 'info');
+            const errorMessage = error instanceof Error ? 
+              error.message : 
+              (typeof error === 'object' ? JSON.stringify(error) : 'Unknown error');
+              
+            // Handle network errors specifically
+            if (error instanceof TypeError && errorMessage.includes('Failed to fetch')) {
+              console.error('Network error detected during reset');
+              addNotification('Network error. Please check your internet connection and try again.', 'info');
+            } else if (errorMessage.includes('Timeout exceeded')) {
+              addNotification('Reset operation timed out. Please try again when you have a better connection.', 'info');
+            } else {
+              addNotification(`Failed to reset progress: ${errorMessage}`, 'info');
+            }
           }
         };
         
@@ -1279,22 +1461,104 @@ export default function GamePage() {
     }
   }, []);
 
+  // Add a health check for Supabase connectivity
+  useEffect(() => {
+    const runHealthCheck = async () => {
+      try {
+        console.log('Running Supabase health check...');
+        setConnectionStatus('unknown');
+        const result = await checkSupabaseHealth();
+        console.log('Health check result:', result);
+        
+        if (!result.success) {
+          console.error('Supabase connectivity issue detected:', result.message);
+          setConnectionStatus('error');
+          addNotification('Database connection issue detected. Some features may not work correctly.', 'info');
+        } else {
+          setConnectionStatus('connected');
+        }
+      } catch (error) {
+        console.error('Error running health check:', error);
+        setConnectionStatus('error');
+      }
+    };
+    
+    runHealthCheck();
+  }, []);
+
+  // Add a function to retry the connection
+  const handleRetryConnection = async () => {
+    setIsRetrying(true);
+    try {
+      addNotification('Attempting to reconnect to database...', 'info');
+      
+      // First try to restart the connection
+      const restartResult = restartSupabaseConnection();
+      console.log('Connection restart result:', restartResult);
+      
+      // Then check if it worked
+      const healthResult = await checkSupabaseHealth();
+      console.log('Health check after restart:', healthResult);
+      
+      if (healthResult.success) {
+        setConnectionStatus('connected');
+        addNotification('Successfully reconnected to database!', 'success');
+        
+        // Refresh user data
+        if (user) {
+          await fetchUserKanjiData();
+        }
+      } else {
+        setConnectionStatus('error');
+        addNotification('Failed to reconnect. Please check your internet connection.', 'info');
+      }
+    } catch (error) {
+      console.error('Error during connection retry:', error);
+      setConnectionStatus('error');
+      addNotification('Failed to reconnect. Please try again later.', 'info');
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
   // Add a function to sync localStorage kanji to database when user signs in
   const syncLocalKanjiToDatabase = async (currentUser: UserAuth) => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      console.error('No user provided to syncLocalKanjiToDatabase');
+      return;
+    }
+    
+    if (!currentUser.id) {
+      console.error('User ID is missing in syncLocalKanjiToDatabase');
+      return;
+    }
+    
+    console.log('Starting sync process for user ID:', currentUser.id);
     
     try {
       // Get kanji from localStorage
       const savedKanji = localStorage.getItem('jijutsu_discovered_kanji');
-      if (!savedKanji || JSON.parse(savedKanji).length === 0) return;
+      if (!savedKanji) {
+        console.log('No saved kanji found in localStorage');
+        return;
+      }
       
-      const localKanji = JSON.parse(savedKanji) as string[];
+      const parsedKanji = JSON.parse(savedKanji);
+      if (!Array.isArray(parsedKanji) || parsedKanji.length === 0) {
+        console.log('No kanji to sync (empty array or invalid format)');
+        return;
+      }
+      
+      const localKanji = parsedKanji as string[];
       console.log(`Found ${localKanji.length} kanji in localStorage to sync`);
       
       // For each kanji in localStorage, add it to the user's account
       let syncedCount = 0;
+      let errorCount = 0;
       
       for (const kanji of localKanji) {
+        console.log(`Processing kanji: ${kanji}`);
+        
         // Get the kanji_id from kanji_dex table
         const { data: kanjiData, error: kanjiError } = await supabase
           .from('kanji_dex')
@@ -1302,10 +1566,19 @@ export default function GamePage() {
           .eq('kanji', kanji)
           .single();
 
-        if (kanjiError || !kanjiData?.id) {
-          console.error(`Error finding kanji ${kanji} in database:`, kanjiError);
+        if (kanjiError) {
+          console.error(`Error finding kanji ${kanji} in database:`, kanjiError.message || JSON.stringify(kanjiError));
+          errorCount++;
           continue;
         }
+
+        if (!kanjiData?.id) {
+          console.error(`Kanji ${kanji} not found in database (no ID returned)`);
+          errorCount++;
+          continue;
+        }
+
+        console.log(`Found kanji ID for ${kanji}: ${kanjiData.id}`);
 
         // Insert into user_kanji table - if duplicate, that's fine due to unique constraint
         const { error: insertError } = await supabase
@@ -1316,24 +1589,46 @@ export default function GamePage() {
           }]);
 
         // Ignore unique constraint violations (already saved kanji)
-        if (insertError && insertError.code !== '23505') {
-          console.error(`Error syncing kanji ${kanji}:`, insertError);
+        if (insertError) {
+          if (insertError.code === '23505') {
+            console.log(`Kanji ${kanji} already exists for this user (constraint violation)`);
+            // Count as synced since it's already in the database
+            syncedCount++;
+          } else {
+            console.error(`Error syncing kanji ${kanji}:`, insertError.message || JSON.stringify(insertError));
+            errorCount++;
+          }
         } else {
+          console.log(`Successfully synced kanji ${kanji}`);
           syncedCount++;
         }
       }
       
+      console.log(`Sync complete. Synced: ${syncedCount}, Errors: ${errorCount}`);
+      
       if (syncedCount > 0) {
         addNotification(`Synced ${syncedCount} kanji discoveries to your account!`, 'success');
-        // Clear localStorage after successful sync
-        localStorage.removeItem('jijutsu_discovered_kanji');
+        // Only clear localStorage if all synced successfully
+        if (errorCount === 0) {
+          localStorage.removeItem('jijutsu_discovered_kanji');
+          console.log('Cleared localStorage after successful sync');
+        } else {
+          console.log('Not clearing localStorage due to errors during sync');
+        }
       }
       
       // Refresh the user's kanji data 
-      await fetchUserKanjiData();
+      try {
+        console.log('Refreshing user kanji data after sync');
+        await fetchUserKanjiData();
+      } catch (refreshError) {
+        console.error('Error refreshing user kanji data after sync:', refreshError);
+        // Continue execution even if refresh fails - the sync was still successful
+      }
       
     } catch (error) {
-      console.error('Error syncing localStorage kanji to database:', error);
+      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+      console.error('Error syncing localStorage kanji to database:', errorMessage, error);
     }
   };
 
@@ -1478,700 +1773,689 @@ export default function GamePage() {
   }
 
   return (
-    <div className="min-h-screen flex bg-[#F2E8DC] dark:bg-[#38332E]">
+    <div className="min-h-screen flex flex-col bg-[#F2E8DC] dark:bg-[#38332E]">
       <AuthStateListener />
       <GameNav />
       
-      {/* Kanji Details Dialog */}
-      <Dialog 
-        open={isKanjiDetailsOpen} 
-        onOpenChange={(open) => {
-          console.log('Dialog onOpenChange triggered, new state:', open);
-          setIsKanjiDetailsOpen(open);
-          if (!open) {
-            handleCloseKanjiDetails();
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-[400px] bg-stone-50/95 dark:bg-stone-800/95 backdrop-blur-sm">
-          <DialogHeader>
-            <DialogTitle className="text-xl text-center text-black dark:text-white">
-              Kanji Details
-            </DialogTitle>
-          </DialogHeader>
-          
-          {loadingKanjiDetails ? (
-            <div className="py-8 flex justify-center">
-              <div className="animate-spin h-8 w-8 border-4 border-[#78B693] border-t-transparent rounded-full"></div>
-            </div>
-          ) : kanjiDetails ? (
-            <div className="py-4 space-y-6">
-              {/* Kanji character - large and centered */}
-              <div className="text-center">
-                <div className="text-7xl font-bold mb-2 text-[#78B693] dark:text-[#78B693]">
-                  {kanjiDetails.kanji}
-                </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  #{kanjiDetails.dex_number}
-                </div>
-              </div>
-              
-              {/* Meanings */}
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-black dark:text-white border-b border-stone-200 dark:border-stone-700 pb-1">
-                  Meanings
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {kanjiDetails.meanings.map((meaning, idx) => (
-                    <span 
-                      key={`meaning-${idx}`} 
-                      className="px-2 py-1 bg-stone-200 dark:bg-stone-700 rounded-md text-sm text-stone-800 dark:text-stone-200"
-                    >
-                      {meaning}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              
-              {/* On readings */}
-              {kanjiDetails.on_reading && kanjiDetails.on_reading.length > 0 && (
-                <div className="space-y-2">
-                  <h3 className="text-lg font-semibold text-black dark:text-white border-b border-stone-200 dark:border-stone-700 pb-1">
-                    On Reading (音読み)
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {kanjiDetails.on_reading.map((reading, idx) => (
-                      <span 
-                        key={`on-${idx}`} 
-                        className="px-2 py-1 bg-blue-100 dark:bg-blue-900/40 rounded-md text-sm text-blue-800 dark:text-blue-200"
-                      >
-                        {reading}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {/* Kun readings */}
-              {kanjiDetails.kun_reading && kanjiDetails.kun_reading.length > 0 && (
-                <div className="space-y-2">
-                  <h3 className="text-lg font-semibold text-black dark:text-white border-b border-stone-200 dark:border-stone-700 pb-1">
-                    Kun Reading (訓読み)
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {kanjiDetails.kun_reading.map((reading, idx) => (
-                      <span 
-                        key={`kun-${idx}`} 
-                        className="px-2 py-1 bg-green-100 dark:bg-green-900/40 rounded-md text-sm text-green-800 dark:text-green-200"
-                      >
-                        {reading}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="py-4 text-center text-stone-500 dark:text-stone-400">
-              No kanji details available
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button onClick={handleCloseKanjiDetails}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Connection status indicator */}
+      {connectionStatus === 'error' && (
+        <div className="fixed top-0 left-0 right-0 bg-red-500 dark:bg-red-700 text-white p-2 text-center z-50">
+          <p className="text-sm">Database connection error. Some features may not work.</p>
+          <button 
+            onClick={handleRetryConnection}
+            disabled={isRetrying}
+            className="mt-1 px-3 py-1 bg-white text-red-700 text-xs rounded hover:bg-gray-100 disabled:opacity-50"
+          >
+            {isRetrying ? 'Reconnecting...' : 'Retry Connection'}
+          </button>
+        </div>
+      )}
       
-      {/* Game Instructions Dialog */}
-      <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
-        <DialogContent className="sm:max-w-[500px] bg-stone-50/80 dark:bg-stone-800/80">
-          <DialogHeader>
-            <DialogTitle className="text-2xl text-black dark:text-white">Welcome to Jijutsu! 字術</DialogTitle>
-            <DialogDescription className="text-base mt-2 text-black/70 dark:text-white/80">
-              Discover kanji by combining their component radicals
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-black dark:text-white">How to Play:</h3>
-              <ul className="list-disc pl-5 space-y-2 text-black/70 dark:text-white/80">
-                <li>Drag radicals from the sidebar into the main workspace.</li>
-                <li>Move radicals around and bring them close to each other to combine them.</li>
-                <li>When you have the exact set of radicals needed to form a kanji, they&apos;ll merge automatically!</li>
-                <li>Discovered kanji will appear in the sidebar. You can also use these to create more complex kanji.</li>
-                <li>When you see a blinking outline, it means you&apos;re close to forming a kanji!</li>
-                <li>Drag unwanted elements to the trash can to remove them.</li>
-                <li>The more kanji you discover, the more radicals you unlock!</li>
-              </ul>
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-black dark:text-white">Tips:</h3>
-              <ul className="list-disc pl-5 space-y-2 text-black/70 dark:text-white/80">
-                <li>Start with simple combinations of 2-3 radicals.</li>
-                <li>Experiment! Not all combinations will create kanji.</li>
-                <li>Try to discover as many kanji as you can!</li>
-              </ul>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setShowInstructions(false)}>Start Playing!</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Main game area */}
-      <div 
-        ref={gameAreaRef}
-        className="flex-1 relative" 
-        onMouseMove={(e) => (draggedElement || isDraggingFromSidebar) && handleDrag(e.clientX, e.clientY)}
-        onMouseUp={() => handleEndDrag()}
-        onMouseLeave={() => handleEndDrag()}
-        onTouchMove={(e) => {
-          if ((draggedElement || isDraggingFromSidebar) && e.touches[0]) {
-            handleDrag(e.touches[0].clientX, e.touches[0].clientY);
-          }
-        }}
-        onTouchEnd={() => handleEndDrag()}
-        onTouchCancel={() => handleEndDrag()}
-      >
-        {/* Kanji Counter */}
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-white/80 dark:bg-stone-800/80 backdrop-blur-sm px-4 py-1 rounded-full shadow-sm flex items-center">
-          <span className="text-base font-medium dark:text-stone-300">Discovered: </span>
-          <span className="text-xl font-bold text-[#78B693] dark:text-[#78B693] ml-2">
-            {user ? userKanjiCount : discoveredKanji.size}
-          </span>
-          <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">kanji</span>
-        </div>
-
-        {/* Clear Button */}
-        <div className="absolute bottom-6 right-6">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={clearGameArea}
-            className="bg-white/80 dark:bg-stone-800/80 backdrop-blur-sm"
-          >
-            Clear Workspace
-          </Button>
-        </div>
-
-        {/* Trash Can */}
-        <div 
-          ref={trashCanRef}
-          className={`absolute left-6 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 ${isOverTrash ? 'bg-red-100 dark:bg-red-900 scale-125' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
-          style={{ 
-            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-            zIndex: 5 // Keep it above background but below dragged elements
+      <div className="flex-1 flex">
+        {/* Kanji Details Dialog */}
+        <Dialog 
+          open={isKanjiDetailsOpen} 
+          onOpenChange={(open) => {
+            console.log('Dialog onOpenChange triggered, new state:', open);
+            setIsKanjiDetailsOpen(open);
+            if (!open) {
+              handleCloseKanjiDetails();
+            }
           }}
-          title="Drag elements here to delete them"
-          aria-label="Delete area"
         >
-          <Trash2 
-            size={28} 
-            className={`transition-all duration-200 ${isOverTrash ? 'text-red-500 dark:text-red-400 animate-pulse' : 'text-gray-500 dark:text-gray-400'}`}
-          />
-          {isOverTrash && (
-            <div className="absolute bottom-full mb-2 whitespace-nowrap rounded bg-black dark:bg-white px-2 py-1 text-xs text-white dark:text-black">
-              Release to delete
-            </div>
-          )}
-        </div>
-
-        {/* Theme Toggle and Help Button */}
-        <div className="absolute top-6 right-6 flex items-center gap-3">
-          <ThemeToggle />
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => setShowInstructions(true)}
-            className="text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300 hover:bg-transparent p-0 flex items-center gap-1"
-          >
-            <Info size={16} /> Help
-          </Button>
-        </div>
-
-        {/* Game elements */}
-        {elements.filter(el => el.position.x !== 0 || el.position.y !== 0).map((element) => (
-          <div
-            key={element.id}
-            className={`absolute cursor-grab select-none ${element.isDragging ? 'opacity-70 cursor-grabbing z-50' : 'opacity-100 z-10'} ${element.type === 'kanji' ? 'text-xl font-bold text-white' : 'text-lg'} rounded-md flex items-center justify-center transition-all duration-150 ${element.className || ''}`}
-            style={{
-              left: `${element.position.x}px`,
-              top: `${element.position.y}px`,
-              width: '40px',
-              height: '40px',
-              backgroundColor: element.type === 'kanji' 
-                ? (hoveredElements.has(element.id) 
-                  ? 'rgba(0, 79, 23, 0.9)' // #004F17 with 90% opacity for hovered kanji
-                  : 'rgba(0, 79, 23, 0.8)') // #004F17 with 80% opacity for kanji
-                : (hoveredElements.has(element.id) 
-                  ? 'rgba(120, 182, 147, 0.85)' // Slightly more opaque for hovered radicals
-                  : 'rgba(120, 182, 147, 0.8)'), // #78B693 with 80% opacity for radicals
-              userSelect: 'none',
-              boxShadow: hoveredElements.has(element.id) 
-                ? '0 0 0 2px rgba(120, 182, 147, 1), 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)'
-                : '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
-              transform: hoveredElements.has(element.id) ? 'scale(1.05)' : 'scale(1)',
-              transition: element.isDragging ? 'none' : 'all 0.15s ease-in-out'
-            }}
-            onMouseDown={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              handleStartDrag(element.id, e.clientX, e.clientY, rect);
-              e.preventDefault(); // Prevent text selection
-            }}
-            onTouchStart={(e) => {
-              if (e.touches[0]) {
-                const rect = e.currentTarget.getBoundingClientRect();
-                handleStartDrag(element.id, e.touches[0].clientX, e.touches[0].clientY, rect);
-                e.preventDefault(); // Prevent scrolling
-              }
-            }}
-          >
-            {element.char}
-          </div>
-        ))}
-
-        {/* Notifications */}
-        <div className="absolute top-16 right-6 flex flex-col items-end space-y-2 max-w-xs">
-          {notifications.map((notification) => {
-            // Generate a stable but unique key for each notification item
-            const itemKey = `notification-${notification.id}`;
-            const bgColorClass = notification.type === 'success' 
-              ? 'bg-green-500 dark:bg-green-700' 
-              : 'bg-[#78B693]/80 dark:bg-[#78B693]/80';
+          <DialogContent className="sm:max-w-[400px] bg-stone-50/95 dark:bg-stone-800/95 backdrop-blur-sm">
+            <DialogHeader>
+              <DialogTitle className="text-xl text-center text-black dark:text-white">
+                Kanji Details
+              </DialogTitle>
+            </DialogHeader>
             
-            return (
-              <div 
-                key={itemKey}
-                className={`px-4 py-2 rounded-lg shadow-lg text-white flex items-center justify-between w-full
-                  ${bgColorClass} animate-in slide-in-from-right-5 duration-300`}
-              >
-                <div className="flex items-center gap-2">
-                  {notification.kanji && (
-                    <span className="text-xl font-bold mr-2">{notification.kanji}</span>
-                  )}
-                  <span>{notification.message}</span>
-                </div>
-                <button 
-                  onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
-                  className="ml-2 text-white hover:text-gray-200"
-                  aria-label="Close notification"
-                >
-                  <X size={14} />
-                </button>
+            {loadingKanjiDetails ? (
+              <div className="py-8 flex justify-center">
+                <div className="animate-spin h-8 w-8 border-4 border-[#78B693] border-t-transparent rounded-full"></div>
               </div>
-            );
-          })}
-        </div>
+            ) : kanjiDetails ? (
+              <div className="py-4 space-y-6">
+                {/* Kanji character - large and centered */}
+                <div className="text-center">
+                  <div className="text-7xl font-bold mb-2 text-[#78B693] dark:text-[#78B693]">
+                    {kanjiDetails.kanji}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    #{kanjiDetails.dex_number}
+                  </div>
+                </div>
+                
+                {/* Meanings */}
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold text-black dark:text-white border-b border-stone-200 dark:border-stone-700 pb-1">
+                    Meanings
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {kanjiDetails.meanings.map((meaning, idx) => (
+                      <span 
+                        key={`meaning-${idx}`} 
+                        className="px-2 py-1 bg-stone-200 dark:bg-stone-700 rounded-md text-sm text-stone-800 dark:text-stone-200"
+                      >
+                        {meaning}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* On readings */}
+                {kanjiDetails.on_reading && kanjiDetails.on_reading.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-semibold text-black dark:text-white border-b border-stone-200 dark:border-stone-700 pb-1">
+                      On Reading (音読み)
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {kanjiDetails.on_reading.map((reading, idx) => (
+                        <span 
+                          key={`on-${idx}`} 
+                          className="px-2 py-1 bg-blue-100 dark:bg-blue-900/40 rounded-md text-sm text-blue-800 dark:text-blue-200"
+                        >
+                          {reading}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Kun readings */}
+                {kanjiDetails.kun_reading && kanjiDetails.kun_reading.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-semibold text-black dark:text-white border-b border-stone-200 dark:border-stone-700 pb-1">
+                      Kun Reading (訓読み)
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {kanjiDetails.kun_reading.map((reading, idx) => (
+                        <span 
+                          key={`kun-${idx}`} 
+                          className="px-2 py-1 bg-green-100 dark:bg-green-900/40 rounded-md text-sm text-green-800 dark:text-green-200"
+                        >
+                          {reading}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="py-4 text-center text-stone-500 dark:text-stone-400">
+                No kanji details available
+              </div>
+            )}
+            
+            <DialogFooter>
+              <Button onClick={handleCloseKanjiDetails}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Game Instructions Dialog */}
+        <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
+          <DialogContent className="sm:max-w-[500px] bg-stone-50/80 dark:bg-stone-800/80">
+            <DialogHeader>
+              <DialogTitle className="text-2xl text-black dark:text-white">Welcome to Jijutsu! 字術</DialogTitle>
+              <DialogDescription className="text-base mt-2 text-black/70 dark:text-white/80">
+                Discover kanji by combining their component radicals
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-black dark:text-white">How to Play:</h3>
+                <ul className="list-disc pl-5 space-y-2 text-black/70 dark:text-white/80">
+                  <li>Drag radicals from the sidebar into the main workspace.</li>
+                  <li>Move radicals around and bring them close to each other to combine them.</li>
+                  <li>When you have the exact set of radicals needed to form a kanji, they&apos;ll merge automatically!</li>
+                  <li>Discovered kanji will appear in the sidebar. You can also use these to create more complex kanji.</li>
+                  <li>When you see a blinking outline, it means you&apos;re close to forming a kanji!</li>
+                  <li>Drag unwanted elements to the trash can to remove them.</li>
+                  <li>The more kanji you discover, the more radicals you unlock!</li>
+                </ul>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-black dark:text-white">Tips:</h3>
+                <ul className="list-disc pl-5 space-y-2 text-black/70 dark:text-white/80">
+                  <li>Start with simple combinations of 2-3 radicals.</li>
+                  <li>Experiment! Not all combinations will create kanji.</li>
+                  <li>Try to discover as many kanji as you can!</li>
+                </ul>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setShowInstructions(false)}>Start Playing!</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-        {/* Auth buttons at bottom left */}
-        <div className="absolute bottom-6 left-6 flex gap-2">
-          {isLoading ? (
-            <div className="text-stone-400 text-sm">Loading...</div>
-          ) : user ? (
+        {/* Main game area */}
+        <div 
+          ref={gameAreaRef}
+          className="flex-1 relative" 
+          onMouseMove={(e) => (draggedElementId || isDraggingFromSidebar) && handleDrag(e.clientX, e.clientY)}
+          onMouseUp={() => handleEndDrag()}
+          onMouseLeave={() => handleEndDrag()}
+          onTouchMove={(e) => {
+            if ((draggedElementId || isDraggingFromSidebar) && e.touches[0]) {
+              handleDrag(e.touches[0].clientX, e.touches[0].clientY);
+            }
+          }}
+          onTouchEnd={() => handleEndDrag()}
+          onTouchCancel={() => handleEndDrag()}
+        >
+          {/* Kanji Counter */}
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-white/80 dark:bg-stone-800/80 backdrop-blur-sm px-4 py-1 rounded-full shadow-sm flex items-center">
+            <span className="text-base font-medium dark:text-stone-300">Discovered: </span>
+            <span className="text-xl font-bold text-[#78B693] dark:text-[#78B693] ml-2">
+              {user ? userKanjiCount : discoveredKanji.size}
+            </span>
+            <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">kanji</span>
+          </div>
+
+          {/* Clear Button */}
+          <div className="absolute bottom-6 right-6">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={clearGameArea}
+              className="bg-white/80 dark:bg-stone-800/80 backdrop-blur-sm"
+            >
+              Clear Workspace
+            </Button>
+          </div>
+
+          {/* Trash Can */}
+          <div 
+            ref={trashCanRef}
+            className={`absolute left-6 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 ${isOverTrash ? 'bg-red-100 dark:bg-red-900 scale-125' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+            style={{ 
+              boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+              zIndex: 5 // Keep it above background but below dragged elements
+            }}
+            title="Drag elements here to delete them"
+            aria-label="Delete area"
+          >
+            <Trash2 
+              size={28} 
+              className={`transition-all duration-200 ${isOverTrash ? 'text-red-500 dark:text-red-400 animate-pulse' : 'text-gray-500 dark:text-gray-400'}`}
+            />
+            {isOverTrash && (
+              <div className="absolute bottom-full mb-2 whitespace-nowrap rounded bg-black dark:bg-white px-2 py-1 text-xs text-white dark:text-black">
+                Release to delete
+              </div>
+            )}
+          </div>
+
+          {/* Theme Toggle and Help Button */}
+          <div className="absolute top-6 right-6 flex items-center gap-3">
+            <ThemeToggle />
             <Button 
               variant="ghost" 
               size="sm" 
-              onClick={handleSignOut}
-              className="text-red-500 hover:text-red-700 hover:bg-transparent p-0 flex items-center gap-1"
+              onClick={() => setShowInstructions(true)}
+              className="text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300 hover:bg-transparent p-0 flex items-center gap-1"
             >
-              <LogOut size={16} /> Sign out
+              <Info size={16} /> Help
             </Button>
-          ) : (
-            <>
-              <Dialog open={isSignInOpen} onOpenChange={setIsSignInOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={() => handleOpenAuth('signin')}>
-                    Sign in
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px] bg-stone-800/80 dark:bg-stone-50/80">
-                  <DialogHeader>
-                    <DialogTitle className="text-white dark:text-black">Sign in to Jijutsu</DialogTitle>
-                  </DialogHeader>
-                  <div className="py-4 text-white dark:text-black">
-                    <SignInForm 
-                      onSwitchToSignUp={() => handleOpenAuth('signup')}
-                      onSuccess={handleAuthSuccess}
-                    />
-                  </div>
-                </DialogContent>
-              </Dialog>
+          </div>
 
-              <Dialog open={isSignUpOpen} onOpenChange={setIsSignUpOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="default" size="sm" onClick={() => handleOpenAuth('signup')}>
-                    Sign up
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px] bg-stone-800/80 dark:bg-stone-50/80">
-                  <DialogHeader>
-                    <DialogTitle className="text-white dark:text-black">Create your Jijutsu account</DialogTitle>
-                  </DialogHeader>
-                  <div className="py-4 text-white dark:text-black">
-                    <SignupForm 
-                      onSuccess={handleAuthSuccess}
-                    />
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </>
-          )}
-        </div>
-
-        {/* Tutorial cue */}
-        {showTutorialCue && (
-          <div className="absolute inset-0 z-30 pointer-events-none">
-            <div className="absolute top-1/2 left-1/3 transform -translate-y-1/2">
-              <div className="animate-float text-center">
-                <div className="w-16 h-16 bg-sky-100 rounded-lg shadow-md flex items-center justify-center text-xl mb-2 mx-auto">
-                  一
-                </div>
-                <div className="text-sm text-gray-600 font-medium">
-                  Drag radicals from sidebar
-                </div>
-                <div className="mt-4 flex items-center justify-center">
-                  <svg width="50" height="24" viewBox="0 0 50 24" className="text-gray-400">
-                    <path 
-                      d="M2,12 L48,12" 
-                      stroke="currentColor" 
-                      strokeWidth="2" 
-                      strokeDasharray="4"
-                    />
-                    <path 
-                      d="M40,6 L48,12 L40,18" 
-                      stroke="currentColor" 
-                      strokeWidth="2" 
-                      fill="none"
-                    />
-                  </svg>
-                </div>
-              </div>
-            </div>
-            
-            <div className="absolute top-1/2 right-1/3 transform -translate-y-1/2">
-              <div className="animate-float text-center animation-delay-500">
-                <div className="w-16 h-16 bg-sky-100 rounded-lg shadow-md flex items-center justify-center text-xl mb-2 mx-auto">
-                  丨
-                </div>
-                <div className="text-sm text-gray-600 font-medium">
-                  Combine to form kanji
-                </div>
-              </div>
-            </div>
-            
-            <div className="absolute top-3/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animation-delay-1000">
-              <div className="animate-bounce text-center">
-                <div className="w-20 h-20 bg-blue-100 rounded-lg shadow-md flex items-center justify-center text-2xl mb-2 mx-auto">
-                  十
-                </div>
-                <div className="text-lg text-blue-600 font-medium">
-                  New kanji!
-                </div>
-              </div>
-            </div>
-            
-            <button 
-              onClick={() => setShowTutorialCue(false)} 
-              className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white px-4 py-2 rounded pointer-events-auto"
+          {/* Game elements */}
+          {elements.filter(el => el.position.x !== 0 || el.position.y !== 0).map((element) => (
+            <div
+              key={element.id}
+              className={`absolute cursor-grab select-none ${element.isDragging ? 'opacity-70 cursor-grabbing z-50' : 'opacity-100 z-10'} ${element.type === 'kanji' ? 'text-xl font-bold text-white' : 'text-lg'} rounded-md flex items-center justify-center transition-all duration-150 ${element.className || ''}`}
+              style={{
+                left: `${element.position.x}px`,
+                top: `${element.position.y}px`,
+                width: '40px',
+                height: '40px',
+                backgroundColor: element.type === 'kanji' 
+                  ? (hoveredElements.has(element.id) 
+                    ? 'rgba(0, 79, 23, 0.9)' // #004F17 with 90% opacity for hovered kanji
+                    : 'rgba(0, 79, 23, 0.8)') // #004F17 with 80% opacity for kanji
+                  : (hoveredElements.has(element.id) 
+                    ? 'rgba(120, 182, 147, 0.85)' // Slightly more opaque for hovered radicals
+                    : 'rgba(120, 182, 147, 0.8)'), // #78B693 with 80% opacity for radicals
+                userSelect: 'none',
+                boxShadow: hoveredElements.has(element.id) 
+                  ? '0 0 0 2px rgba(120, 182, 147, 1), 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)'
+                  : '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
+                transform: hoveredElements.has(element.id) ? 'scale(1.05)' : 'scale(1)',
+                transition: element.isDragging ? 'none' : 'all 0.15s ease-in-out'
+              }}
+              onMouseDown={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                handleStartDrag(element.id, e.clientX, e.clientY, rect);
+                e.preventDefault(); // Prevent text selection
+              }}
+              onTouchStart={(e) => {
+                if (e.touches[0]) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  handleStartDrag(element.id, e.touches[0].clientX, e.touches[0].clientY, rect);
+                  e.preventDefault(); // Prevent scrolling
+                }
+              }}
             >
-              Got it!
-            </button>
-          </div>
-        )}
-
-        {/* Update the floating element to handle scroll position correctly */}
-        {isDraggingFromSidebar && sidebarDraggedChar && (
-          <div 
-            className={`absolute z-50 pointer-events-none ${discoveredKanji.has(sidebarDraggedChar) || supabaseKanji.includes(sidebarDraggedChar) ? 'text-white' : ''}`}
-            style={{
-              left: `${mousePosition.x}px`,
-              top: `${mousePosition.y}px`,
-              width: '40px',
-              height: '40px',
-              backgroundColor: discoveredKanji.has(sidebarDraggedChar) || supabaseKanji.includes(sidebarDraggedChar)
-                ? 'rgba(0, 79, 23, 0.8)' // Dark green for kanji
-                : 'rgba(120, 182, 147, 0.8)', // Original color for radicals
-              borderRadius: '0.375rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 3px 10px rgba(0,0,0,0.2)',
-              opacity: 0.8,
-              transform: `translate(-${dragOffset.x}px, -${dragOffset.y}px) scale(1.1)`,
-              fontSize: '1.125rem'
-            }}
-          >
-            {sidebarDraggedChar}
-          </div>
-        )}
-
-        {/* Connection lines between elements */}
-        {connections.map((connection, index) => {
-          const fromElement = connection.from === 'sidebar' 
-            ? { 
-                position: { 
-                  x: mousePosition.x - gameAreaRef.current!.getBoundingClientRect().left - dragOffset.x,
-                  y: mousePosition.y - gameAreaRef.current!.getBoundingClientRect().top - dragOffset.y
-                } 
-              } 
-            : elements.find(el => el.id === connection.from);
-          const toElement = elements.find(el => el.id === connection.to);
-          
-          if (!fromElement || !toElement) return null;
-          
-          const fromX = fromElement.position.x + 20; // Center X of from element
-          const fromY = fromElement.position.y + 20; // Center Y of from element
-          const toX = toElement.position.x + 20; // Center X of to element
-          const toY = toElement.position.y + 20; // Center Y of to element
-          
-          return (
-            <svg 
-              key={`connection-${index}`}
-              className="absolute top-0 left-0 w-full h-full z-5 pointer-events-none"
-              style={{ overflow: 'visible' }}
-            >
-              <line
-                x1={fromX}
-                y1={fromY}
-                x2={toX}
-                y2={toY}
-                stroke="rgba(120, 182, 147, 1)"
-                strokeWidth="2"
-                strokeDasharray="3,3"
-                opacity="0.6"
-              />
-            </svg>
-          );
-        })}
-      </div>
-
-      {/* Sidebar */}
-      <div className="w-96 border-l border-stone-200 dark:border-stone-700 flex flex-col overflow-y-auto bg-[#E8DED2] dark:bg-[#302B27]">
-        {/* Radical container */}
-        <div className="p-3 border-b border-stone-200 dark:border-stone-700">
-          <div className="flex justify-between items-center">
-            <h3 className="font-semibold dark:text-stone-300">Radicals ({sidebarRadicals.length})</h3>
-            <div className="text-xs text-stone-500 dark:text-stone-400">
-              {user ? (
-                <div className="flex items-center gap-1">
-                  <span>Kanji: {userKanjiCount}</span>
-                  <span>•</span>
-                  <span>Next at: {(Math.floor(userKanjiCount / 10) + 1) * 10}</span>
-                </div>
-              ) : (
-                <div>Sign in to track progress</div>
-              )}
+              {element.char}
             </div>
-          </div>
-          
-          {/* Progress bar for unlocking the next radical */}
-          {user && (
-            <div className="mt-2 mb-3">
-              <div className="w-full bg-stone-200 dark:bg-stone-700 rounded-full h-2 overflow-hidden">
-                <div 
-                  className="bg-[#78B693] h-full rounded-full transition-all duration-300 ease-out"
-                  style={{ 
-                    width: `${(userKanjiCount % 10) * 10}%`,
-                    minWidth: userKanjiCount > 0 ? '5%' : '0%'
-                  }}
-                />
-              </div>
-              <div className="flex justify-between mt-1 text-xs text-stone-500 dark:text-stone-400">
-                <span>{10 - (userKanjiCount % 10)} until next radical</span>
-                <span>{sidebarRadicals.length} of {sortedRadicals.length} radicals</span>
-              </div>
-            </div>
-          )}
-          
-          {/* Unlocked radicals grid */}
-          <div className="grid grid-cols-8 gap-2 grid-flow-row-dense auto-rows-min">
-            {sidebarRadicals.map(({ char }, index) => {
-              // Generate a truly unique key for each radical
-              const radicalKey = `sidebar-radical-${index}-${char}-${Math.random().toString(36).slice(2, 5)}`;
+          ))}
+
+          {/* Notifications */}
+          <div className="absolute top-16 right-6 flex flex-col items-end space-y-2 max-w-xs">
+            {notifications.map((notification) => {
+              // Generate a stable but unique key for each notification item
+              const itemKey = `notification-${notification.id}`;
+              const bgColorClass = notification.type === 'success' 
+                ? 'bg-green-500 dark:bg-green-700' 
+                : 'bg-[#78B693]/80 dark:bg-[#78B693]/80';
               
               return (
-                <div
-                  key={radicalKey}
-                  className="w-8 h-8 text-lg flex items-center justify-center rounded cursor-grab select-none"
-                  style={{
-                    backgroundColor: 'rgba(120, 182, 147, 0.8)',
-                    userSelect: 'none'
-                  }}
-                  onMouseDown={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    handleSidebarDragStart(char, e.clientX, e.clientY, rect);
-                    e.preventDefault(); // Prevent text selection
-                  }}
-                  onTouchStart={(e) => {
-                    if (e.touches[0]) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      handleSidebarDragStart(char, e.touches[0].clientX, e.touches[0].clientY, rect);
-                      e.preventDefault();
-                    }
-                  }}
+                <div 
+                  key={itemKey}
+                  className={`px-4 py-2 rounded-lg shadow-lg text-white flex items-center justify-between w-full
+                    ${bgColorClass} animate-in slide-in-from-right-5 duration-300`}
                 >
-                  {char}
+                  <div className="flex items-center gap-2">
+                    {notification.kanji && (
+                      <span className="text-xl font-bold mr-2">{notification.kanji}</span>
+                    )}
+                    <span>{notification.message}</span>
+                  </div>
+                  <button 
+                    onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+                    className="ml-2 text-white hover:text-gray-200"
+                    aria-label="Close notification"
+                  >
+                    <X size={14} />
+                  </button>
                 </div>
               );
             })}
           </div>
-          
-          {/* Show next few locked radicals */}
-          {user && sortedRadicals.length > unlockedRadicalCount && (
-            <div className="mt-3 pt-3 border-t border-stone-200 dark:border-stone-700">
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="text-xs font-medium text-stone-500 dark:text-stone-400">Coming Next</h4>
-                <div className="text-xs text-stone-400 dark:text-stone-500">
-                  Unlock more by creating kanji
-                </div>
-              </div>
-              <div className="grid grid-cols-17 gap-1 grid-flow-row-dense auto-rows-min">
-                {sortedRadicals.slice(unlockedRadicalCount, unlockedRadicalCount + 5)
-                  .filter(radical => kanjiData?.radicalToKanji[radical]) // Ensure the radical exists in data
-                  .map((radical, index) => {
-                    const radicalKey = `locked-radical-${index}-${radical}`;
-                    
-                    return (
-                      <div
-                        key={radicalKey}
-                        className="w-4 h-4 text-xs flex items-center justify-center rounded opacity-50 cursor-not-allowed select-none relative"
-                        style={{
-                          backgroundColor: 'rgba(120, 120, 120, 0.4)',
-                          userSelect: 'none'
-                        }}
-                        title="Keep creating kanji to unlock this radical"
-                      >
-                        <span className="opacity-70">{radical}</span>
-                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-stone-300 dark:bg-stone-600 rounded-full flex items-center justify-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="text-stone-500 dark:text-stone-400">
-                            <path d="M12 2a10 10 0 1 0 10 10H12V2z"/>
-                          </svg>
-                        </span>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
-        </div>
-        
-        {/* Discovered kanji container */}
-        <div className="flex-1 p-3 overflow-y-auto">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="font-semibold dark:text-stone-300">
-              Discovered Kanji ({user ? userKanjiCount : discoveredKanji.size})
-            </h3>
-            
-            {((user && userKanjiCount > 0) || (!user && discoveredKanji.size > 0)) && (
+
+          {/* Auth buttons at bottom left */}
+          <div className="absolute bottom-6 left-6 flex gap-2">
+            {isLoading ? (
+              <div className="text-stone-400 text-sm">Loading...</div>
+            ) : user ? (
               <Button 
                 variant="ghost" 
                 size="sm" 
-                onClick={resetProgress}
-                className="text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 text-xs p-1 h-auto"
+                onClick={handleSignOut}
+                className="text-red-500 hover:text-red-700 hover:bg-transparent p-0 flex items-center gap-1"
               >
-                Reset
+                <LogOut size={16} /> Sign out
               </Button>
+            ) : (
+              <>
+                <Dialog open={isSignInOpen} onOpenChange={setIsSignInOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" onClick={() => handleOpenAuth('signin')}>
+                      Sign in
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px] bg-stone-800/80 dark:bg-stone-50/80">
+                    <DialogHeader>
+                      <DialogTitle className="text-white dark:text-black">Sign in to Jijutsu</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4 text-white dark:text-black">
+                      <SignInForm 
+                        onSwitchToSignUp={() => handleOpenAuth('signup')}
+                        onSuccess={handleAuthSuccess}
+                      />
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={isSignUpOpen} onOpenChange={setIsSignUpOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="default" size="sm" onClick={() => handleOpenAuth('signup')}>
+                      Sign up
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px] bg-stone-800/80 dark:bg-stone-50/80">
+                    <DialogHeader>
+                      <DialogTitle className="text-white dark:text-black">Create your Jijutsu account</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4 text-white dark:text-black">
+                      <SignupForm 
+                        onSuccess={handleAuthSuccess}
+                      />
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </>
             )}
           </div>
-          
-          {(user ? userKanjiCount === 0 : discoveredKanji.size === 0) ? (
-            <div className="text-stone-400 dark:text-stone-500 text-sm">
-              Drag and combine radicals to discover kanji!
+
+          {/* Tutorial cue */}
+          {showTutorialCue && (
+            <div className="absolute inset-0 z-30 pointer-events-none">
+              <div className="absolute top-1/2 left-1/3 transform -translate-y-1/2">
+                <div className="animate-float text-center">
+                  <div className="w-16 h-16 bg-sky-100 rounded-lg shadow-md flex items-center justify-center text-xl mb-2 mx-auto">
+                    一
+                  </div>
+                  <div className="text-sm text-gray-600 font-medium">
+                    Drag radicals from sidebar
+                  </div>
+                  <div className="mt-4 flex items-center justify-center">
+                    <svg width="50" height="24" viewBox="0 0 50 24" className="text-gray-400">
+                      <path 
+                        d="M2,12 L48,12" 
+                        stroke="currentColor" 
+                        strokeWidth="2" 
+                        strokeLinecap="round"
+                      />
+                      <path 
+                        d="M42,6 L48,12 L42,18" 
+                        stroke="currentColor" 
+                        strokeWidth="2" 
+                        strokeLinecap="round" 
+                        fill="none"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              </div>
             </div>
-          ) : (
+          )}
+
+          {/* Update the floating element to handle scroll position correctly */}
+          {isDraggingFromSidebar && sidebarDraggedChar && (
+            <div 
+              className={`absolute z-50 pointer-events-none ${discoveredKanji.has(sidebarDraggedChar) || supabaseKanji.includes(sidebarDraggedChar) ? 'text-white' : ''}`}
+              style={{
+                left: `${mousePosition.x}px`,
+                top: `${mousePosition.y}px`,
+                width: '40px',
+                height: '40px',
+                backgroundColor: discoveredKanji.has(sidebarDraggedChar) || supabaseKanji.includes(sidebarDraggedChar)
+                  ? 'rgba(0, 79, 23, 0.8)' // Dark green for kanji
+                  : 'rgba(120, 182, 147, 0.8)', // Original color for radicals
+                borderRadius: '0.375rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 3px 10px rgba(0,0,0,0.2)',
+                opacity: 0.8,
+                transform: `translate(-${dragOffset.x}px, -${dragOffset.y}px) scale(1.1)`,
+                fontSize: '1.125rem'
+              }}
+            >
+              {sidebarDraggedChar}
+            </div>
+          )}
+
+          {/* Connection lines between elements */}
+          {connections.map((connection, index) => {
+            const fromElement = connection.from === 'sidebar' 
+              ? { 
+                  position: { 
+                    x: mousePosition.x - gameAreaRef.current!.getBoundingClientRect().left - dragOffset.x,
+                    y: mousePosition.y - gameAreaRef.current!.getBoundingClientRect().top - dragOffset.y
+                  } 
+                } 
+              : elements.find(el => el.id === connection.from);
+            const toElement = elements.find(el => el.id === connection.to);
+            
+            if (!fromElement || !toElement) return null;
+            
+            const fromX = fromElement.position.x + 20; // Center X of from element
+            const fromY = fromElement.position.y + 20; // Center Y of from element
+            const toX = toElement.position.x + 20; // Center X of to element
+            const toY = toElement.position.y + 20; // Center Y of to element
+            
+            return (
+              <svg 
+                key={`connection-${index}`}
+                className="absolute top-0 left-0 w-full h-full z-5 pointer-events-none"
+                style={{ overflow: 'visible' }}
+              >
+                <line
+                  x1={fromX}
+                  y1={fromY}
+                  x2={toX}
+                  y2={toY}
+                  stroke="rgba(120, 182, 147, 1)"
+                  strokeWidth="2"
+                  strokeDasharray="3,3"
+                  opacity="0.6"
+                />
+              </svg>
+            );
+          })}
+        </div>
+
+        {/* Sidebar */}
+        <div className="w-96 border-l border-stone-200 dark:border-stone-700 flex flex-col overflow-y-auto bg-[#E8DED2] dark:bg-[#302B27]">
+          {/* Radical container */}
+          <div className="p-3 border-b border-stone-200 dark:border-stone-700">
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold dark:text-stone-300">Radicals ({sidebarRadicals.length})</h3>
+              <div className="text-xs text-stone-500 dark:text-stone-400">
+                {user ? (
+                  <div className="flex items-center gap-1">
+                    <span>Kanji: {userKanjiCount}</span>
+                    <span>•</span>
+                    <span>Next at: {(Math.floor(userKanjiCount / 10) + 1) * 10}</span>
+                  </div>
+                ) : (
+                  <div>Sign in to track progress</div>
+                )}
+              </div>
+            </div>
+            
+            {/* Progress bar for unlocking the next radical */}
+            {user && (
+              <div className="mt-2 mb-3">
+                <div className="w-full bg-stone-200 dark:bg-stone-700 rounded-full h-2 overflow-hidden">
+                  <div 
+                    className="bg-[#78B693] h-full rounded-full transition-all duration-300 ease-out"
+                    style={{ 
+                      width: `${(userKanjiCount % 10) * 10}%`,
+                      minWidth: userKanjiCount > 0 ? '5%' : '0%'
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between mt-1 text-xs text-stone-500 dark:text-stone-400">
+                  <span>{10 - (userKanjiCount % 10)} until next radical</span>
+                  <span>{sidebarRadicals.length} of {sortedRadicals.length} radicals</span>
+                </div>
+              </div>
+            )}
+            
+            {/* Unlocked radicals grid */}
             <div className="grid grid-cols-8 gap-2 grid-flow-row-dense auto-rows-min">
-              {(user ? supabaseKanji : Array.from(discoveredKanji)).map((kanji, index) => {
-                // Generate a stable unique key for each discovered kanji
-                const kanjiKey = `discovered-${kanji}-${index}`;
+              {sidebarRadicals.map(({ char }, index) => {
+                // Generate a truly unique key for each radical
+                const radicalKey = `sidebar-radical-${index}-${char}-${Math.random().toString(36).slice(2, 5)}`;
                 
                 return (
                   <div
-                    key={kanjiKey}
-                    data-kanji={kanji}
-                    className="w-9 h-9 flex items-center justify-center rounded cursor-pointer select-none relative group text-white"
-                    style={{ 
-                      backgroundColor: 'rgba(0, 79, 23, 0.9)', // #004F17 with 90% opacity
-                      userSelect: 'none',
-                      zIndex: 30 // Ensure it's above other elements
-                    }}
-                    onContextMenu={(e) => {
-                      // Show dictionary on right-click instead of context menu
-                      e.preventDefault();
-                      console.log('Right-click on kanji, showing dictionary:', kanji);
-                      setSelectedKanji(kanji);
-                      fetchKanjiDetails(kanji);
-                      return false;
+                    key={radicalKey}
+                    className="w-8 h-8 text-lg flex items-center justify-center rounded cursor-grab select-none"
+                    style={{
+                      backgroundColor: 'rgba(120, 182, 147, 0.8)',
+                      userSelect: 'none'
                     }}
                     onMouseDown={(e) => {
-                      // Use left-click for dragging (button 0 is left mouse button)
-                      if (e.button === 0) { // Left mouse button
-                        console.log('Left click on kanji, starting drag:', kanji);
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      handleSidebarDragStart(char, e.clientX, e.clientY, rect);
+                      e.preventDefault(); // Prevent text selection
+                    }}
+                    onTouchStart={(e) => {
+                      if (e.touches[0]) {
                         const rect = e.currentTarget.getBoundingClientRect();
-                        handleSidebarDragStart(kanji, e.clientX, e.clientY, rect);
+                        handleSidebarDragStart(char, e.touches[0].clientX, e.touches[0].clientY, rect);
                         e.preventDefault();
                       }
                     }}
-                    onTouchStart={(e) => {
-                      // For touch devices - long press will be for dragging
-                      // Short tap will show info
-                      console.log('Touch start on kanji:', kanji);
-                      
-                      // Set up a timer for long press
-                      const timer = setTimeout(() => {
-                        // This will be a long press - start drag
-                        const touch = e.touches[0];
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        handleSidebarDragStart(kanji, touch.clientX, touch.clientY, rect);
-                      }, 500); // 500ms for long press
-                      
-                      // Store the timer ID
-                      e.currentTarget.setAttribute('data-timer', String(timer));
-                      
-                      // Don't prevent default here to allow both tap and long press
-                    }}
-                    onTouchEnd={(e) => {
-                      // Clear the long press timer on touch end
-                      const timer = e.currentTarget.getAttribute('data-timer');
-                      if (timer) {
-                        clearTimeout(Number(timer));
-                        e.currentTarget.removeAttribute('data-timer');
-                        
-                        // If this is a short tap (not a drag), show info
-                        if (!isDraggingFromSidebar) {
-                          e.preventDefault();
-                          setSelectedKanji(kanji);
-                          fetchKanjiDetails(kanji);
-                        }
-                      }
-                    }}
-                    onTouchCancel={(e) => {
-                      // Also clear timer on touch cancel
-                      const timer = e.currentTarget.getAttribute('data-timer');
-                      if (timer) {
-                        clearTimeout(Number(timer));
-                        e.currentTarget.removeAttribute('data-timer');
-                      }
-                    }}
                   >
-                    {kanji}
+                    {char}
                   </div>
                 );
               })}
             </div>
+            
+            {/* Show next few locked radicals */}
+            {user && sortedRadicals.length > unlockedRadicalCount && (
+              <div className="mt-3 pt-3 border-t border-stone-200 dark:border-stone-700">
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="text-xs font-medium text-stone-500 dark:text-stone-400">Coming Next</h4>
+                  <div className="text-xs text-stone-400 dark:text-stone-500">
+                    Unlock more by creating kanji
+                  </div>
+                </div>
+                <div className="grid grid-cols-17 gap-1 grid-flow-row-dense auto-rows-min">
+                  {sortedRadicals.slice(unlockedRadicalCount, unlockedRadicalCount + 5)
+                    .filter(radical => kanjiData?.radicalToKanji[radical]) // Ensure the radical exists in data
+                    .map((radical, index) => {
+                      const radicalKey = `locked-radical-${index}-${radical}`;
+                      
+                      return (
+                        <div
+                          key={radicalKey}
+                          className="w-4 h-4 text-xs flex items-center justify-center rounded opacity-50 cursor-not-allowed select-none relative"
+                          style={{
+                            backgroundColor: 'rgba(120, 120, 120, 0.4)',
+                            userSelect: 'none'
+                          }}
+                          title="Keep creating kanji to unlock this radical"
+                        >
+                          <span className="opacity-70">{radical}</span>
+                          <span className="absolute -top-1 -right-1 w-2 h-2 bg-stone-300 dark:bg-stone-600 rounded-full flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="text-stone-500 dark:text-stone-400">
+                              <path d="M12 2a10 10 0 1 0 10 10H12V2z"/>
+                            </svg>
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Discovered kanji container */}
+          <div className="flex-1 p-3 overflow-y-auto">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="font-semibold dark:text-stone-300">
+                Discovered Kanji ({user ? userKanjiCount : discoveredKanji.size})
+              </h3>
+              
+              {((user && userKanjiCount > 0) || (!user && discoveredKanji.size > 0)) && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={resetProgress}
+                  className="text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 text-xs p-1 h-auto"
+                >
+                  Reset
+                </Button>
+              )}
+            </div>
+            
+            {(user ? userKanjiCount === 0 : discoveredKanji.size === 0) ? (
+              <div className="text-stone-400 dark:text-stone-500 text-sm">
+                Drag and combine radicals to discover kanji!
+              </div>
+            ) : (
+              <div className="grid grid-cols-8 gap-2 grid-flow-row-dense auto-rows-min">
+                {(user ? supabaseKanji : Array.from(discoveredKanji)).map((kanji, index) => {
+                  // Generate a stable unique key for each discovered kanji
+                  const kanjiKey = `discovered-${kanji}-${index}`;
+                  
+                  return (
+                    <div
+                      key={kanjiKey}
+                      data-kanji={kanji}
+                      className="w-9 h-9 flex items-center justify-center rounded cursor-pointer select-none relative group text-white"
+                      style={{ 
+                        backgroundColor: 'rgba(0, 79, 23, 0.9)', // #004F17 with 90% opacity
+                        userSelect: 'none',
+                        zIndex: 30 // Ensure it's above other elements
+                      }}
+                      onContextMenu={(e) => {
+                        // Show dictionary on right-click instead of context menu
+                        e.preventDefault();
+                        console.log('Right-click on kanji, showing dictionary:', kanji);
+                        setSelectedKanji(kanji);
+                        fetchKanjiDetails(kanji);
+                        return false;
+                      }}
+                      onMouseDown={(e) => {
+                        // Use left-click for dragging (button 0 is left mouse button)
+                        if (e.button === 0) { // Left mouse button
+                          console.log('Left click on kanji, starting drag:', kanji);
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          handleSidebarDragStart(kanji, e.clientX, e.clientY, rect);
+                          e.preventDefault();
+                        }
+                      }}
+                      onTouchStart={(e) => {
+                        // For touch devices - long press will be for dragging
+                        // Short tap will show info
+                        console.log('Touch start on kanji:', kanji);
+                        
+                        // Set up a timer for long press
+                        const timer = setTimeout(() => {
+                          // This will be a long press - start drag
+                          const touch = e.touches[0];
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          handleSidebarDragStart(kanji, touch.clientX, touch.clientY, rect);
+                        }, 500); // 500ms for long press
+                        
+                        // Store the timer ID
+                        e.currentTarget.setAttribute('data-timer', String(timer));
+                        
+                        // Don't prevent default here to allow both tap and long press
+                      }}
+                      onTouchEnd={(e) => {
+                        // Clear the long press timer on touch end
+                        const timer = e.currentTarget.getAttribute('data-timer');
+                        if (timer) {
+                          clearTimeout(Number(timer));
+                          e.currentTarget.removeAttribute('data-timer');
+                          
+                          // If this is a short tap (not a drag), show info
+                          if (!isDraggingFromSidebar) {
+                            e.preventDefault();
+                            setSelectedKanji(kanji);
+                            fetchKanjiDetails(kanji);
+                          }
+                        }
+                      }}
+                      onTouchCancel={(e) => {
+                        // Also clear timer on touch cancel
+                        const timer = e.currentTarget.getAttribute('data-timer');
+                        if (timer) {
+                          clearTimeout(Number(timer));
+                          e.currentTarget.removeAttribute('data-timer');
+                        }
+                      }}
+                    >
+                      {kanji}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          
+          {/* User info at bottom */}
+          {user && (
+            <div className="p-4 border-t border-stone-200 dark:border-stone-700">
+              <div className="text-sm font-medium">
+                <div className="text-stone-600 dark:text-stone-400">Logged in as:</div>
+                <div className="text-stone-900 dark:text-stone-200">{user.email}</div>
+              </div>
+            </div>
           )}
         </div>
-        
-        {/* User info at bottom */}
-        {user && (
-          <div className="p-4 border-t border-stone-200 dark:border-stone-700">
-            <div className="text-sm font-medium">
-              <div className="text-stone-600 dark:text-stone-400">Logged in as:</div>
-              <div className="text-stone-900 dark:text-stone-200">{user.email}</div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
