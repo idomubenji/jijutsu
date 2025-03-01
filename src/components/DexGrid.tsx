@@ -27,10 +27,12 @@ export default function DexGrid({
 
   // Generate grid items based on showOnlyUnlocked
   const gridItems = showOnlyUnlocked
-    ? unlockedItems.sort((a, b) => a.index - b.index)
+    ? unlockedItems.sort((a, b) => a.index - b.index) // Sort by index when only showing unlocked
     : Array.from({ length: totalItems }, (_, i) => {
         const index = i + 1;
-        return unlockedMap.get(index) || { index };
+        // Check if we have an unlocked item with this index
+        const unlockedItem = unlockedMap.get(index);
+        return unlockedItem || { index };
       });
 
   return (
@@ -46,7 +48,9 @@ export default function DexGrid({
           }}
         >
           {gridItems.map((item) => {
-            const isUnlocked = !!unlockedMap.get(item.index);
+            // An item is unlocked if it's directly in the unlockedItems array
+            // or if it exists in the unlockedMap
+            const isUnlocked = !!item.unlocked || !!unlockedMap.get(item.index);
             
             return (
               <div 
