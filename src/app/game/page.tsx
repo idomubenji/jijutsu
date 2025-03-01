@@ -845,14 +845,14 @@ export default function GamePage() {
         >
           {/* Jijutsu logo at top left */}
           <div className="absolute top-6 left-6">
-            <div className="text-3xl font-bold tracking-wide text-[#F2E8DC] dark:text-[#38332E]">字術</div>
+            <div className="text-3xl font-bold tracking-wide text-stone-800 dark:text-stone-200">字術</div>
           </div>
 
           {/* Kanji Counter */}
-          <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm">
-            <span className="text-base font-medium">Discovered: </span>
-            <span className="text-xl font-bold text-blue-600">{discoveredKanji.size}</span>
-            <span className="text-sm text-gray-500 ml-1">kanji</span>
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-white/80 dark:bg-stone-800/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm">
+            <span className="text-base font-medium text-black dark:text-white">Discovered: </span>
+            <span className="text-xl font-bold text-blue-600 dark:text-blue-400">{discoveredKanji.size}</span>
+            <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">kanji</span>
           </div>
 
           {/* Clear Button */}
@@ -861,7 +861,7 @@ export default function GamePage() {
               variant="outline" 
               size="sm"
               onClick={clearGameArea}
-              className="bg-white/80 backdrop-blur-sm"
+              className="bg-white/80 dark:bg-stone-800/80 backdrop-blur-sm text-black dark:text-white"
             >
               Clear Workspace
             </Button>
@@ -870,7 +870,7 @@ export default function GamePage() {
           {/* Trash Can */}
           <div 
             ref={trashCanRef}
-            className={`absolute left-6 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 ${isOverTrash ? 'bg-red-100 scale-125' : 'bg-gray-100 hover:bg-gray-200'}`}
+            className={`absolute left-6 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 ${isOverTrash ? 'bg-red-100 dark:bg-red-900 scale-125' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
             style={{ 
               boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
               zIndex: 5 // Keep it above background but below dragged elements
@@ -880,10 +880,10 @@ export default function GamePage() {
           >
             <Trash2 
               size={28} 
-              className={`transition-all duration-200 ${isOverTrash ? 'text-red-500 animate-pulse' : 'text-gray-500'}`}
+              className={`transition-all duration-200 ${isOverTrash ? 'text-red-500 dark:text-red-400 animate-pulse' : 'text-gray-500 dark:text-gray-400'}`}
             />
             {isOverTrash && (
-              <div className="absolute bottom-full mb-2 whitespace-nowrap rounded bg-black px-2 py-1 text-xs text-white">
+              <div className="absolute bottom-full mb-2 whitespace-nowrap rounded bg-black dark:bg-white px-2 py-1 text-xs text-white dark:text-black">
                 Release to delete
               </div>
             )}
@@ -896,48 +896,66 @@ export default function GamePage() {
               variant="ghost" 
               size="sm" 
               onClick={() => setShowInstructions(true)}
-              className="text-stone-500 hover:text-stone-700 hover:bg-transparent p-0 flex items-center gap-1"
+              className="text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300 hover:bg-transparent p-0 flex items-center gap-1"
             >
               <Info size={16} /> Help
             </Button>
           </div>
 
           {/* Game elements */}
-          {elements.filter(el => el.position.x !== 0 || el.position.y !== 0).map((element) => (
-            <div
-              key={element.id}
-              className={`absolute cursor-grab select-none ${element.isDragging ? 'opacity-70 cursor-grabbing z-50' : 'opacity-100 z-10'} ${element.type === 'kanji' ? 'text-xl font-bold' : 'text-lg'} rounded-md flex items-center justify-center transition-all duration-150 ${element.className || ''}`}
-              style={{
-                left: `${element.position.x}px`,
-                top: `${element.position.y}px`,
-                width: '40px',
-                height: '40px',
-                backgroundColor: element.type === 'kanji' 
-                  ? (hoveredElements.has(element.id) ? '#93c5fd' : '#bae6fd') 
-                  : (hoveredElements.has(element.id) ? '#bfdbfe' : '#e0f2fe'),
-                userSelect: 'none',
-                boxShadow: hoveredElements.has(element.id) 
-                  ? '0 0 0 2px #3b82f6, 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)'
-                  : '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
-                transform: hoveredElements.has(element.id) ? 'scale(1.05)' : 'scale(1)',
-                transition: element.isDragging ? 'none' : 'all 0.15s ease-in-out'
-              }}
-              onMouseDown={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                handleStartDrag(element.id, e.clientX, e.clientY, rect);
-                e.preventDefault(); // Prevent text selection
-              }}
-              onTouchStart={(e) => {
-                if (e.touches[0]) {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  handleStartDrag(element.id, e.touches[0].clientX, e.touches[0].clientY, rect);
-                  e.preventDefault(); // Prevent scrolling
+          {elements.filter(el => el.position.x !== 0 || el.position.y !== 0).map((element) => {
+            // Determine colors based on both element type, hover state, and theme
+            const isDarkMode = typeof window !== 'undefined' ? 
+              document.documentElement.classList.contains('dark') : false;
+            
+            const getBgColor = () => {
+              if (element.type === 'kanji') {
+                if (hoveredElements.has(element.id)) {
+                  return isDarkMode ? '#3b82f6' : '#93c5fd';
                 }
-              }}
-            >
-              {element.char}
-            </div>
-          ))}
+                return isDarkMode ? '#1e40af' : '#bae6fd';
+              } else {
+                if (hoveredElements.has(element.id)) {
+                  return isDarkMode ? '#2563eb' : '#bfdbfe';
+                }
+                return isDarkMode ? '#1e3a8a' : '#e0f2fe';
+              }
+            };
+            
+            return (
+              <div
+                key={element.id}
+                className={`absolute cursor-grab select-none ${element.isDragging ? 'opacity-70 cursor-grabbing z-50' : 'opacity-100 z-10'} ${element.type === 'kanji' ? 'text-xl font-bold' : 'text-lg'} rounded-md flex items-center justify-center transition-all duration-150 ${element.className || ''} text-black dark:text-white`}
+                style={{
+                  left: `${element.position.x}px`,
+                  top: `${element.position.y}px`,
+                  width: '40px',
+                  height: '40px',
+                  backgroundColor: getBgColor(),
+                  userSelect: 'none',
+                  boxShadow: hoveredElements.has(element.id) 
+                    ? '0 0 0 2px #3b82f6, 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)'
+                    : '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
+                  transform: hoveredElements.has(element.id) ? 'scale(1.05)' : 'scale(1)',
+                  transition: element.isDragging ? 'none' : 'all 0.15s ease-in-out'
+                }}
+                onMouseDown={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  handleStartDrag(element.id, e.clientX, e.clientY, rect);
+                  e.preventDefault(); // Prevent text selection
+                }}
+                onTouchStart={(e) => {
+                  if (e.touches[0]) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    handleStartDrag(element.id, e.touches[0].clientX, e.touches[0].clientY, rect);
+                    e.preventDefault(); // Prevent scrolling
+                  }
+                }}
+              >
+                {element.char}
+              </div>
+            );
+          })}
 
           {/* Notifications */}
           <div className="absolute top-16 right-6 flex flex-col items-end space-y-2 max-w-xs">
@@ -1089,13 +1107,15 @@ export default function GamePage() {
           {/* Update the floating element to handle scroll position correctly */}
           {isDraggingFromSidebar && sidebarDraggedChar && (
             <div 
-              className="absolute z-50 pointer-events-none"
+              className="absolute z-50 pointer-events-none text-black dark:text-white"
               style={{
                 left: `${mousePosition.x}px`,
                 top: `${mousePosition.y}px`,
                 width: '40px',
                 height: '40px',
-                backgroundColor: '#e0f2fe',
+                backgroundColor: typeof window !== 'undefined' && document.documentElement.classList.contains('dark') 
+                  ? '#1e3a8a' // Dark blue in dark mode
+                  : '#e0f2fe', // Light blue in light mode
                 borderRadius: '0.375rem',
                 display: 'flex',
                 alignItems: 'center',
@@ -1151,9 +1171,9 @@ export default function GamePage() {
         </div>
 
         {/* Sidebar */}
-        <div className="w-96 border-l border-stone-200 dark:border-stone-700 flex flex-col overflow-y-auto bg-[#E8DED2] dark:bg-[#302B27]">
+        <div className="w-96 border-l border-stone-200 dark:border-stone-700 flex flex-col overflow-y-auto bg-[#E8DED2] dark:bg-[#302B27] text-black dark:text-white">
           {/* Radical container */}
-          <div className="p-3 border-b border-stone-200">
+          <div className="p-3 border-b border-stone-200 dark:border-stone-700">
             <h3 className="font-semibold mb-2">Radicals</h3>
             <div className="grid grid-cols-17 gap-1">
               {sidebarRadicals.map(({ char }, index) => {
@@ -1163,7 +1183,7 @@ export default function GamePage() {
                 return (
                   <div
                     key={radicalKey}
-                    className="w-4 h-4 text-xs flex items-center justify-center bg-sky-100 rounded cursor-grab select-none"
+                    className="w-4 h-4 text-xs flex items-center justify-center bg-sky-100 dark:bg-sky-900 text-black dark:text-white rounded cursor-grab select-none"
                     style={{
                       userSelect: 'none'
                     }}
@@ -1205,7 +1225,7 @@ export default function GamePage() {
             </div>
             
             {discoveredKanji.size === 0 ? (
-              <div className="text-stone-400 text-sm">
+              <div className="text-stone-500 dark:text-stone-400 text-sm">
                 Drag and combine radicals to discover kanji!
               </div>
             ) : (
@@ -1217,7 +1237,7 @@ export default function GamePage() {
                   return (
                     <div
                       key={kanjiKey}
-                      className="w-9 h-9 flex items-center justify-center bg-sky-200 rounded cursor-grab select-none"
+                      className="w-9 h-9 flex items-center justify-center bg-sky-200 dark:bg-sky-800 text-black dark:text-white rounded cursor-grab select-none"
                       style={{ userSelect: 'none' }}
                       onMouseDown={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
@@ -1242,10 +1262,10 @@ export default function GamePage() {
           
           {/* User info at bottom */}
           {user && (
-            <div className="p-4 border-t border-stone-200">
+            <div className="p-4 border-t border-stone-200 dark:border-stone-700">
               <div className="text-sm font-medium">
-                <div className="text-stone-600">Logged in as:</div>
-                <div className="text-stone-900">{user.email}</div>
+                <div className="text-stone-600 dark:text-stone-400">Logged in as:</div>
+                <div className="text-stone-900 dark:text-stone-200">{user.email}</div>
               </div>
             </div>
           )}
