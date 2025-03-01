@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { LogOut, Info, X, Trash2 } from 'lucide-react';
 import { ClientLayout } from '@/components/ClientLayout';
 import { useKanjiRadicals } from '@/hooks/useKanjiRadicals';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import './animations.css';
 
 // Types for game elements
@@ -684,7 +685,7 @@ export default function GamePage() {
   };
   
   // Find kanji that can be formed from a set of characters
-  const findPossibleKanji = (chars: string[], kanjiData: any): string[] => {
+  const findPossibleKanji = (chars: string[], kanjiData: { radicalToKanji: Record<string, string[]> }): string[] => {
     if (!chars.length || !kanjiData) return [];
     
     // Fix type annotation to properly handle string sets
@@ -783,7 +784,7 @@ export default function GamePage() {
   if (loadingData) {
     return (
       <ClientLayout>
-        <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F2E8DC' }}>
+        <div className="min-h-screen flex items-center justify-center bg-[#F2E8DC] dark:bg-[#38332E]">
           <div className="text-2xl">Loading game data...</div>
         </div>
       </ClientLayout>
@@ -792,20 +793,20 @@ export default function GamePage() {
 
   return (
     <ClientLayout>
-      <div className="min-h-screen flex" style={{ backgroundColor: '#F2E8DC' }}>
+      <div className="min-h-screen flex bg-[#F2E8DC] dark:bg-[#38332E]">
         {/* Game Instructions Dialog */}
         <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[500px] bg-stone-800/80 dark:bg-stone-50/80">
             <DialogHeader>
-              <DialogTitle className="text-2xl">Welcome to Jijutsu! 字術</DialogTitle>
-              <DialogDescription className="text-base mt-2">
+              <DialogTitle className="text-2xl text-white dark:text-black">Welcome to Jijutsu! 字術</DialogTitle>
+              <DialogDescription className="text-base mt-2 text-white/80 dark:text-black/70">
                 Discover kanji by combining their component radicals
               </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-4">
               <div className="space-y-2">
-                <h3 className="text-lg font-semibold">How to Play:</h3>
-                <ul className="list-disc pl-5 space-y-2">
+                <h3 className="text-lg font-semibold text-white dark:text-black">How to Play:</h3>
+                <ul className="list-disc pl-5 space-y-2 text-white/80 dark:text-black/70">
                   <li>Drag radicals from the sidebar into the main workspace.</li>
                   <li>Move radicals around and bring them close to each other to combine them.</li>
                   <li>When you have the exact set of radicals needed to form a kanji, they'll merge automatically!</li>
@@ -813,8 +814,8 @@ export default function GamePage() {
                 </ul>
               </div>
               <div className="space-y-2">
-                <h3 className="text-lg font-semibold">Tips:</h3>
-                <ul className="list-disc pl-5 space-y-2">
+                <h3 className="text-lg font-semibold text-white dark:text-black">Tips:</h3>
+                <ul className="list-disc pl-5 space-y-2 text-white/80 dark:text-black/70">
                   <li>Start with simple combinations of 2-3 radicals.</li>
                   <li>Experiment! Not all combinations will create kanji.</li>
                   <li>Try to discover as many kanji as you can!</li>
@@ -844,7 +845,7 @@ export default function GamePage() {
         >
           {/* Jijutsu logo at top left */}
           <div className="absolute top-6 left-6">
-            <div className="text-3xl font-bold tracking-wide">字術</div>
+            <div className="text-3xl font-bold tracking-wide text-[#F2E8DC] dark:text-[#38332E]">字術</div>
           </div>
 
           {/* Kanji Counter */}
@@ -888,8 +889,9 @@ export default function GamePage() {
             )}
           </div>
 
-          {/* Help button */}
-          <div className="absolute top-6 right-6">
+          {/* Theme Toggle and Help Button */}
+          <div className="absolute top-6 right-6 flex items-center gap-3">
+            <ThemeToggle />
             <Button 
               variant="ghost" 
               size="sm" 
@@ -989,9 +991,9 @@ export default function GamePage() {
                       Sign in
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px]">
+                  <DialogContent className="sm:max-w-[425px] bg-stone-800/80 dark:bg-stone-50/80">
                     <DialogHeader>
-                      <DialogTitle>Sign in to Jijutsu</DialogTitle>
+                      <DialogTitle className="text-white dark:text-black">Sign in to Jijutsu</DialogTitle>
                     </DialogHeader>
                     <div className="py-4">
                       <SignInForm 
@@ -1008,9 +1010,9 @@ export default function GamePage() {
                       Sign up
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px]">
+                  <DialogContent className="sm:max-w-[425px] bg-stone-800/80 dark:bg-stone-50/80">
                     <DialogHeader>
-                      <DialogTitle>Create your Jijutsu account</DialogTitle>
+                      <DialogTitle className="text-white dark:text-black">Create your Jijutsu account</DialogTitle>
                     </DialogHeader>
                     <div className="py-4">
                       <SignupForm 
@@ -1149,7 +1151,7 @@ export default function GamePage() {
         </div>
 
         {/* Sidebar */}
-        <div className="w-96 border-l border-stone-200 flex flex-col overflow-y-auto" style={{ backgroundColor: '#E8DED2' }}>
+        <div className="w-96 border-l border-stone-200 dark:border-stone-700 flex flex-col overflow-y-auto bg-[#E8DED2] dark:bg-[#302B27]">
           {/* Radical container */}
           <div className="p-3 border-b border-stone-200">
             <h3 className="font-semibold mb-2">Radicals</h3>
