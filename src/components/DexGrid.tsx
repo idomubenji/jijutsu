@@ -13,15 +13,17 @@ interface DexGridProps {
   itemsPerRow?: number;
   unlockedItems?: DexItem[];
   onItemClick?: (index: number) => void;
+  useAutoFit?: boolean;
 }
 
 export default function DexGrid({ 
   title, 
   totalItems, 
   unlockedItems = [],
-  onItemClick 
+  onItemClick,
+  useAutoFit = false
 }: DexGridProps) {
-  const [itemsPerRow, setItemsPerRow] = useState(32);
+  const [itemsPerRow, setItemsPerRow] = useState(16);
   
   // Create a map for quick lookup of unlocked items
   const unlockedMap = new Map(unlockedItems.map(item => [item.index, item]));
@@ -32,15 +34,15 @@ export default function DexGrid({
       const width = window.innerWidth;
       // Responsive column count based on screen width
       if (width > 1600) {
-        setItemsPerRow(40);
+        setItemsPerRow(20);
       } else if (width > 1200) {
-        setItemsPerRow(32);
-      } else if (width > 768) {
-        setItemsPerRow(24);
-      } else if (width > 640) {
         setItemsPerRow(16);
-      } else {
+      } else if (width > 768) {
         setItemsPerRow(12);
+      } else if (width > 640) {
+        setItemsPerRow(8);
+      } else {
+        setItemsPerRow(6);
       }
     };
 
@@ -55,18 +57,22 @@ export default function DexGrid({
   }, []);
 
   // Adjust text size based on number of items per row
-  const isSmallGrid = itemsPerRow > 20;
-  const textSizeClass = isSmallGrid ? "text-xs" : "text-sm";
-  const meaningTextSizeClass = isSmallGrid ? "text-[8px]" : "text-xs";
+  const isSmallGrid = itemsPerRow > 16;
+  const textSizeClass = isSmallGrid ? "text-lg" : "text-xl";
+  const meaningTextSizeClass = isSmallGrid ? "text-sm" : "text-base";
 
   return (
     <section className="flex flex-col h-full">
       <h2 className="text-2xl font-bold mb-2 text-center">{title}</h2>
-      <div className="flex-1 bg-white dark:bg-gray-800 rounded-lg p-2 shadow-lg overflow-hidden">
+      <div className="flex-1 bg-white dark:bg-gray-800 rounded-lg p-4 shadow-lg overflow-hidden">
         <div 
-          className="grid gap-[1px] overflow-auto h-full"
+          className="grid gap-4 overflow-auto h-full"
           style={{ 
-            gridTemplateColumns: `repeat(${itemsPerRow}, minmax(0, 1fr))`,
+            gridTemplateColumns: useAutoFit 
+              ? `repeat(auto-fit, minmax(80px, 1fr))`
+              : `repeat(${itemsPerRow}, minmax(80px, 1fr))`,
+            gridAutoRows: 'minmax(80px, auto)',
+            rowGap: '1rem',
           }}
         >
           {Array.from({ length: totalItems }, (_, i) => i + 1).map((index) => {
@@ -78,21 +84,20 @@ export default function DexGrid({
                 key={`dex-item-${index}`}
                 className={`
                   aspect-square flex flex-col items-center justify-center 
-                  border border-black cursor-pointer transition-colors
+                  border-2 rounded-lg border-gray-200 dark:border-gray-600 cursor-pointer transition-all
+                  min-w-[80px] min-h-[80px]
                   ${isUnlocked 
-                    ? 'bg-green-50 dark:bg-green-900 hover:bg-green-100 dark:hover:bg-green-800' 
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'}
+                    ? 'bg-green-50 dark:bg-green-900 hover:bg-green-100 dark:hover:bg-green-800 hover:scale-105' 
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 hover:scale-105'}
                 `}
                 onClick={() => onItemClick && onItemClick(index)}
               >
                 <div className={`${textSizeClass} font-bold`}>
                   {isUnlocked && unlockedItem.character ? unlockedItem.character : index}
                 </div>
-                {!isSmallGrid && (
-                  <div className={`${meaningTextSizeClass} mt-[1px] text-center truncate w-full`}>
-                    {isUnlocked && unlockedItem.meaning ? unlockedItem.meaning : "?????"}
-                  </div>
-                )}
+                <div className={`${meaningTextSizeClass} mt-1 text-center truncate w-full px-1`}>
+                  {isUnlocked && unlockedItem.meaning ? unlockedItem.meaning : "?????"}
+                </div>
               </div>
             );
           })}
