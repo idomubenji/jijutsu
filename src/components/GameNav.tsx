@@ -44,18 +44,22 @@ export default function GameNav() {
         >
           <BookOpen size={20} />
         </Link>
-        
-        <button
-          onClick={handleDonateClick}
-          className="flex items-center justify-center w-9 h-9 rounded-full transition-colors text-white hover:bg-[#78B693]"
-          aria-label="Donate"
-        >
-          <DollarSign size={20} />
-        </button>
       </div>
       
       <div className="bg-gray-700/90 dark:bg-gray-300/90 rounded-full p-1.5 backdrop-blur-sm shadow-sm transition-colors">
         <ThemeToggle className="transition-colors" />
+      </div>
+      
+      {/* Donate button as a glowing yellow circle */}
+      <div className="relative group">
+        <div className="absolute -inset-1 bg-yellow-300 rounded-full blur-md opacity-75 group-hover:opacity-100 transition duration-200"></div>
+        <button
+          onClick={handleDonateClick}
+          className="relative flex items-center justify-center w-10 h-10 rounded-full bg-yellow-400 text-yellow-900 hover:bg-yellow-300 transition-all shadow-lg hover:scale-105"
+          aria-label="Donate"
+        >
+          <DollarSign size={20} />
+        </button>
       </div>
     </div>
   );
