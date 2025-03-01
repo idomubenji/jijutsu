@@ -59,6 +59,7 @@ export default function GamePage() {
   const { data: kanjiData, loading: loadingData } = useKanjiRadicals();
   const [elements, setElements] = useState<GameElement[]>([]);
   const [discoveredKanji, setDiscoveredKanji] = useState<Set<string>>(new Set());
+  const [supabaseKanji, setSupabaseKanji] = useState<string[]>([]);
   const gameAreaRef = useRef<HTMLDivElement>(null);
   
   // Game instruction dialog
@@ -190,23 +191,27 @@ export default function GamePage() {
     try {
       const savedKanji = localStorage.getItem('jijutsu_discovered_kanji');
       if (savedKanji) {
-        setDiscoveredKanji(new Set(JSON.parse(savedKanji)));
+        // For non-logged in users, load from localStorage
+        if (!user) {
+          setDiscoveredKanji(new Set(JSON.parse(savedKanji)));
+        }
       }
     } catch (error) {
       console.error('Error loading saved kanji:', error);
     }
-  }, []);
+  }, [user]);
 
   // Save discovered kanji to localStorage whenever it changes
   useEffect(() => {
-    if (discoveredKanji.size > 0) {
+    // Only save to localStorage for non-logged in users
+    if (!user && discoveredKanji.size > 0) {
       try {
         localStorage.setItem('jijutsu_discovered_kanji', JSON.stringify(Array.from(discoveredKanji)));
       } catch (error) {
         console.error('Error saving kanji:', error);
       }
     }
-  }, [discoveredKanji]);
+  }, [discoveredKanji, user]);
 
   // Load sorted radicals from JSON file
   useEffect(() => {
@@ -221,25 +226,27 @@ export default function GamePage() {
       });
   }, []);
 
-  // Fetch user's kanji count and update unlocked radicals when user changes
+  // Fetch user's kanji count and kanji list from Supabase when user changes
   useEffect(() => {
     if (!user) {
       // If not logged in, set to default (10 radicals)
       setUnlockedRadicalCount(10);
       setUserKanjiCount(0);
+      setSupabaseKanji([]); // Clear Supabase kanji when logging out
       return;
     }
 
-    // Fetch user's kanji count from Supabase
-    const fetchUserKanjiCount = async () => {
+    // Fetch user's kanji count and kanji list from Supabase
+    const fetchUserKanjiData = async () => {
       try {
-        const { count, error } = await supabase
+        // First get the count
+        const { count, error: countError } = await supabase
           .from('user_kanji')
           .select('*', { count: 'exact', head: false })
           .eq('user_id', user.id);
 
-        if (error) {
-          console.error('Error fetching user kanji count:', error);
+        if (countError) {
+          console.error('Error fetching user kanji count:', countError);
           return;
         }
 
@@ -254,13 +261,43 @@ export default function GamePage() {
         if ((count || 0) > 0 && (count || 0) % 10 === 0) {
           addNotification(`You've unlocked a new radical!`, 'success');
         }
+
+        // Then get the actual kanji characters
+        const { data: userKanjiData, error: kanjiError } = await supabase
+          .from('user_kanji')
+          .select(`
+            kanji_id,
+            kanji_dex:kanji_id(kanji)
+          `)
+          .eq('user_id', user.id);
+
+        if (kanjiError) {
+          console.error('Error fetching user kanji:', kanjiError);
+          return;
+        }
+
+        // Extract kanji characters from the nested JSON response
+        if (userKanjiData && userKanjiData.length > 0) {
+          const kanjiList = userKanjiData
+            .map(item => item.kanji_dex?.kanji)
+            .filter(Boolean) as string[];
+          
+          setSupabaseKanji(kanjiList);
+          
+          // Also update the local kanji set for compatibility
+          setDiscoveredKanji(new Set(kanjiList));
+        } else {
+          // No kanji found, clear lists
+          setSupabaseKanji([]);
+          setDiscoveredKanji(new Set());
+        }
       } catch (error) {
-        console.error('Error in fetchUserKanjiCount:', error);
+        console.error('Error in fetchUserKanjiData:', error);
       }
     };
 
-    fetchUserKanjiCount();
-  }, [user, discoveredKanji.size]); // Also update when discoveredKanji changes
+    fetchUserKanjiData();
+  }, [user, discoveredKanji.size]); // Refetch when user changes or discoveredKanji changes
 
   // Function to add a notification
   const addNotification = (message: string, type: 'success' | 'info' = 'info', kanji?: string) => {
@@ -276,7 +313,11 @@ export default function GamePage() {
 
   // Function to record kanji discovery in Supabase
   const recordKanjiDiscovery = async (kanji: string) => {
-    if (!user) return; // Only record for authenticated users
+    if (!user) {
+      // For non-logged in users, just update local state
+      setDiscoveredKanji(prev => new Set([...prev, kanji]));
+      return;
+    }
     
     try {
       // First get the kanji_id from kanji_dex table
@@ -312,7 +353,7 @@ export default function GamePage() {
         }
         console.error('Error recording kanji discovery:', insertError);
       } else {
-        // Successfully recorded kanji, update count
+        // Successfully recorded kanji, update count and kanji list
         setUserKanjiCount(prev => {
           const newCount = prev + 1;
           // Check if this unlocks a new radical
@@ -323,6 +364,11 @@ export default function GamePage() {
           }
           return newCount;
         });
+
+        // Add the new kanji to the Supabase kanji list
+        setSupabaseKanji(prev => [...prev, kanji]);
+        // Also update the local kanji set for compatibility
+        setDiscoveredKanji(prev => new Set([...prev, kanji]));
       }
     } catch (error) {
       console.error('Error in recordKanjiDiscovery:', error);
@@ -418,7 +464,7 @@ export default function GamePage() {
     // Update hovered elements for both sidebar drags and regular drags
     if (isDraggingFromSidebar || draggedElement) {
       const gameElements = elements.filter(el => (el.position.x !== 0 || el.position.y !== 0) && el.id !== draggedElement);
-      const hoveredIds = new Set<string>();
+      const hoveredElements = new Set<string>();
       const newConnections: {from: string, to: string}[] = [];
       const elementWidth = 40;
       const elementHeight = 40;
@@ -465,7 +511,7 @@ export default function GamePage() {
           draggedBottom + margin > elTop - margin;
         
         if (isOverlapping) {
-          hoveredIds.add(el.id);
+          hoveredElements.add(el.id);
           
           // Add a connection between the dragged element and this element
           newConnections.push({
@@ -475,7 +521,7 @@ export default function GamePage() {
         }
       }
       
-      setHoveredElements(hoveredIds);
+      setHoveredElements(hoveredElements);
       setConnections(newConnections);
     } else {
       // Clear hover state when not dragging
@@ -506,6 +552,77 @@ export default function GamePage() {
         }
         return el;
       }));
+    }
+
+    // Check for kanji discoveries with the current set of touching elements
+    if (hoveredElements.size >= 2) {
+      // Get all radical characters that are touching
+      const radicalSet = new Set<string>();
+      
+      hoveredElements.forEach(id => {
+        const element = elements.find(el => el.id === id);
+        if (element) {
+          radicalSet.add(element.char);
+        }
+      });
+      
+      // Convert set to sorted array for consistent checking
+      const radicals = Array.from(radicalSet).sort();
+      
+      // Check if these radicals form a kanji
+      if (kanjiData && radicals.length >= 2) {
+        // Using every radical to check for potential kanji
+        radicals.forEach(radical => {
+          if (kanjiData.radicalToKanji[radical]) {
+            kanjiData.radicalToKanji[radical].forEach(kanji => {
+              // Get the set of radicals for this kanji
+              const kanjiRadicals = kanjiData.kanjiToRadicals[kanji] || [];
+              
+              // Check if all radicals for this kanji are present in our touching set
+              // AND check if our touching set contains exactly these radicals (no extras)
+              if (
+                kanjiRadicals.every(r => radicalSet.has(r)) && 
+                kanjiRadicals.length === radicalSet.size
+              ) {
+                // We've discovered a kanji!
+                if (!discoveredKanji.has(kanji)) {
+                  // Add to discovered set
+                  const newDiscoveredKanji = new Set(discoveredKanji);
+                  newDiscoveredKanji.add(kanji);
+                  
+                  // Update state
+                  recordKanjiDiscovery(kanji);
+                  
+                  // Show notification with the kanji
+                  addNotification(`You discovered ${kanji}!`, 'success', kanji);
+                  
+                  // Add the kanji as a new element in the workspace
+                  const newKanjiElement: GameElement = {
+                    id: `kanji-${Date.now()}-${kanji}`,
+                    type: 'kanji',
+                    char: kanji,
+                    position: {
+                      x: Math.min(...Array.from(hoveredElements).map(el => elements.find(e => e.id === el)?.position.x || 0)) + 10,
+                      y: Math.min(...Array.from(hoveredElements).map(el => elements.find(e => e.id === el)?.position.y || 0)) + 10
+                    },
+                    isDragging: false,
+                    touchingElements: new Set(),
+                    className: 'kanji-created'
+                  };
+                  
+                  // Add new kanji and remove all the radicals used
+                  setElements(prev => {
+                    // Remove the radicals that were combined
+                    const filtered = prev.filter(el => !hoveredElements.has(el.id));
+                    // Add the new kanji
+                    return [...filtered, newKanjiElement];
+                  });
+                }
+              }
+            });
+          }
+        });
+      }
     }
   };
 
@@ -687,7 +804,7 @@ export default function GamePage() {
       setElements(prev => prev.map(el => 
         el.id === changedElement.id 
           ? { ...el, touchingElements: new Set() } 
-          : el
+        : el
       ));
       return;
     }
@@ -963,9 +1080,39 @@ export default function GamePage() {
   // Function to reset all progress
   const resetProgress = () => {
     if (window.confirm('Are you sure you want to reset your progress? All discovered kanji will be lost.')) {
-      setDiscoveredKanji(new Set());
-      localStorage.removeItem('jijutsu_discovered_kanji');
-      addNotification('Progress has been reset', 'info');
+      if (user) {
+        // For logged in users, delete all kanji from Supabase
+        const deleteUserKanji = async () => {
+          try {
+            const { error } = await supabase
+              .from('user_kanji')
+              .delete()
+              .eq('user_id', user.id);
+            
+            if (error) {
+              console.error('Error deleting user kanji:', error);
+              addNotification('Failed to reset progress', 'info');
+              return;
+            }
+            
+            // Reset counts and lists
+            setUserKanjiCount(0);
+            setSupabaseKanji([]);
+            setUnlockedRadicalCount(10); // Reset to default 10 radicals
+            addNotification('Progress has been reset', 'info');
+          } catch (error) {
+            console.error('Error in deleteUserKanji:', error);
+            addNotification('Failed to reset progress', 'info');
+          }
+        };
+        
+        deleteUserKanji();
+      } else {
+        // For non-logged in users, just clear localStorage
+        setDiscoveredKanji(new Set());
+        localStorage.removeItem('jijutsu_discovered_kanji');
+        addNotification('Progress has been reset', 'info');
+      }
     }
   };
 
@@ -1045,7 +1192,9 @@ export default function GamePage() {
         {/* Kanji Counter */}
         <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-white/80 dark:bg-stone-800/80 backdrop-blur-sm px-4 py-1 rounded-full shadow-sm flex items-center">
           <span className="text-base font-medium dark:text-stone-300">Discovered: </span>
-          <span className="text-xl font-bold text-[#78B693] dark:text-[#78B693] ml-2">{discoveredKanji.size}</span>
+          <span className="text-xl font-bold text-[#78B693] dark:text-[#78B693] ml-2">
+            {user ? userKanjiCount : discoveredKanji.size}
+          </span>
           <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">kanji</span>
         </div>
 
@@ -1463,9 +1612,11 @@ export default function GamePage() {
         {/* Discovered kanji container */}
         <div className="flex-1 p-3 overflow-y-auto">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="font-semibold dark:text-stone-300">Discovered Kanji ({discoveredKanji.size})</h3>
+            <h3 className="font-semibold dark:text-stone-300">
+              Discovered Kanji ({user ? userKanjiCount : discoveredKanji.size})
+            </h3>
             
-            {discoveredKanji.size > 0 && (
+            {((user && userKanjiCount > 0) || (!user && discoveredKanji.size > 0)) && (
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -1477,13 +1628,13 @@ export default function GamePage() {
             )}
           </div>
           
-          {discoveredKanji.size === 0 ? (
+          {(user ? userKanjiCount === 0 : discoveredKanji.size === 0) ? (
             <div className="text-stone-400 dark:text-stone-500 text-sm">
               Drag and combine radicals to discover kanji!
             </div>
           ) : (
             <div className="grid grid-cols-8 gap-2">
-              {Array.from(discoveredKanji).map((kanji, index) => {
+              {(user ? supabaseKanji : Array.from(discoveredKanji)).map((kanji, index) => {
                 // Generate a stable unique key for each discovered kanji
                 const kanjiKey = `discovered-${kanji}-${index}`;
                 
