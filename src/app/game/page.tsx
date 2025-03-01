@@ -6,13 +6,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { SignInForm } from '@/components/SignInForm';
 import { SignupForm } from '@/components/SignupForm';
 import { supabase } from '@/lib/supabase';
-<<<<<<< Updated upstream
 import { LogOut, Info, X, Trash2 } from 'lucide-react';
 import { ClientLayout } from '@/components/ClientLayout';
-=======
-import { LogOut, Info, X } from 'lucide-react';
 import MainLayout from '@/components/MainLayout';
->>>>>>> Stashed changes
 import { useKanjiRadicals } from '@/hooks/useKanjiRadicals';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import './animations.css';
