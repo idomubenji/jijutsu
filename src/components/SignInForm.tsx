@@ -110,7 +110,7 @@ export function SignInForm({ onSwitchToSignUp, onSuccess }: SignInFormProps) {
       </Button>
       
       <div className="text-sm text-center text-stone-500">
-        <span>Don't have an account? </span>
+        <span>Don&apos;t have an account? </span>
         <Button 
           variant="link" 
           className="p-0 h-auto font-normal" 

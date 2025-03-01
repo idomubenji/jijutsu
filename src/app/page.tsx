@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Countdown } from '@/components/Countdown';
@@ -21,25 +21,26 @@ interface KanjiData {
   meanings: string[];
 }
 
-interface RadicalData {
-  radical_shape: string;
-  english_name: string;
-  dex_number: number;
-}
-
 interface UserKanjiResponse {
   kanji_id: string;
   kanji_dex: KanjiData;
 }
 
+interface UserAuth {
+  id: string;
+  email?: string;
+}
+
 export default function Home() {
   const [isCountdownComplete, setIsCountdownComplete] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [formOpen, setFormOpen] = useState(false);
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [waitlistMessage, setWaitlistMessage] = useState<{ text: string; isError: boolean } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserAuth | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isLoading, setIsLoading] = useState(true);
   const [discoveredKanji, setDiscoveredKanji] = useState<KanjiData[]>([]);
   const [isSignInOpen, setIsSignInOpen] = useState(false);

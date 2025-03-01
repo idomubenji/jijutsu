@@ -89,8 +89,8 @@ export function useKanjiRadicals() {
     if (!data) return [];
     
     return Object.entries(data.radicalDecomposition)
-      .filter(([_, subRadicals]) => subRadicals.length === 0)
-      .map(([radical, _]) => radical);
+      .filter(entry => entry[1].length === 0)
+      .map(entry => entry[0]);
   };
 
   return {

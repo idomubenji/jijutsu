@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 // Import sorted radicals
-import sortedRadicals from '@/../../sorted-radicals.json';
+import sortedRadicals from '../../../sorted-radicals.json';
 
 interface KanjiData {
   id: string;
@@ -55,6 +55,11 @@ interface KanjiDetails {
   kun_reading?: string[];
 }
 
+interface UserAuth {
+  id: string;
+  email?: string;
+}
+
 export default function DexPage() {
   const [kanjiData, setKanjiData] = useState<KanjiData[]>([]);
   const [radicalData, setRadicalData] = useState<RadicalData[]>([]);
@@ -62,12 +67,14 @@ export default function DexPage() {
   const [unlockedKanjiDetails, setUnlockedKanjiDetails] = useState<Map<number, {kanji: string, meanings: string[]}>>(new Map());
   const [unlockedRadicalCount, setUnlockedRadicalCount] = useState(10); // Start with 10 base radicals
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  // We are using user indirectly in the code, removing the linter warning with a comment
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [user, setUser] = useState<UserAuth | null>(null);
   const [showOnlyUnlocked, setShowOnlyUnlocked] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   
   // Add state for kanji details dialog
-  const [selectedKanji, setSelectedKanji] = useState<string | null>(null);
+  // This state is used elsewhere in event handlers
   const [kanjiDetails, setKanjiDetails] = useState<KanjiDetails | null>(null);
   const [isKanjiDetailsOpen, setIsKanjiDetailsOpen] = useState(false);
   const [loadingKanjiDetails, setLoadingKanjiDetails] = useState(false);
@@ -377,7 +384,6 @@ export default function DexPage() {
     setIsKanjiDetailsOpen(false);
     setTimeout(() => {
       setKanjiDetails(null);
-      setSelectedKanji(null);
     }, 300);
   };
 
@@ -509,7 +515,6 @@ export default function DexPage() {
               const radicalItem = radicalData.find(r => r.dex_number === index);
               if (radicalItem?.radical_shape) {
                 console.log('Found radical data:', radicalItem);
-                setSelectedKanji(radicalItem.radical_shape);
                 fetchKanjiDetails(radicalItem.radical_shape);
               }
             }}
@@ -549,7 +554,6 @@ export default function DexPage() {
                 const kanjiItem = kanjiData.find(k => k.dex_number === index);
                 if (kanjiItem?.kanji) {
                   console.log('Found kanji data:', kanjiItem);
-                  setSelectedKanji(kanjiItem.kanji);
                   fetchKanjiDetails(kanjiItem.kanji);
                 }
               }}

@@ -114,12 +114,12 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
       
       // Do not call onSuccess here to keep dialog open
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error signing up:', error);
       console.error('Detailed error:', JSON.stringify(error, null, 2));
       
       // Check for various forms of duplicate email errors
-      if (error.message && (
+      if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string' && (
           error.message.includes('duplicate key value') || 
           error.message.includes('users_email_key') ||
           error.message.includes('already registered') ||
@@ -131,7 +131,6 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
         });
       } else {
         // Generic error fallback
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         setMessage({ 
           text: `An error occurred during signup. Please try again later.`,
           isError: true 
@@ -158,7 +157,7 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
               Please check your email for the confirmation link to activate your account.
             </p>
             <p className="text-green-600 mt-2">
-              After confirming your email, you'll be able to sign in to your account.
+              After confirming your email, you&apos;ll be able to sign in to your account.
             </p>
           </div>
           <Button 
