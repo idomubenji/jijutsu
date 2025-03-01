@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { SignInForm } from '@/components/SignInForm';
@@ -82,7 +82,8 @@ interface SupabaseError {
   details?: string;
 }
 
-export default function GamePage() {
+// Create a ClientSide component that safely uses useSearchParams
+function GamePageClient() {
   // Use the supabase client from imports, not a new instance
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -2512,5 +2513,17 @@ export default function GamePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function GamePage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">
+      <div className="bg-slate-800 text-white p-6 rounded-lg">
+        Loading game...
+      </div>
+    </div>}>
+      <GamePageClient />
+    </Suspense>
   );
 } 
