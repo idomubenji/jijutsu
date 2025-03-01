@@ -1540,8 +1540,8 @@ export default function GamePage() {
                 />
               </div>
               <div className="flex justify-between mt-1 text-xs text-stone-500 dark:text-stone-400">
-                <span>{userKanjiCount} kanji</span>
-                <span>{unlockedRadicalCount - 10 + 1} of {sortedRadicals.length} radicals</span>
+                <span>{10 - (userKanjiCount % 10)} until next radical</span>
+                <span>{sidebarRadicals.length} of {sortedRadicals.length} radicals</span>
               </div>
             </div>
           )}
