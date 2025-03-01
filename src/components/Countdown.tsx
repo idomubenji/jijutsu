@@ -16,14 +16,12 @@ type TimeLeft = {
 
 export function Countdown({ targetDate, onComplete }: CountdownProps) {
   const [timeLeft, setTimeLeft] = useState<TimeLeft>({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-  const [isCompleted, setIsCompleted] = useState(false);
 
   useEffect(() => {
     const calculateTimeLeft = () => {
       const difference = new Date(targetDate).getTime() - new Date().getTime();
       
       if (difference <= 0) {
-        setIsCompleted(true);
         onComplete?.();
         return { days: 0, hours: 0, minutes: 0, seconds: 0 };
       }
@@ -50,23 +48,23 @@ export function Countdown({ targetDate, onComplete }: CountdownProps) {
   return (
     <div className="flex flex-wrap justify-center gap-4 text-center my-8">
       <div className="flex flex-col items-center">
-        <div className="text-4xl font-bold text-[#F2E8DC] dark:text-[#38332E]">{timeLeft.days}</div>
-        <div className="text-sm uppercase text-[#F2E8DC]/80 dark:text-[#38332E]/70">Days</div>
+        <span className="text-4xl font-bold text-[#F2E8DC] dark:text-[#38332E]">{timeLeft.days}</span>
+        <span className="text-sm text-[#F2E8DC] dark:text-[#38332E]">Days</span>
       </div>
       <div className="text-4xl font-bold text-[#F2E8DC] dark:text-[#38332E]">:</div>
       <div className="flex flex-col items-center">
-        <div className="text-4xl font-bold text-[#F2E8DC] dark:text-[#38332E]">{timeLeft.hours.toString().padStart(2, '0')}</div>
-        <div className="text-sm uppercase text-[#F2E8DC]/80 dark:text-[#38332E]/70">Hours</div>
+        <span className="text-4xl font-bold text-[#F2E8DC] dark:text-[#38332E]">{timeLeft.hours.toString().padStart(2, '0')}</span>
+        <span className="text-sm text-[#F2E8DC] dark:text-[#38332E]">Hours</span>
       </div>
       <div className="text-4xl font-bold text-[#F2E8DC] dark:text-[#38332E]">:</div>
       <div className="flex flex-col items-center">
-        <div className="text-4xl font-bold text-[#F2E8DC] dark:text-[#38332E]">{timeLeft.minutes.toString().padStart(2, '0')}</div>
-        <div className="text-sm uppercase text-[#F2E8DC]/80 dark:text-[#38332E]/70">Minutes</div>
+        <span className="text-4xl font-bold text-[#F2E8DC] dark:text-[#38332E]">{timeLeft.minutes.toString().padStart(2, '0')}</span>
+        <span className="text-sm text-[#F2E8DC] dark:text-[#38332E]">Minutes</span>
       </div>
       <div className="text-4xl font-bold text-[#F2E8DC] dark:text-[#38332E]">:</div>
       <div className="flex flex-col items-center">
-        <div className="text-4xl font-bold text-[#F2E8DC] dark:text-[#38332E]">{timeLeft.seconds.toString().padStart(2, '0')}</div>
-        <div className="text-sm uppercase text-[#F2E8DC]/80 dark:text-[#38332E]/70">Seconds</div>
+        <span className="text-4xl font-bold text-[#F2E8DC] dark:text-[#38332E]">{timeLeft.seconds.toString().padStart(2, '0')}</span>
+        <span className="text-sm text-[#F2E8DC] dark:text-[#38332E]">Seconds</span>
       </div>
     </div>
   );

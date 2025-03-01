@@ -6,8 +6,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { SignInForm } from '@/components/SignInForm';
 import { SignupForm } from '@/components/SignupForm';
 import { supabase } from '@/lib/supabase';
+<<<<<<< Updated upstream
 import { LogOut, Info, X, Trash2 } from 'lucide-react';
 import { ClientLayout } from '@/components/ClientLayout';
+=======
+import { LogOut, Info, X } from 'lucide-react';
+import MainLayout from '@/components/MainLayout';
+>>>>>>> Stashed changes
 import { useKanjiRadicals } from '@/hooks/useKanjiRadicals';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import './animations.css';
@@ -783,16 +788,16 @@ export default function GamePage() {
 
   if (loadingData) {
     return (
-      <ClientLayout>
+      <MainLayout>
         <div className="min-h-screen flex items-center justify-center bg-[#F2E8DC] dark:bg-[#38332E]">
           <div className="text-2xl">Loading game data...</div>
         </div>
-      </ClientLayout>
+      </MainLayout>
     );
   }
 
   return (
-    <ClientLayout>
+    <MainLayout>
       <div className="min-h-screen flex bg-[#F2E8DC] dark:bg-[#38332E]">
         {/* Game Instructions Dialog */}
         <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
@@ -1271,6 +1276,6 @@ export default function GamePage() {
           )}
         </div>
       </div>
-    </ClientLayout>
+    </MainLayout>
   );
 } 
