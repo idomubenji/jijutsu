@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 
 type SakuraPetal = {
   id: number;
@@ -52,7 +53,7 @@ export function SakuraAnimation() {
     <div className="relative w-[300px] h-[300px]">
       {/* Logo in the center */}
       <div className="absolute inset-0 flex items-center justify-center z-10">
-        <div className="text-4xl font-bold tracking-wide">字術</div>
+        <div className="text-4xl font-bold tracking-wide text-[#F2E8DC] dark:text-[#38332E]">字術</div>
       </div>
 
       {/* Sakura petals */}
