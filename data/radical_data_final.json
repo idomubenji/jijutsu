@@ -1,0 +1,2011 @@
+[
+  {
+    "ID": 1,
+    "Radical Number": "1",
+    "Radical Shape": "一",
+    "English Name": "one",
+    "Stroke Count": 1,
+    "Reading": "いち"
+  },
+  {
+    "ID": 2,
+    "Radical Number": "2",
+    "Radical Shape": "｜",
+    "English Name": "",
+    "Stroke Count": 1
+  },
+  {
+    "ID": 3,
+    "Radical Number": "3",
+    "Radical Shape": "丶",
+    "English Name": "a dot",
+    "Stroke Count": 1,
+    "Reading": "てん"
+  },
+  {
+    "ID": 4,
+    "Radical Number": "4",
+    "Radical Shape": "ノ",
+    "English Name": "a stroke curved to the left",
+    "Stroke Count": 1,
+    "Reading": "の"
+  },
+  {
+    "ID": 5,
+    "Radical Number": "5",
+    "Radical Shape": "乙",
+    "English Name": "a bend stroke",
+    "Stroke Count": 1,
+    "Reading": "おつ"
+  },
+  {
+    "ID": 6,
+    "Radical Number": "6",
+    "Radical Shape": "亅",
+    "English Name": "a hook",
+    "Stroke Count": 1,
+    "Reading": "はねぼう"
+  },
+  {
+    "ID": 7,
+    "Radical Number": "7",
+    "Radical Shape": "二",
+    "English Name": "two",
+    "Stroke Count": 2,
+    "Reading": "に"
+  },
+  {
+    "ID": 8,
+    "Radical Number": "8",
+    "Radical Shape": "亠",
+    "English Name": "head, above, lid",
+    "Stroke Count": 2,
+    "Reading": "なべぶた"
+  },
+  {
+    "ID": 9,
+    "Radical Number": "9",
+    "Radical Shape": "人",
+    "English Name": "man, a person",
+    "Stroke Count": 2,
+    "Reading": "ひと"
+  },
+  {
+    "ID": 10,
+    "Radical Number": "9",
+    "Radical Shape": "亻",
+    "English Name": "man, a person",
+    "Stroke Count": 2,
+    "Reading": "にんべん"
+  },
+  {
+    "ID": 11,
+    "Radical Number": "9",
+    "Radical Shape": "𠆢",
+    "English Name": "man, a person",
+    "Stroke Count": 2,
+    "Reading": "ひとやね"
+  },
+  {
+    "ID": 12,
+    "Radical Number": "10",
+    "Radical Shape": "儿",
+    "English Name": "legs",
+    "Stroke Count": 2,
+    "Reading": "ひとあし"
+  },
+  {
+    "ID": 13,
+    "Radical Number": "11",
+    "Radical Shape": "入",
+    "English Name": "entering, starting",
+    "Stroke Count": 2,
+    "Reading": "いる"
+  },
+  {
+    "ID": 14,
+    "Radical Number": "12",
+    "Radical Shape": "ハ",
+    "English Name": "eight",
+    "Stroke Count": 2,
+    "Reading": "はち"
+  },
+  {
+    "ID": 15,
+    "Radical Number": "13",
+    "Radical Shape": "冂",
+    "English Name": "down box, wilderness",
+    "Stroke Count": 2,
+    "Reading": "けいがまえ"
+  },
+  {
+    "ID": 16,
+    "Radical Number": "14",
+    "Radical Shape": "冖",
+    "English Name": "cover",
+    "Stroke Count": 2,
+    "Reading": "わかんむり"
+  },
+  {
+    "ID": 17,
+    "Radical Number": "15",
+    "Radical Shape": "冫",
+    "English Name": "two dots",
+    "Stroke Count": 2,
+    "Reading": "にすい"
+  },
+  {
+    "ID": 18,
+    "Radical Number": "16",
+    "Radical Shape": "几",
+    "English Name": "small table",
+    "Stroke Count": 2,
+    "Reading": "きにょう"
+  },
+  {
+    "ID": 19,
+    "Radical Number": "17",
+    "Radical Shape": "凵",
+    "English Name": "container, wide opened mouth",
+    "Stroke Count": 2,
+    "Reading": "かんにょう"
+  },
+  {
+    "ID": 20,
+    "Radical Number": "18",
+    "Radical Shape": "刀",
+    "English Name": "knife, sword, cutting, separating",
+    "Stroke Count": 2,
+    "Reading": "かたな"
+  },
+  {
+    "ID": 21,
+    "Radical Number": "21",
+    "Radical Shape": "刂",
+    "English Name": "knife, sword, cutting, separating",
+    "Stroke Count": 2,
+    "Reading": "かたな"
+  },
+  {
+    "ID": 22,
+    "Radical Number": "19",
+    "Radical Shape": "力",
+    "English Name": "strength, force",
+    "Stroke Count": 2,
+    "Reading": "ちから"
+  },
+  {
+    "ID": 23,
+    "Radical Number": "20",
+    "Radical Shape": "勹",
+    "English Name": "wrap, embrace",
+    "Stroke Count": 2,
+    "Reading": "つつみがまえ"
+  },
+  {
+    "ID": 24,
+    "Radical Number": "21",
+    "Radical Shape": "匕",
+    "English Name": "spoon, ladle",
+    "Stroke Count": 2,
+    "Reading": "さじ"
+  },
+  {
+    "ID": 25,
+    "Radical Number": "22",
+    "Radical Shape": "匚",
+    "English Name": "square box",
+    "Stroke Count": 2,
+    "Reading": "はこがまえ"
+  },
+  {
+    "ID": 26,
+    "Radical Number": "24",
+    "Radical Shape": "十",
+    "English Name": "ten",
+    "Stroke Count": 2,
+    "Reading": "じゅう"
+  },
+  {
+    "ID": 27,
+    "Radical Number": "27",
+    "Radical Shape": "卜",
+    "English Name": "divination, fortune-telling",
+    "Stroke Count": 2,
+    "Reading": "おみずき"
+  },
+  {
+    "ID": 28,
+    "Radical Number": "26",
+    "Radical Shape": "卩",
+    "English Name": "seal, stamp",
+    "Stroke Count": 2,
+    "Reading": "ふしづくり"
+  },
+  {
+    "ID": 29,
+    "Radical Number": "27",
+    "Radical Shape": "厂",
+    "English Name": "cliff",
+    "Stroke Count": 2,
+    "Reading": "がんだれ"
+  },
+  {
+    "ID": 30,
+    "Radical Number": "28",
+    "Radical Shape": "厶",
+    "English Name": "self, private",
+    "Stroke Count": 2,
+    "Reading": "む"
+  },
+  {
+    "ID": 31,
+    "Radical Number": "29",
+    "Radical Shape": "又",
+    "English Name": "grasping, further, again",
+    "Stroke Count": 2,
+    "Reading": "また"
+  },
+  {
+    "ID": 32,
+    "Radical Number": "32",
+    "Radical Shape": "マ",
+    "English Name": "",
+    "Stroke Count": 2
+  },
+  {
+    "ID": 33,
+    "Radical Number": "33",
+    "Radical Shape": "九",
+    "English Name": "nine",
+    "Stroke Count": 2,
+    "Reading": "く"
+  },
+  {
+    "ID": 34,
+    "Radical Number": "34",
+    "Radical Shape": "ユ",
+    "English Name": "",
+    "Stroke Count": 2
+  },
+  {
+    "ID": 35,
+    "Radical Number": "35",
+    "Radical Shape": "乃",
+    "English Name": "",
+    "Stroke Count": 2
+  },
+  {
+    "ID": 36,
+    "Radical Number": "36",
+    "Radical Shape": "𠂉",
+    "English Name": "Lid",
+    "Stroke Count": 2
+  },
+  {
+    "ID": 37,
+    "Radical Number": "162",
+    "Radical Shape": "辶",
+    "English Name": "stamping on the earth, going",
+    "Stroke Count": 4,
+    "Reading": "め"
+  },
+  {
+    "ID": 38,
+    "Radical Number": "30",
+    "Radical Shape": "口",
+    "English Name": "mouth, opening, sounding",
+    "Stroke Count": 3,
+    "Reading": "くち"
+  },
+  {
+    "ID": 39,
+    "Radical Number": "31",
+    "Radical Shape": "囗",
+    "English Name": "enclosure",
+    "Stroke Count": 3,
+    "Reading": "くにがまえ"
+  },
+  {
+    "ID": 40,
+    "Radical Number": "32",
+    "Radical Shape": "土",
+    "English Name": "earth, soil",
+    "Stroke Count": 3,
+    "Reading": "つち"
+  },
+  {
+    "ID": 41,
+    "Radical Number": "33",
+    "Radical Shape": "士",
+    "English Name": "official, scholar",
+    "Stroke Count": 3,
+    "Reading": "さむらい"
+  },
+  {
+    "ID": 42,
+    "Radical Number": "42",
+    "Radical Shape": "夂",
+    "English Name": "walking slowly",
+    "Stroke Count": 3
+  },
+  {
+    "ID": 43,
+    "Radical Number": "36",
+    "Radical Shape": "夕",
+    "English Name": "evening",
+    "Stroke Count": 3,
+    "Reading": "ゆうべ"
+  },
+  {
+    "ID": 44,
+    "Radical Number": "37",
+    "Radical Shape": "大",
+    "English Name": "big, large",
+    "Stroke Count": 3,
+    "Reading": "だい"
+  },
+  {
+    "ID": 45,
+    "Radical Number": "38",
+    "Radical Shape": "女",
+    "English Name": "woman, female",
+    "Stroke Count": 3,
+    "Reading": "おんな"
+  },
+  {
+    "ID": 46,
+    "Radical Number": "39",
+    "Radical Shape": "子",
+    "English Name": "child, son, seed",
+    "Stroke Count": 3,
+    "Reading": "こ"
+  },
+  {
+    "ID": 47,
+    "Radical Number": "40",
+    "Radical Shape": "宀",
+    "English Name": "roof, cover",
+    "Stroke Count": 3,
+    "Reading": "うかんむり"
+  },
+  {
+    "ID": 48,
+    "Radical Number": "41",
+    "Radical Shape": "寸",
+    "English Name": "inch",
+    "Stroke Count": 3,
+    "Reading": "すん"
+  },
+  {
+    "ID": 49,
+    "Radical Number": "42",
+    "Radical Shape": "小",
+    "English Name": "small",
+    "Stroke Count": 3,
+    "Reading": "しょう"
+  },
+  {
+    "ID": 50,
+    "Radical Number": "42",
+    "Radical Shape": "⺌",
+    "English Name": "small",
+    "Stroke Count": 3,
+    "Reading": "しょうかんむり"
+  },
+  {
+    "ID": 51,
+    "Radical Number": "43",
+    "Radical Shape": "尢",
+    "English Name": "lame",
+    "Stroke Count": 3,
+    "Note": "REPEATED"
+  },
+  {
+    "ID": 52,
+    "Radical Number": "44",
+    "Radical Shape": "尸",
+    "English Name": "corpse, body",
+    "Stroke Count": 3,
+    "Reading": "しかばね"
+  },
+  {
+    "ID": 53,
+    "Radical Number": "45",
+    "Radical Shape": "屮",
+    "English Name": "sprout",
+    "Stroke Count": 3,
+    "Reading": "くさのめ"
+  },
+  {
+    "ID": 54,
+    "Radical Number": "46",
+    "Radical Shape": "山",
+    "English Name": "mountain, cliff",
+    "Stroke Count": 3,
+    "Reading": "やま"
+  },
+  {
+    "ID": 55,
+    "Radical Number": "47",
+    "Radical Shape": "川",
+    "English Name": "river, stream",
+    "Stroke Count": 3,
+    "Reading": "さんぼんがわ"
+  },
+  {
+    "ID": 56,
+    "Radical Number": "47",
+    "Radical Shape": "巛",
+    "English Name": "river, stream",
+    "Stroke Count": 3,
+    "Reading": "まがりがわ"
+  },
+  {
+    "ID": 57,
+    "Radical Number": "48",
+    "Radical Shape": "工",
+    "English Name": "work",
+    "Stroke Count": 3,
+    "Reading": "たくみ"
+  },
+  {
+    "ID": 58,
+    "Radical Number": "58",
+    "Radical Shape": "已",
+    "English Name": "self, own",
+    "Stroke Count": 3,
+    "Reading": "おのれ"
+  },
+  {
+    "ID": 59,
+    "Radical Number": "50",
+    "Radical Shape": "巾",
+    "English Name": "towel, napkin, turban",
+    "Stroke Count": 3,
+    "Reading": "はば"
+  },
+  {
+    "ID": 60,
+    "Radical Number": "51",
+    "Radical Shape": "干",
+    "English Name": "dried",
+    "Stroke Count": 3,
+    "Reading": "かん"
+  },
+  {
+    "ID": 61,
+    "Radical Number": "52",
+    "Radical Shape": "幺",
+    "English Name": "short, tiny",
+    "Stroke Count": 3,
+    "Reading": "いとがしら"
+  },
+  {
+    "ID": 62,
+    "Radical Number": "53",
+    "Radical Shape": "广",
+    "English Name": "house built at a slope, dotted cliff",
+    "Stroke Count": 3,
+    "Reading": "まだれ"
+  },
+  {
+    "ID": 63,
+    "Radical Number": "54",
+    "Radical Shape": "廴",
+    "English Name": "walking a long distance",
+    "Stroke Count": 3,
+    "Reading": "えんにょう"
+  },
+  {
+    "ID": 64,
+    "Radical Number": "55",
+    "Radical Shape": "廾",
+    "English Name": "two hands (at bottom of character)",
+    "Stroke Count": 3,
+    "Reading": "にじゅうあし"
+  },
+  {
+    "ID": 65,
+    "Radical Number": "56",
+    "Radical Shape": "弋",
+    "English Name": "shoot",
+    "Stroke Count": 3,
+    "Reading": "いぐるみ"
+  },
+  {
+    "ID": 66,
+    "Radical Number": "57",
+    "Radical Shape": "弓",
+    "English Name": "bow",
+    "Stroke Count": 3,
+    "Reading": "ゆみ"
+  },
+  {
+    "ID": 67,
+    "Radical Number": "67",
+    "Radical Shape": "ヨ",
+    "English Name": "pig head",
+    "Stroke Count": 3,
+    "Reading": "けいがしら"
+  },
+  {
+    "ID": 68,
+    "Radical Number": "68",
+    "Radical Shape": "彑",
+    "English Name": "pig head",
+    "Stroke Count": 3,
+    "Reading": "けいがしら"
+  },
+  {
+    "ID": 69,
+    "Radical Number": "59",
+    "Radical Shape": "彡",
+    "English Name": "hair, feather",
+    "Stroke Count": 3,
+    "Reading": "さんづくり"
+  },
+  {
+    "ID": 70,
+    "Radical Number": "60",
+    "Radical Shape": "彳",
+    "English Name": "walking slowly",
+    "Stroke Count": 3,
+    "Reading": "ぎょうにんべん"
+  },
+  {
+    "ID": 71,
+    "Radical Number": "61",
+    "Radical Shape": "忄",
+    "English Name": "heart, feeling",
+    "Stroke Count": 4,
+    "Reading": "やまへん"
+  },
+  {
+    "ID": 72,
+    "Radical Number": "64",
+    "Radical Shape": "扌",
+    "English Name": "hand, actions",
+    "Stroke Count": 4,
+    "Reading": "さんぼんがわ"
+  },
+  {
+    "ID": 73,
+    "Radical Number": "73",
+    "Radical Shape": "⺡",
+    "English Name": "Water",
+    "Stroke Count": 3,
+    "Reading": "さんずい"
+  },
+  {
+    "ID": 74,
+    "Radical Number": "94",
+    "Radical Shape": "犭",
+    "English Name": "dog, dog-like animals",
+    "Stroke Count": 4,
+    "Reading": "いぬへん"
+  },
+  {
+    "ID": 75,
+    "Radical Number": "75",
+    "Radical Shape": "艹",
+    "English Name": "grass, plant",
+    "Stroke Count": 3,
+    "Reading": "くさかんむり"
+  },
+  {
+    "ID": 76,
+    "Radical Number": "163",
+    "Radical Shape": "⻏",
+    "English Name": "village, town",
+    "Stroke Count": 3,
+    "Reading": "おおざと"
+  },
+  {
+    "ID": 77,
+    "Radical Number": "77",
+    "Radical Shape": "⻖",
+    "English Name": "village, town",
+    "Stroke Count": 3,
+    "Reading": "こざとへん"
+  },
+  {
+    "ID": 78,
+    "Radical Number": "78",
+    "Radical Shape": "也",
+    "English Name": "also",
+    "Stroke Count": 3,
+    "Reading": "や"
+  },
+  {
+    "ID": 79,
+    "Radical Number": "23",
+    "Radical Shape": "亡",
+    "English Name": "round box",
+    "Stroke Count": 3,
+    "Reading": "かくしがまえ"
+  },
+  {
+    "ID": 80,
+    "Radical Number": "80",
+    "Radical Shape": "及",
+    "English Name": "and",
+    "Stroke Count": 3,
+    "Reading": "おんだん"
+  },
+  {
+    "ID": 81,
+    "Radical Number": "81",
+    "Radical Shape": "久",
+    "English Name": "long",
+    "Stroke Count": 3,
+    "Reading": "く"
+  },
+  {
+    "ID": 82,
+    "Radical Number": "82",
+    "Radical Shape": "⺹",
+    "English Name": "old, old-age",
+    "Stroke Count": 4,
+    "Reading": "おいかんむり"
+  },
+  {
+    "ID": 83,
+    "Radical Number": "61",
+    "Radical Shape": "心",
+    "English Name": "heart, feeling",
+    "Stroke Count": 4,
+    "Reading": "こころ"
+  },
+  {
+    "ID": 84,
+    "Radical Number": "62",
+    "Radical Shape": "戈",
+    "English Name": "axe, halberd",
+    "Stroke Count": 4,
+    "Reading": "ほこ"
+  },
+  {
+    "ID": 85,
+    "Radical Number": "63",
+    "Radical Shape": "戸",
+    "English Name": "house, door",
+    "Stroke Count": 4,
+    "Reading": "と"
+  },
+  {
+    "ID": 86,
+    "Radical Number": "64",
+    "Radical Shape": "手",
+    "English Name": "hand, actions",
+    "Stroke Count": 4,
+    "Reading": "て"
+  },
+  {
+    "ID": 87,
+    "Radical Number": "65",
+    "Radical Shape": "支",
+    "English Name": "branch",
+    "Stroke Count": 4,
+    "Reading": "しにょう"
+  },
+  {
+    "ID": 88,
+    "Radical Number": "66",
+    "Radical Shape": "攵",
+    "English Name": "whip",
+    "Stroke Count": 4,
+    "Reading": "ぼくづくり"
+  },
+  {
+    "ID": 89,
+    "Radical Number": "67",
+    "Radical Shape": "文",
+    "English Name": "word, literature",
+    "Stroke Count": 4,
+    "Reading": "ぶん"
+  },
+  {
+    "ID": 90,
+    "Radical Number": "68",
+    "Radical Shape": "斗",
+    "English Name": "a kind of volume measure",
+    "Stroke Count": 4,
+    "Reading": "ますづくり"
+  },
+  {
+    "ID": 91,
+    "Radical Number": "69",
+    "Radical Shape": "斤",
+    "English Name": "a kind of weight measure",
+    "Stroke Count": 4,
+    "Reading": "おのづくり"
+  },
+  {
+    "ID": 92,
+    "Radical Number": "70",
+    "Radical Shape": "方",
+    "English Name": "square, direction, locality",
+    "Stroke Count": 4,
+    "Reading": "ほう"
+  },
+  {
+    "ID": 93,
+    "Radical Number": "71",
+    "Radical Shape": "无",
+    "English Name": "do not, no",
+    "Stroke Count": 4,
+    "Reading": "むにょう"
+  },
+  {
+    "ID": 94,
+    "Radical Number": "72",
+    "Radical Shape": "日",
+    "English Name": "sun, clear",
+    "Stroke Count": 4,
+    "Reading": "ひ"
+  },
+  {
+    "ID": 95,
+    "Radical Number": "73",
+    "Radical Shape": "曰",
+    "English Name": "speaking",
+    "Stroke Count": 4,
+    "Reading": "ひらび"
+  },
+  {
+    "ID": 96,
+    "Radical Number": "74",
+    "Radical Shape": "月",
+    "English Name": "moon, month",
+    "Stroke Count": 4,
+    "Reading": "つき"
+  },
+  {
+    "ID": 97,
+    "Radical Number": "75",
+    "Radical Shape": "木",
+    "English Name": "tree, wood",
+    "Stroke Count": 4,
+    "Reading": "き"
+  },
+  {
+    "ID": 98,
+    "Radical Number": "76",
+    "Radical Shape": "欠",
+    "English Name": "yawn, lack",
+    "Stroke Count": 4,
+    "Reading": "あくび"
+  },
+  {
+    "ID": 99,
+    "Radical Number": "77",
+    "Radical Shape": "止",
+    "English Name": "stopping",
+    "Stroke Count": 4,
+    "Reading": "とめる"
+  },
+  {
+    "ID": 100,
+    "Radical Number": "78",
+    "Radical Shape": "歹",
+    "English Name": "dead, decay",
+    "Stroke Count": 4,
+    "Reading": "がつ"
+  },
+  {
+    "ID": 101,
+    "Radical Number": "79",
+    "Radical Shape": "殳",
+    "English Name": "halberd",
+    "Stroke Count": 4,
+    "Reading": "るまた"
+  },
+  {
+    "ID": 102,
+    "Radical Number": "81",
+    "Radical Shape": "比",
+    "English Name": "side by side, comparing",
+    "Stroke Count": 4,
+    "Reading": "くらべる"
+  },
+  {
+    "ID": 103,
+    "Radical Number": "82",
+    "Radical Shape": "毛",
+    "English Name": "hair, feather",
+    "Stroke Count": 4,
+    "Reading": "け"
+  },
+  {
+    "ID": 104,
+    "Radical Number": "83",
+    "Radical Shape": "氏",
+    "English Name": "clan",
+    "Stroke Count": 4,
+    "Reading": "うじ"
+  },
+  {
+    "ID": 105,
+    "Radical Number": "84",
+    "Radical Shape": "气",
+    "English Name": "air, breath",
+    "Stroke Count": 4,
+    "Reading": "きがまえ"
+  },
+  {
+    "ID": 106,
+    "Radical Number": "85",
+    "Radical Shape": "水",
+    "English Name": "water",
+    "Stroke Count": 4,
+    "Reading": "みず"
+  },
+  {
+    "ID": 107,
+    "Radical Number": "86",
+    "Radical Shape": "火",
+    "English Name": "fire",
+    "Stroke Count": 4,
+    "Reading": "ひ"
+  },
+  {
+    "ID": 108,
+    "Radical Number": "108",
+    "Radical Shape": "⺣",
+    "English Name": "fire",
+    "Stroke Count": 4,
+    "Reading": "れっか"
+  },
+  {
+    "ID": 109,
+    "Radical Number": "87",
+    "Radical Shape": "爪",
+    "English Name": "claw, hand",
+    "Stroke Count": 4,
+    "Reading": "つめ"
+  },
+  {
+    "ID": 110,
+    "Radical Number": "88",
+    "Radical Shape": "父",
+    "English Name": "father",
+    "Stroke Count": 4,
+    "Reading": "ちち"
+  },
+  {
+    "ID": 111,
+    "Radical Number": "89",
+    "Radical Shape": "爻",
+    "English Name": "mix, twine, cross",
+    "Stroke Count": 4,
+    "Reading": "こう"
+  },
+  {
+    "ID": 112,
+    "Radical Number": "90",
+    "Radical Shape": "爿",
+    "English Name": "half of a tree trunk, split wood",
+    "Stroke Count": 4,
+    "Reading": "しょうへん"
+  },
+  {
+    "ID": 113,
+    "Radical Number": "91",
+    "Radical Shape": "片",
+    "English Name": "slice, piece",
+    "Stroke Count": 4,
+    "Reading": "かた"
+  },
+  {
+    "ID": 114,
+    "Radical Number": "93",
+    "Radical Shape": "牛",
+    "English Name": "cow, ox",
+    "Stroke Count": 4,
+    "Reading": "うし"
+  },
+  {
+    "ID": 115,
+    "Radical Number": "94",
+    "Radical Shape": "犬",
+    "English Name": "dog, dog-like animals",
+    "Stroke Count": 4,
+    "Reading": "いぬ"
+  },
+  {
+    "ID": 116,
+    "Radical Number": "116",
+    "Radical Shape": "⺭",
+    "English Name": "altar, festival, religious service",
+    "Stroke Count": 4,
+    "Reading": "しめすへん"
+  },
+  {
+    "ID": 117,
+    "Radical Number": "96",
+    "Radical Shape": "王",
+    "English Name": "jade, stone, king, ball",
+    "Stroke Count": 4,
+    "Reading": "おうへん"
+  },
+  {
+    "ID": 118,
+    "Radical Number": "118",
+    "Radical Shape": "元",
+    "English Name": "original, beginning",
+    "Stroke Count": 4,
+    "Reading": "げん"
+  },
+  {
+    "ID": 119,
+    "Radical Number": "119",
+    "Radical Shape": "井",
+    "English Name": "well, pit",
+    "Stroke Count": 4,
+    "Reading": "せい"
+  },
+  {
+    "ID": 120,
+    "Radical Number": "120",
+    "Radical Shape": "勿",
+    "English Name": "do not, no",
+    "Stroke Count": 4
+  },
+  {
+    "ID": 121,
+    "Radical Number": "43",
+    "Radical Shape": "尤",
+    "English Name": "lame",
+    "Stroke Count": 3,
+    "Note": "REPEATED"
+  },
+  {
+    "ID": 122,
+    "Radical Number": "122",
+    "Radical Shape": "五",
+    "English Name": "five",
+    "Stroke Count": 4,
+    "Reading": "ご"
+  },
+  {
+    "ID": 123,
+    "Radical Number": "123",
+    "Radical Shape": "屯",
+    "English Name": "village, town",
+    "Stroke Count": 4,
+    "Reading": "つむ"
+  },
+  {
+    "ID": 124,
+    "Radical Number": "124",
+    "Radical Shape": "巴",
+    "English Name": "claw, hand",
+    "Stroke Count": 4,
+    "Reading": "ば"
+  },
+  {
+    "ID": 125,
+    "Radical Number": "80",
+    "Radical Shape": "毋",
+    "English Name": "mother",
+    "Stroke Count": 4,
+    "Reading": "なかれ"
+  },
+  {
+    "ID": 126,
+    "Radical Number": "95",
+    "Radical Shape": "玄",
+    "English Name": "black, dark, profound",
+    "Stroke Count": 5,
+    "Reading": "げん"
+  },
+  {
+    "ID": 127,
+    "Radical Number": "98",
+    "Radical Shape": "瓦",
+    "English Name": "tile, earthenware",
+    "Stroke Count": 5,
+    "Reading": "かわら"
+  },
+  {
+    "ID": 128,
+    "Radical Number": "99",
+    "Radical Shape": "甘",
+    "English Name": "sweet",
+    "Stroke Count": 5,
+    "Reading": "あまい"
+  },
+  {
+    "ID": 129,
+    "Radical Number": "100",
+    "Radical Shape": "生",
+    "English Name": "giving birth, live",
+    "Stroke Count": 5,
+    "Reading": "うまれる"
+  },
+  {
+    "ID": 130,
+    "Radical Number": "101",
+    "Radical Shape": "用",
+    "English Name": "using",
+    "Stroke Count": 5,
+    "Reading": "もちいる"
+  },
+  {
+    "ID": 131,
+    "Radical Number": "102",
+    "Radical Shape": "田",
+    "English Name": "field",
+    "Stroke Count": 5,
+    "Reading": "た"
+  },
+  {
+    "ID": 132,
+    "Radical Number": "103",
+    "Radical Shape": "疋",
+    "English Name": "roll, bolt of cloth",
+    "Stroke Count": 5,
+    "Reading": "ひき"
+  },
+  {
+    "ID": 133,
+    "Radical Number": "133",
+    "Radical Shape": "⽧",
+    "English Name": "sickness",
+    "Stroke Count": 5,
+    "Reading": "やまいだれ"
+  },
+  {
+    "ID": 134,
+    "Radical Number": "105",
+    "Radical Shape": "癶",
+    "English Name": "footsteps",
+    "Stroke Count": 5,
+    "Reading": "はつがしら"
+  },
+  {
+    "ID": 135,
+    "Radical Number": "106",
+    "Radical Shape": "白",
+    "English Name": "white",
+    "Stroke Count": 5,
+    "Reading": "しろ"
+  },
+  {
+    "ID": 136,
+    "Radical Number": "107",
+    "Radical Shape": "皮",
+    "English Name": "leather, skin",
+    "Stroke Count": 5,
+    "Reading": "けがわ"
+  },
+  {
+    "ID": 137,
+    "Radical Number": "108",
+    "Radical Shape": "皿",
+    "English Name": "dish, plate",
+    "Stroke Count": 5,
+    "Reading": "さら"
+  },
+  {
+    "ID": 138,
+    "Radical Number": "109",
+    "Radical Shape": "目",
+    "English Name": "eye",
+    "Stroke Count": 5,
+    "Reading": "め"
+  },
+  {
+    "ID": 139,
+    "Radical Number": "110",
+    "Radical Shape": "矛",
+    "English Name": "spear, pike",
+    "Stroke Count": 5,
+    "Reading": "ほこ"
+  },
+  {
+    "ID": 140,
+    "Radical Number": "111",
+    "Radical Shape": "矢",
+    "English Name": "arrow",
+    "Stroke Count": 5,
+    "Reading": "や"
+  },
+  {
+    "ID": 141,
+    "Radical Number": "112",
+    "Radical Shape": "石",
+    "English Name": "stone, rock",
+    "Stroke Count": 5,
+    "Reading": "いし"
+  },
+  {
+    "ID": 142,
+    "Radical Number": "113",
+    "Radical Shape": "示",
+    "English Name": "altar, display, spiritual, ancestor",
+    "Stroke Count": 5,
+    "Reading": "しめす"
+  },
+  {
+    "ID": 143,
+    "Radical Number": "143",
+    "Radical Shape": "⽱",
+    "English Name": "footprint",
+    "Stroke Count": 5,
+    "Reading": "じゅうのあし"
+  },
+  {
+    "ID": 144,
+    "Radical Number": "115",
+    "Radical Shape": "禾",
+    "English Name": "grain, ear",
+    "Stroke Count": 5,
+    "Reading": "のぎへん"
+  },
+  {
+    "ID": 145,
+    "Radical Number": "116",
+    "Radical Shape": "穴",
+    "English Name": "hollow, hole, hidden",
+    "Stroke Count": 5,
+    "Reading": "あな"
+  },
+  {
+    "ID": 146,
+    "Radical Number": "117",
+    "Radical Shape": "立",
+    "English Name": "stand, erect",
+    "Stroke Count": 5,
+    "Reading": "たつ"
+  },
+  {
+    "ID": 147,
+    "Radical Number": "147",
+    "Radical Shape": "⻂",
+    "English Name": "clothing",
+    "Stroke Count": 5,
+    "Reading": "ころもへん"
+  },
+  {
+    "ID": 148,
+    "Radical Number": "148",
+    "Radical Shape": "世",
+    "English Name": "world, generation",
+    "Stroke Count": 5,
+    "Reading": "せ"
+  },
+  {
+    "ID": 149,
+    "Radical Number": "149",
+    "Radical Shape": "巨",
+    "English Name": "retainer, minister",
+    "Stroke Count": 5,
+    "Reading": "しん"
+  },
+  {
+    "ID": 150,
+    "Radical Number": "150",
+    "Radical Shape": "冊",
+    "English Name": "book",
+    "Stroke Count": 5,
+    "Reading": "さつ"
+  },
+  {
+    "ID": 151,
+    "Radical Number": "151",
+    "Radical Shape": "母",
+    "English Name": "mother",
+    "Stroke Count": 5,
+    "Reading": "かあ"
+  },
+  {
+    "ID": 152,
+    "Radical Number": "152",
+    "Radical Shape": "⺫",
+    "English Name": "net",
+    "Stroke Count": 5,
+    "Reading": "あみがしら" 
+  },
+  {
+    "ID": 153,
+    "Radical Number": "92",
+    "Radical Shape": "牙",
+    "English Name": "fang",
+    "Stroke Count": 5,
+    "Reading": "きば"
+  },
+  {
+    "ID": 154,
+    "Radical Number": "97",
+    "Radical Shape": "瓜",
+    "English Name": "pumpkin, melon",
+    "Stroke Count": 6,
+    "Reading": "うり"
+  },
+  {
+    "ID": 155,
+    "Radical Number": "118",
+    "Radical Shape": "竹",
+    "English Name": "bamboo",
+    "Stroke Count": 6,
+    "Reading": "たけ"
+  },
+  {
+    "ID": 156,
+    "Radical Number": "119",
+    "Radical Shape": "米",
+    "English Name": "rice",
+    "Stroke Count": 6,
+    "Reading": "こめ"
+  },
+  {
+    "ID": 157,
+    "Radical Number": "120",
+    "Radical Shape": "糸",
+    "English Name": "thread, fabric",
+    "Stroke Count": 6,
+    "Reading": "いと"
+  },
+  {
+    "ID": 158,
+    "Radical Number": "121",
+    "Radical Shape": "缶",
+    "English Name": "tin, can, jar",
+    "Stroke Count": 6,
+    "Reading": "みずがめ"
+  },
+  {
+    "ID": 159,
+    "Radical Number": "123",
+    "Radical Shape": "羊",
+    "English Name": "sheep, goat",
+    "Stroke Count": 6,
+    "Reading": "ひつじ"
+  },
+  {
+    "ID": 160,
+    "Radical Number": "124",
+    "Radical Shape": "羽",
+    "English Name": "wings, feather",
+    "Stroke Count": 6,
+    "Reading": "はね"
+  },
+  {
+    "ID": 161,
+    "Radical Number": "126",
+    "Radical Shape": "而",
+    "English Name": "moustache, beard",
+    "Stroke Count": 6,
+    "Reading": "しこうして"
+  },
+  {
+    "ID": 162,
+    "Radical Number": "127",
+    "Radical Shape": "耒",
+    "English Name": "handle of a plough",
+    "Stroke Count": 6,
+    "Reading": "らいすき"
+  },
+  {
+    "ID": 163,
+    "Radical Number": "128",
+    "Radical Shape": "耳",
+    "English Name": "ear",
+    "Stroke Count": 6,
+    "Reading": "みみ"
+  },
+  {
+    "ID": 164,
+    "Radical Number": "129",
+    "Radical Shape": "聿",
+    "English Name": "ink brush",
+    "Stroke Count": 6,
+    "Reading": "ふでづくり"
+  },
+  {
+    "ID": 165,
+    "Radical Number": "130",
+    "Radical Shape": "肉",
+    "English Name": "meat, organs of the body",
+    "Stroke Count": 6,
+    "Reading": "にく"
+  },
+  {
+    "ID": 166,
+    "Radical Number": "132",
+    "Radical Shape": "自",
+    "English Name": "nose, oneself",
+    "Stroke Count": 6,
+    "Reading": "みずから"
+  },
+  {
+    "ID": 167,
+    "Radical Number": "133",
+    "Radical Shape": "至",
+    "English Name": "arrive",
+    "Stroke Count": 6,
+    "Reading": "いたる"
+  },
+  {
+    "ID": 168,
+    "Radical Number": "134",
+    "Radical Shape": "臼",
+    "English Name": "mortar",
+    "Stroke Count": 6,
+    "Reading": "うす"
+  },
+  {
+    "ID": 169,
+    "Radical Number": "135",
+    "Radical Shape": "舌",
+    "English Name": "tongue",
+    "Stroke Count": 6,
+    "Reading": "した"
+  },
+  {
+    "ID": 170,
+    "Radical Number": "137",
+    "Radical Shape": "舟",
+    "English Name": "boat, ship",
+    "Stroke Count": 6,
+    "Reading": "きば"
+  },
+  {
+    "ID": 171,
+    "Radical Number": "138",
+    "Radical Shape": "艮",
+    "English Name": "stopping",
+    "Stroke Count": 6,
+    "Reading": "うし"
+  },
+  {
+    "ID": 172,
+    "Radical Number": "139",
+    "Radical Shape": "色",
+    "English Name": "color, outlook",
+    "Stroke Count": 6,
+    "Reading": "うしへん"
+  },
+  {
+    "ID": 173,
+    "Radical Number": "141",
+    "Radical Shape": "虍",
+    "English Name": "tiger",
+    "Stroke Count": 6,
+    "Reading": "とらがしら"
+  },
+  {
+    "ID": 174,
+    "Radical Number": "142",
+    "Radical Shape": "虫",
+    "English Name": "insect, creeping animal",
+    "Stroke Count": 6,
+    "Reading": "しめすへん"
+  },
+  {
+    "ID": 175,
+    "Radical Number": "143",
+    "Radical Shape": "血",
+    "English Name": "blood",
+    "Stroke Count": 6,
+    "Reading": "あみがしら"
+  },
+  {
+    "ID": 176,
+    "Radical Number": "144",
+    "Radical Shape": "行",
+    "English Name": "walk, row, line, journey",
+    "Stroke Count": 6,
+    "Reading": "おいかんむり"
+  },
+  {
+    "ID": 177,
+    "Radical Number": "145",
+    "Radical Shape": "衣",
+    "English Name": "clothing",
+    "Stroke Count": 6,
+    "Reading": "げん"
+  },
+  {
+    "ID": 178,
+    "Radical Number": "146",
+    "Radical Shape": "西",
+    "English Name": "cover, west",
+    "Stroke Count": 6,
+    "Reading": "にし"
+  },
+  {
+    "ID": 179,
+    "Radical Number": "131",
+    "Radical Shape": "臣",
+    "English Name": "minister, official",
+    "Stroke Count": 7,
+    "Reading": "しん"
+  },
+  {
+    "ID": 180,
+    "Radical Number": "147",
+    "Radical Shape": "見",
+    "English Name": "see",
+    "Stroke Count": 7,
+    "Reading": "みる"
+  },
+  {
+    "ID": 181,
+    "Radical Number": "148",
+    "Radical Shape": "角",
+    "English Name": "horn",
+    "Stroke Count": 7,
+    "Reading": "つの"
+  },
+  {
+    "ID": 182,
+    "Radical Number": "149",
+    "Radical Shape": "言",
+    "English Name": "speaking, speech",
+    "Stroke Count": 7,
+    "Reading": "げん"
+  },
+  {
+    "ID": 183,
+    "Radical Number": "150",
+    "Radical Shape": "谷",
+    "English Name": "valley",
+    "Stroke Count": 7,
+    "Reading": "うまれる"
+  },
+  {
+    "ID": 184,
+    "Radical Number": "151",
+    "Radical Shape": "豆",
+    "English Name": "bean",
+    "Stroke Count": 7,
+    "Reading": "まめ"
+  },
+  {
+    "ID": 185,
+    "Radical Number": "152",
+    "Radical Shape": "豕",
+    "English Name": "pig",
+    "Stroke Count": 7,
+    "Reading": "いのこ"
+  },
+  {
+    "ID": 186,
+    "Radical Number": "153",
+    "Radical Shape": "豸",
+    "English Name": "small hairy animals (cat, badger)",
+    "Stroke Count": 7,
+    "Reading": "むじなへん"
+  },
+  {
+    "ID": 187,
+    "Radical Number": "154",
+    "Radical Shape": "貝",
+    "English Name": "shell",
+    "Stroke Count": 7,
+    "Reading": "かい"
+  },
+  {
+    "ID": 188,
+    "Radical Number": "155",
+    "Radical Shape": "赤",
+    "English Name": "red, bare",
+    "Stroke Count": 7,
+    "Reading": "あか"
+  },
+  {
+    "ID": 189,
+    "Radical Number": "156",
+    "Radical Shape": "走",
+    "English Name": "run",
+    "Stroke Count": 7,
+    "Reading": "はしる"
+  },
+  {
+    "ID": 190,
+    "Radical Number": "157",
+    "Radical Shape": "足",
+    "English Name": "foot, leg, walking",
+    "Stroke Count": 7,
+    "Reading": "あし"
+  },
+  {
+    "ID": 191,
+    "Radical Number": "158",
+    "Radical Shape": "身",
+    "English Name": "body",
+    "Stroke Count": 7,
+    "Reading": "しろ"
+  },
+  {
+    "ID": 192,
+    "Radical Number": "159",
+    "Radical Shape": "車",
+    "English Name": "cart, car",
+    "Stroke Count": 7,
+    "Reading": "はくへん"
+  },
+  {
+    "ID": 193,
+    "Radical Number": "160",
+    "Radical Shape": "辛",
+    "English Name": "bitter",
+    "Stroke Count": 7,
+    "Reading": "からい"
+  },
+  {
+    "ID": 194,
+    "Radical Number": "161",
+    "Radical Shape": "辰",
+    "English Name": "morning",
+    "Stroke Count": 7,
+    "Reading": "さら"
+  },
+  {
+    "ID": 195,
+    "Radical Number": "195",
+    "Radical Shape": "酉",
+    "English Name": "wine, alcohol",
+    "Stroke Count": 7,
+    "Reading": "うさぎ"
+  },
+  {
+    "ID": 196,
+    "Radical Number": "165",
+    "Radical Shape": "釆",
+    "English Name": "distiguishing, separating",
+    "Stroke Count": 7,
+    "Reading": "ほこ"
+  },
+  {
+    "ID": 197,
+    "Radical Number": "166",
+    "Radical Shape": "里",
+    "English Name": "mile, village, hamlet",
+    "Stroke Count": 7,
+    "Reading": "ほこへん"
+  },
+  {
+    "ID": 198,
+    "Radical Number": "136",
+    "Radical Shape": "舛",
+    "English Name": "lying side by side, opposite",
+    "Stroke Count": 7,
+    "Reading": "かたへん"
+  },
+  {
+    "ID": 199,
+    "Radical Number": "199",
+    "Radical Shape": "麦",
+    "English Name": "wheat",
+    "Stroke Count": 7,
+    "Reading": "むぎ"
+  },
+  {
+    "ID": 200,
+    "Radical Number": "167",
+    "Radical Shape": "金",
+    "English Name": "metal, gold",
+    "Stroke Count": 8,
+    "Reading": "や"
+  },
+  {
+    "ID": 201,
+    "Radical Number": "168",
+    "Radical Shape": "長",
+    "English Name": "long, hair",
+    "Stroke Count": 8,
+    "Reading": "やへん"
+  },
+  {
+    "ID": 202,
+    "Radical Number": "169",
+    "Radical Shape": "門",
+    "English Name": "door, gate",
+    "Stroke Count": 8,
+    "Reading": "いし"
+  },
+  {
+    "ID": 203,
+    "Radical Number": "171",
+    "Radical Shape": "隶",
+    "English Name": "slave, reaching, catching",
+    "Stroke Count": 8,
+    "Reading": "しめす"
+  },
+  {
+    "ID": 204,
+    "Radical Number": "172",
+    "Radical Shape": "隹",
+    "English Name": "small bird",
+    "Stroke Count": 8,
+    "Reading": "じゅうのあし"
+  },
+  {
+    "ID": 205,
+    "Radical Number": "173",
+    "Radical Shape": "雨",
+    "English Name": "rain",
+    "Stroke Count": 8,
+    "Reading": "のぎへん"
+  },
+  {
+    "ID": 206,
+    "Radical Number": "174",
+    "Radical Shape": "青",
+    "English Name": "blue, green",
+    "Stroke Count": 8,
+    "Reading": "あお"
+  },
+  {
+    "ID": 207,
+    "Radical Number": "175",
+    "Radical Shape": "非",
+    "English Name": "wrong",
+    "Stroke Count": 8,
+    "Reading": "あらず"
+  },
+  {
+    "ID": 208,
+    "Radical Number": "208",
+    "Radical Shape": "奄",
+    "English Name": "cover",
+    "Stroke Count": 8,
+    "Reading": "あき"
+  },
+  {
+    "ID": 209,
+    "Radical Number": "209",
+    "Radical Shape": "岡",
+    "English Name": "hill",
+    "Stroke Count": 8,
+    "Reading": "おか"
+  },
+  {
+    "ID": 210,
+    "Radical Number": "210",
+    "Radical Shape": "免",
+    "English Name": "exemption",
+    "Stroke Count": 8,
+    "Reading": "めん"
+  },
+  {
+    "ID": 211,
+    "Radical Number": "210",
+    "Radical Shape": "斉",
+    "English Name": "equal, alike",
+    "Stroke Count": 8,
+    "Reading": "あき"
+  },
+  {
+    "ID": 212,
+    "Radical Number": "176",
+    "Radical Shape": "面",
+    "English Name": "face",
+    "Stroke Count": 9,
+    "Reading": "めん"
+  },
+  {
+    "ID": 213,
+    "Radical Number": "177",
+    "Radical Shape": "革",
+    "English Name": "skin, leather, changing",
+    "Stroke Count": 9,
+    "Reading": "いくりがわ"
+  },
+  {
+    "ID": 214,
+    "Radical Number": "179",
+    "Radical Shape": "韭",
+    "English Name": "chives, scallion",
+    "Stroke Count": 9,
+    "Reading": "にら"
+  },
+  {
+    "ID": 215,
+    "Radical Number": "180",
+    "Radical Shape": "音",
+    "English Name": "sound",
+    "Stroke Count": 9,
+    "Reading": "したみず"
+  },
+  {
+    "ID": 216,
+    "Radical Number": "181",
+    "Radical Shape": "頁",
+    "English Name": "big shell",
+    "Stroke Count": 9,
+    "Reading": "おおがい"
+  },
+  {
+    "ID": 217,
+    "Radical Number": "182",
+    "Radical Shape": "風",
+    "English Name": "wind",
+    "Stroke Count": 9,
+    "Reading": "かぜ"
+  },
+  {
+    "ID": 218,
+    "Radical Number": "183",
+    "Radical Shape": "飛",
+    "English Name": "fly",
+    "Stroke Count": 9,
+    "Reading": "とぶ"
+  },
+  {
+    "ID": 219,
+    "Radical Number": "184",
+    "Radical Shape": "食",
+    "English Name": "eat, food",
+    "Stroke Count": 9,
+    "Reading": "しょく"
+  },
+  {
+    "ID": 220,
+    "Radical Number": "185",
+    "Radical Shape": "首",
+    "English Name": "neck, head",
+    "Stroke Count": 9,
+    "Reading": "くび"
+  },
+  {
+    "ID": 221,
+    "Radical Number": "186",
+    "Radical Shape": "香",
+    "English Name": "odor, perfume",
+    "Stroke Count": 9,
+    "Reading": "かおり"
+  },
+  {
+    "ID": 222,
+    "Radical Number": "222",
+    "Radical Shape": "品",
+    "English Name": "quality, character",
+    "Stroke Count": 9,
+    "Reading": "ひよう"
+  },
+  {
+    "ID": 223,
+    "Radical Number": "187",
+    "Radical Shape": "馬",
+    "English Name": "horse",
+    "Stroke Count": 10,
+    "Reading": "うま"
+  },
+  {
+    "ID": 224,
+    "Radical Number": "188",
+    "Radical Shape": "骨",
+    "English Name": "bone",
+    "Stroke Count": 10,
+    "Reading": "ほね"
+  },
+  {
+    "ID": 225,
+    "Radical Number": "189",
+    "Radical Shape": "高",
+    "English Name": "tall, high",
+    "Stroke Count": 10,
+    "Reading": "いと"
+  },
+  {
+    "ID": 226,
+    "Radical Number": "190",
+    "Radical Shape": "髟",
+    "English Name": "long hair",
+    "Stroke Count": 10,
+    "Reading": "かみかんむり"
+  },
+  {
+    "ID": 227,
+    "Radical Number": "191",
+    "Radical Shape": "鬥",
+    "English Name": "fight, battle",
+    "Stroke Count": 10,
+    "Reading": "たたかいがまえ"
+  },
+  {
+    "ID": 228,
+    "Radical Number": "192",
+    "Radical Shape": "鬯",
+    "English Name": "sacrificial wine",
+    "Stroke Count": 10,
+    "Reading": "においざけ"
+  },
+  {
+    "ID": 229,
+    "Radical Number": "193",
+    "Radical Shape": "鬲",
+    "English Name": "tripod, cauldron",
+    "Stroke Count": 10,
+    "Reading": "れき"
+  },
+  {
+    "ID": 230,
+    "Radical Number": "194",
+    "Radical Shape": "鬼",
+    "English Name": "ghost, spirit",
+    "Stroke Count": 10,
+    "Reading": "おに"
+  },
+  {
+    "ID": 231,
+    "Radical Number": "212",
+    "Radical Shape": "竜",
+    "English Name": "dragon",
+    "Stroke Count": 10,
+    "Reading": "りゅう"
+  },
+  {
+    "ID": 232,
+    "Radical Number": "178",
+    "Radical Shape": "韋",
+    "English Name": "tanned leather",
+    "Stroke Count": 10,
+    "Reading": "なめしがわ"
+  },
+  {
+    "ID": 233,
+    "Radical Number": "195",
+    "Radical Shape": "魚",
+    "English Name": "fish",
+    "Stroke Count": 11,
+    "Reading": "うお"
+  },
+  {
+    "ID": 234,
+    "Radical Number": "196",
+    "Radical Shape": "鳥",
+    "English Name": "bird",
+    "Stroke Count": 11,
+    "Reading": "とり"
+  },
+  {
+    "ID": 235,
+    "Radical Number": "197",
+    "Radical Shape": "鹵",
+    "English Name": "salt",
+    "Stroke Count": 11,
+    "Reading": "しお"
+  },
+  {
+    "ID": 236,
+    "Radical Number": "198",
+    "Radical Shape": "鹿",
+    "English Name": "deer",
+    "Stroke Count": 11,
+    "Reading": "しか"
+  },
+  {
+    "ID": 237,
+    "Radical Number": "200",
+    "Radical Shape": "麻",
+    "English Name": "hemp",
+    "Stroke Count": 11,
+    "Reading": "あさ"
+  },
+  {
+    "ID": 238,
+    "Radical Number": "213",
+    "Radical Shape": "亀",
+    "English Name": "turtle",
+    "Stroke Count": 11,
+    "Reading": "かめ"
+  },
+  {
+    "ID": 239,
+    "Radical Number": "239",
+    "Radical Shape": "啇",
+    "English Name": "trade, business",
+    "Stroke Count": 11,
+    "Reading": "つうせい"
+  },
+  {
+    "ID": 240,
+    "Radical Number": "201",
+    "Radical Shape": "黄",
+    "English Name": "yellow",
+    "Stroke Count": 11,
+    "Reading": "き"
+  },
+  {
+    "ID": 241,
+    "Radical Number": "203",
+    "Radical Shape": "黒",
+    "English Name": "black",
+    "Stroke Count": 11,
+    "Reading": "くろ"
+  },
+  {
+    "ID": 242,
+    "Radical Number": "202",
+    "Radical Shape": "黍",
+    "English Name": "millet",
+    "Stroke Count": 12,
+    "Reading": "きび"
+  },
+  {
+    "ID": 243,
+    "Radical Number": "204",
+    "Radical Shape": "黹",
+    "English Name": "needlework",
+    "Stroke Count": 12,
+    "Reading": "ぬいとり"
+  },
+  {
+    "ID": 244,
+    "Radical Number": "244",
+    "Radical Shape": "無",
+    "English Name": "not",
+    "Stroke Count": 12,
+    "Reading": "む"
+  },
+  {
+    "ID": 245,
+    "Radical Number": "211",
+    "Radical Shape": "歯",
+    "English Name": "teeth",
+    "Stroke Count": 12,
+    "Reading": "は"
+  },
+  {
+    "ID": 246,
+    "Radical Number": "205",
+    "Radical Shape": "黽",
+    "English Name": "frog, amphibian",
+    "Stroke Count": 13,
+    "Reading": "かえる"
+  },
+  {
+    "ID": 247,
+    "Radical Number": "206",
+    "Radical Shape": "鼎",
+    "English Name": "sacrificial tripod, three-legged cauldron",
+    "Stroke Count": 13,
+    "Reading": "かなえ"
+  },
+  {
+    "ID": 248,
+    "Radical Number": "207",
+    "Radical Shape": "鼓",
+    "English Name": "drum",
+    "Stroke Count": 13,
+    "Reading": "つづみ"
+  },
+  {
+    "ID": 249,
+    "Radical Number": "208",
+    "Radical Shape": "鼠",
+    "English Name": "mouse, rat",
+    "Stroke Count": 13,
+    "Reading": "ねずみ"
+  },
+  {
+    "ID": 250,
+    "Radical Number": "209",
+    "Radical Shape": "鼻",
+    "English Name": "nose, self",
+    "Stroke Count": 14,
+    "Reading": "はな"
+  },
+  {
+    "ID": 251,
+    "Radical Number": "210",
+    "Radical Shape": "齊",
+    "English Name": "equal, alike",
+    "Stroke Count": 14,
+    "Reading": "せい"
+  },
+  {
+    "ID": 252,
+    "Radical Number": "214",
+    "Radical Shape": "龠",
+    "English Name": "flute",
+    "Stroke Count": 17,
+    "Reading": "やく"
+  }
+]
