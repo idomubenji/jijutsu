@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Countdown } from '@/components/Countdown';
 import { SakuraAnimation } from '@/components/SakuraAnimation';
-import { WaitlistForm } from '@/components/WaitlistForm';
 import { SignupForm } from '@/components/SignupForm';
 import { addToWaitlist } from '@/lib/supabase';
 import { ThemeToggle } from '@/components/ThemeToggle';
