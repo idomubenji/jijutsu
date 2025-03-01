@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import DexGrid from "@/components/DexGrid";
-import MainLayout from "@/components/MainLayout";
+import GameNav from "@/components/GameNav";
 
 interface KanjiData {
   kanji: string;
@@ -89,37 +89,34 @@ export default function DexPage() {
 
   if (loading) {
     return (
-      <MainLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <p className="text-xl">Loading Dex data...</p>
-        </div>
-      </MainLayout>
+      <div className="flex items-center justify-center w-full h-full min-h-screen bg-[#F2E8DC] dark:bg-[#38332E]">
+        <GameNav />
+        <p className="text-xl">Loading Dex data...</p>
+      </div>
     );
   }
 
   return (
-    <MainLayout>
-      <div className="container mx-auto py-8 px-4">
-        <h1 className="text-3xl font-bold mb-8 text-center">Collection Dex</h1>
+    <div className="flex flex-col w-full h-full min-h-screen bg-[#F2E8DC] dark:bg-[#38332E]">
+      <GameNav />
+      
+      <h1 className="text-3xl font-bold my-4 text-center">Collection Dex</h1>
+      
+      <div className="flex-1 grid grid-cols-1 gap-6 px-2 pb-4">
+        <DexGrid 
+          title="漢字図鑑" 
+          totalItems={6355} 
+          unlockedItems={unlockedKanji}
+          onItemClick={handleKanjiClick}
+        />
         
-        <div className="grid grid-cols-1 gap-12">
-          <DexGrid 
-            title="漢字図鑑" 
-            totalItems={6355} 
-            itemsPerRow={15}
-            unlockedItems={unlockedKanji}
-            onItemClick={handleKanjiClick}
-          />
-          
-          <DexGrid 
-            title="部首図鑑" 
-            totalItems={252} 
-            itemsPerRow={15}
-            unlockedItems={unlockedRadicals}
-            onItemClick={handleRadicalClick}
-          />
-        </div>
+        <DexGrid 
+          title="部首図鑑" 
+          totalItems={252} 
+          unlockedItems={unlockedRadicals}
+          onItemClick={handleRadicalClick}
+        />
       </div>
-    </MainLayout>
+    </div>
   );
 } 

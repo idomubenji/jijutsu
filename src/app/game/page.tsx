@@ -6,15 +6,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { SignInForm } from '@/components/SignInForm';
 import { SignupForm } from '@/components/SignupForm';
 import { supabase } from '@/lib/supabase';
-<<<<<<< Updated upstream
 import { LogOut, Info, X, Trash2 } from 'lucide-react';
-import { ClientLayout } from '@/components/ClientLayout';
-=======
-import { LogOut, Info, X } from 'lucide-react';
-import MainLayout from '@/components/MainLayout';
->>>>>>> Stashed changes
 import { useKanjiRadicals } from '@/hooks/useKanjiRadicals';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import GameNav from '@/components/GameNav';
 import './animations.css';
 
 // Types for game elements
@@ -40,6 +35,11 @@ interface Notification {
   kanji?: string;
 }
 
+interface KanjiRadicalsData {
+  radicalToKanji: Record<string, string[]>;
+  kanjiToRadicals: Record<string, string[]>;
+}
+
 export default function GamePage() {
   // Auth state
   const [isSignInOpen, setIsSignInOpen] = useState(false);
@@ -55,7 +55,7 @@ export default function GamePage() {
   const gameAreaRef = useRef<HTMLDivElement>(null);
   
   // Game instruction dialog
-  const [showInstructions, setShowInstructions] = useState(true);
+  const [showInstructions, setShowInstructions] = useState(false);
   
   // Notification system
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -601,7 +601,7 @@ export default function GamePage() {
         const [singleRadical] = requiredRadicals;
         // For kanji like 林, we need at least 2 of the radical
         // If our character count has at least 2, it's a potential match
-        if (charCounts.get(singleRadical) >= 2) {
+        if (charCounts.get(singleRadical) && charCounts.get(singleRadical)! >= 2) {
           return true;
         }
       }
@@ -690,7 +690,7 @@ export default function GamePage() {
   };
   
   // Find kanji that can be formed from a set of characters
-  const findPossibleKanji = (chars: string[], kanjiData: { radicalToKanji: Record<string, string[]> }): string[] => {
+  const findPossibleKanji = (chars: string[], kanjiData: KanjiRadicalsData): string[] => {
     if (!chars.length || !kanjiData) return [];
     
     // Fix type annotation to properly handle string sets
@@ -786,476 +786,486 @@ export default function GamePage() {
     }
   };
 
+  // Check if this is the first visit and show instructions if it is
+  useEffect(() => {
+    // Check if user has seen instructions before
+    const hasSeenInstructions = localStorage.getItem('jijutsu_has_seen_instructions');
+    if (!hasSeenInstructions) {
+      setShowInstructions(true);
+      // Mark that user has seen instructions
+      localStorage.setItem('jijutsu_has_seen_instructions', 'true');
+    }
+  }, []);
+
   if (loadingData) {
     return (
-      <MainLayout>
-        <div className="min-h-screen flex items-center justify-center bg-[#F2E8DC] dark:bg-[#38332E]">
-          <div className="text-2xl">Loading game data...</div>
-        </div>
-      </MainLayout>
+      <div className="min-h-screen flex items-center justify-center bg-[#F2E8DC] dark:bg-[#38332E]">
+        <GameNav />
+        <div className="text-2xl">Loading game data...</div>
+      </div>
     );
   }
 
   return (
-    <MainLayout>
-      <div className="min-h-screen flex bg-[#F2E8DC] dark:bg-[#38332E]">
-        {/* Game Instructions Dialog */}
-        <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
-          <DialogContent className="sm:max-w-[500px] bg-stone-800/80 dark:bg-stone-50/80">
-            <DialogHeader>
-              <DialogTitle className="text-2xl text-white dark:text-black">Welcome to Jijutsu! 字術</DialogTitle>
-              <DialogDescription className="text-base mt-2 text-white/80 dark:text-black/70">
-                Discover kanji by combining their component radicals
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4 space-y-4">
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-white dark:text-black">How to Play:</h3>
-                <ul className="list-disc pl-5 space-y-2 text-white/80 dark:text-black/70">
-                  <li>Drag radicals from the sidebar into the main workspace.</li>
-                  <li>Move radicals around and bring them close to each other to combine them.</li>
-                  <li>When you have the exact set of radicals needed to form a kanji, they'll merge automatically!</li>
-                  <li>Discovered kanji will appear in the sidebar. You can also use these to create more complex kanji.</li>
-                </ul>
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-white dark:text-black">Tips:</h3>
-                <ul className="list-disc pl-5 space-y-2 text-white/80 dark:text-black/70">
-                  <li>Start with simple combinations of 2-3 radicals.</li>
-                  <li>Experiment! Not all combinations will create kanji.</li>
-                  <li>Try to discover as many kanji as you can!</li>
-                </ul>
-              </div>
+    <div className="min-h-screen flex bg-[#F2E8DC] dark:bg-[#38332E]">
+      <GameNav />
+      
+      {/* Game Instructions Dialog */}
+      <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
+        <DialogContent className="sm:max-w-[500px] bg-stone-800/80 dark:bg-stone-50/80">
+          <DialogHeader>
+            <DialogTitle className="text-2xl text-white dark:text-black">Welcome to Jijutsu! 字術</DialogTitle>
+            <DialogDescription className="text-base mt-2 text-white/80 dark:text-black/70">
+              Discover kanji by combining their component radicals
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-white dark:text-black">How to Play:</h3>
+              <ul className="list-disc pl-5 space-y-2 text-white/80 dark:text-black/70">
+                <li>Drag radicals from the sidebar into the main workspace.</li>
+                <li>Move radicals around and bring them close to each other to combine them.</li>
+                <li>When you have the exact set of radicals needed to form a kanji, they'll merge automatically!</li>
+                <li>Discovered kanji will appear in the sidebar. You can also use these to create more complex kanji.</li>
+              </ul>
             </div>
-            <DialogFooter>
-              <Button onClick={() => setShowInstructions(false)}>Start Playing!</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Main game area */}
-        <div 
-          ref={gameAreaRef}
-          className="flex-1 relative" 
-          onMouseMove={(e) => (draggedElement || isDraggingFromSidebar) && handleDrag(e.clientX, e.clientY)}
-          onMouseUp={() => handleEndDrag()}
-          onMouseLeave={() => handleEndDrag()}
-          onTouchMove={(e) => {
-            if ((draggedElement || isDraggingFromSidebar) && e.touches[0]) {
-              handleDrag(e.touches[0].clientX, e.touches[0].clientY);
-            }
-          }}
-          onTouchEnd={() => handleEndDrag()}
-          onTouchCancel={() => handleEndDrag()}
-        >
-          {/* Jijutsu logo at top left */}
-          <div className="absolute top-6 left-6">
-            <div className="text-3xl font-bold tracking-wide text-[#F2E8DC] dark:text-[#38332E]">字術</div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-white dark:text-black">Tips:</h3>
+              <ul className="list-disc pl-5 space-y-2 text-white/80 dark:text-black/70">
+                <li>Start with simple combinations of 2-3 radicals.</li>
+                <li>Experiment! Not all combinations will create kanji.</li>
+                <li>Try to discover as many kanji as you can!</li>
+              </ul>
+            </div>
           </div>
+          <DialogFooter>
+            <Button onClick={() => setShowInstructions(false)}>Start Playing!</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          {/* Kanji Counter */}
-          <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm">
-            <span className="text-base font-medium">Discovered: </span>
-            <span className="text-xl font-bold text-blue-600">{discoveredKanji.size}</span>
-            <span className="text-sm text-gray-500 ml-1">kanji</span>
-          </div>
+      {/* Main game area */}
+      <div 
+        ref={gameAreaRef}
+        className="flex-1 relative" 
+        onMouseMove={(e) => (draggedElement || isDraggingFromSidebar) && handleDrag(e.clientX, e.clientY)}
+        onMouseUp={() => handleEndDrag()}
+        onMouseLeave={() => handleEndDrag()}
+        onTouchMove={(e) => {
+          if ((draggedElement || isDraggingFromSidebar) && e.touches[0]) {
+            handleDrag(e.touches[0].clientX, e.touches[0].clientY);
+          }
+        }}
+        onTouchEnd={() => handleEndDrag()}
+        onTouchCancel={() => handleEndDrag()}
+      >
+        {/* Jijutsu logo at top left */}
+        <div className="absolute top-6 left-6">
+          <div className="text-3xl font-bold tracking-wide text-[#F2E8DC] dark:text-[#38332E]">字術</div>
+        </div>
 
-          {/* Clear Button */}
-          <div className="absolute bottom-6 right-6">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={clearGameArea}
-              className="bg-white/80 backdrop-blur-sm"
-            >
-              Clear Workspace
-            </Button>
-          </div>
+        {/* Kanji Counter */}
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm">
+          <span className="text-base font-medium">Discovered: </span>
+          <span className="text-xl font-bold text-blue-600">{discoveredKanji.size}</span>
+          <span className="text-sm text-gray-500 ml-1">kanji</span>
+        </div>
 
-          {/* Trash Can */}
-          <div 
-            ref={trashCanRef}
-            className={`absolute left-6 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 ${isOverTrash ? 'bg-red-100 scale-125' : 'bg-gray-100 hover:bg-gray-200'}`}
-            style={{ 
-              boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-              zIndex: 5 // Keep it above background but below dragged elements
-            }}
-            title="Drag elements here to delete them"
-            aria-label="Delete area"
+        {/* Clear Button */}
+        <div className="absolute bottom-6 right-6">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={clearGameArea}
+            className="bg-white/80 backdrop-blur-sm"
           >
-            <Trash2 
-              size={28} 
-              className={`transition-all duration-200 ${isOverTrash ? 'text-red-500 animate-pulse' : 'text-gray-500'}`}
-            />
-            {isOverTrash && (
-              <div className="absolute bottom-full mb-2 whitespace-nowrap rounded bg-black px-2 py-1 text-xs text-white">
-                Release to delete
-              </div>
-            )}
-          </div>
+            Clear Workspace
+          </Button>
+        </div>
 
-          {/* Theme Toggle and Help Button */}
-          <div className="absolute top-6 right-6 flex items-center gap-3">
-            <ThemeToggle />
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setShowInstructions(true)}
-              className="text-stone-500 hover:text-stone-700 hover:bg-transparent p-0 flex items-center gap-1"
-            >
-              <Info size={16} /> Help
-            </Button>
-          </div>
+        {/* Trash Can */}
+        <div 
+          ref={trashCanRef}
+          className={`absolute left-6 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 ${isOverTrash ? 'bg-red-100 scale-125' : 'bg-gray-100 hover:bg-gray-200'}`}
+          style={{ 
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+            zIndex: 5 // Keep it above background but below dragged elements
+          }}
+          title="Drag elements here to delete them"
+          aria-label="Delete area"
+        >
+          <Trash2 
+            size={28} 
+            className={`transition-all duration-200 ${isOverTrash ? 'text-red-500 animate-pulse' : 'text-gray-500'}`}
+          />
+          {isOverTrash && (
+            <div className="absolute bottom-full mb-2 whitespace-nowrap rounded bg-black px-2 py-1 text-xs text-white">
+              Release to delete
+            </div>
+          )}
+        </div>
 
-          {/* Game elements */}
-          {elements.filter(el => el.position.x !== 0 || el.position.y !== 0).map((element) => (
-            <div
-              key={element.id}
-              className={`absolute cursor-grab select-none ${element.isDragging ? 'opacity-70 cursor-grabbing z-50' : 'opacity-100 z-10'} ${element.type === 'kanji' ? 'text-xl font-bold' : 'text-lg'} rounded-md flex items-center justify-center transition-all duration-150 ${element.className || ''}`}
-              style={{
-                left: `${element.position.x}px`,
-                top: `${element.position.y}px`,
-                width: '40px',
-                height: '40px',
-                backgroundColor: element.type === 'kanji' 
-                  ? (hoveredElements.has(element.id) ? '#93c5fd' : '#bae6fd') 
-                  : (hoveredElements.has(element.id) ? '#bfdbfe' : '#e0f2fe'),
-                userSelect: 'none',
-                boxShadow: hoveredElements.has(element.id) 
-                  ? '0 0 0 2px #3b82f6, 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)'
-                  : '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
-                transform: hoveredElements.has(element.id) ? 'scale(1.05)' : 'scale(1)',
-                transition: element.isDragging ? 'none' : 'all 0.15s ease-in-out'
-              }}
-              onMouseDown={(e) => {
+        {/* Theme Toggle and Help Button */}
+        <div className="absolute top-6 right-6 flex items-center gap-3">
+          <ThemeToggle />
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setShowInstructions(true)}
+            className="text-stone-500 hover:text-stone-700 hover:bg-transparent p-0 flex items-center gap-1"
+          >
+            <Info size={16} /> Help
+          </Button>
+        </div>
+
+        {/* Game elements */}
+        {elements.filter(el => el.position.x !== 0 || el.position.y !== 0).map((element) => (
+          <div
+            key={element.id}
+            className={`absolute cursor-grab select-none ${element.isDragging ? 'opacity-70 cursor-grabbing z-50' : 'opacity-100 z-10'} ${element.type === 'kanji' ? 'text-xl font-bold' : 'text-lg'} rounded-md flex items-center justify-center transition-all duration-150 ${element.className || ''}`}
+            style={{
+              left: `${element.position.x}px`,
+              top: `${element.position.y}px`,
+              width: '40px',
+              height: '40px',
+              backgroundColor: element.type === 'kanji' 
+                ? (hoveredElements.has(element.id) ? '#93c5fd' : '#bae6fd') 
+                : (hoveredElements.has(element.id) ? '#bfdbfe' : '#e0f2fe'),
+              userSelect: 'none',
+              boxShadow: hoveredElements.has(element.id) 
+                ? '0 0 0 2px #3b82f6, 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)'
+                : '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
+              transform: hoveredElements.has(element.id) ? 'scale(1.05)' : 'scale(1)',
+              transition: element.isDragging ? 'none' : 'all 0.15s ease-in-out'
+            }}
+            onMouseDown={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              handleStartDrag(element.id, e.clientX, e.clientY, rect);
+              e.preventDefault(); // Prevent text selection
+            }}
+            onTouchStart={(e) => {
+              if (e.touches[0]) {
                 const rect = e.currentTarget.getBoundingClientRect();
-                handleStartDrag(element.id, e.clientX, e.clientY, rect);
-                e.preventDefault(); // Prevent text selection
-              }}
-              onTouchStart={(e) => {
-                if (e.touches[0]) {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  handleStartDrag(element.id, e.touches[0].clientX, e.touches[0].clientY, rect);
-                  e.preventDefault(); // Prevent scrolling
-                }
-              }}
-            >
-              {element.char}
-            </div>
-          ))}
-
-          {/* Notifications */}
-          <div className="absolute top-16 right-6 flex flex-col items-end space-y-2 max-w-xs">
-            {notifications.map((notification) => {
-              // Generate a stable but unique key for each notification item
-              const itemKey = `notification-${notification.id}`;
-              const bgColorClass = notification.type === 'success' ? 'bg-green-500' : 'bg-blue-500';
-              
-              return (
-                <div 
-                  key={itemKey}
-                  className={`px-4 py-2 rounded-lg shadow-lg text-white flex items-center justify-between w-full
-                    ${bgColorClass} animate-in slide-in-from-right-5 duration-300`}
-                >
-                  <div className="flex items-center gap-2">
-                    {notification.kanji && (
-                      <span className="text-xl font-bold mr-2">{notification.kanji}</span>
-                    )}
-                    <span>{notification.message}</span>
-                  </div>
-                  <button 
-                    onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
-                    className="ml-2 text-white hover:text-gray-200"
-                    aria-label="Close notification"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              );
-            })}
+                handleStartDrag(element.id, e.touches[0].clientX, e.touches[0].clientY, rect);
+                e.preventDefault(); // Prevent scrolling
+              }
+            }}
+          >
+            {element.char}
           </div>
+        ))}
 
-          {/* Auth buttons at bottom left */}
-          <div className="absolute bottom-6 left-6 flex gap-2">
-            {isLoading ? (
-              <div className="text-stone-400 text-sm">Loading...</div>
-            ) : user ? (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleSignOut}
-                className="text-red-500 hover:text-red-700 hover:bg-transparent p-0 flex items-center gap-1"
-              >
-                <LogOut size={16} /> Sign out
-              </Button>
-            ) : (
-              <>
-                <Dialog open={isSignInOpen} onOpenChange={setIsSignInOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" onClick={() => handleOpenAuth('signin')}>
-                      Sign in
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px] bg-stone-800/80 dark:bg-stone-50/80">
-                    <DialogHeader>
-                      <DialogTitle className="text-white dark:text-black">Sign in to Jijutsu</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4">
-                      <SignInForm 
-                        onSwitchToSignUp={() => handleOpenAuth('signup')}
-                        onSuccess={handleAuthSuccess}
-                      />
-                    </div>
-                  </DialogContent>
-                </Dialog>
-
-                <Dialog open={isSignUpOpen} onOpenChange={setIsSignUpOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="default" size="sm" onClick={() => handleOpenAuth('signup')}>
-                      Sign up
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px] bg-stone-800/80 dark:bg-stone-50/80">
-                    <DialogHeader>
-                      <DialogTitle className="text-white dark:text-black">Create your Jijutsu account</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4">
-                      <SignupForm 
-                        onSuccess={handleAuthSuccess}
-                      />
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </>
-            )}
-          </div>
-
-          {/* Tutorial cue */}
-          {showTutorialCue && (
-            <div className="absolute inset-0 z-30 pointer-events-none">
-              <div className="absolute top-1/2 left-1/3 transform -translate-y-1/2">
-                <div className="animate-float text-center">
-                  <div className="w-16 h-16 bg-sky-100 rounded-lg shadow-md flex items-center justify-center text-xl mb-2 mx-auto">
-                    一
-                  </div>
-                  <div className="text-sm text-gray-600 font-medium">
-                    Drag radicals from sidebar
-                  </div>
-                  <div className="mt-4 flex items-center justify-center">
-                    <svg width="50" height="24" viewBox="0 0 50 24" className="text-gray-400">
-                      <path 
-                        d="M2,12 L48,12" 
-                        stroke="currentColor" 
-                        strokeWidth="2" 
-                        strokeDasharray="4"
-                      />
-                      <path 
-                        d="M40,6 L48,12 L40,18" 
-                        stroke="currentColor" 
-                        strokeWidth="2" 
-                        fill="none"
-                      />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="absolute top-1/2 right-1/3 transform -translate-y-1/2">
-                <div className="animate-float text-center animation-delay-500">
-                  <div className="w-16 h-16 bg-sky-100 rounded-lg shadow-md flex items-center justify-center text-xl mb-2 mx-auto">
-                    丨
-                  </div>
-                  <div className="text-sm text-gray-600 font-medium">
-                    Combine to form kanji
-                  </div>
-                </div>
-              </div>
-              
-              <div className="absolute top-3/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animation-delay-1000">
-                <div className="animate-bounce text-center">
-                  <div className="w-20 h-20 bg-blue-100 rounded-lg shadow-md flex items-center justify-center text-2xl mb-2 mx-auto">
-                    十
-                  </div>
-                  <div className="text-lg text-blue-600 font-medium">
-                    New kanji!
-                  </div>
-                </div>
-              </div>
-              
-              <button 
-                onClick={() => setShowTutorialCue(false)} 
-                className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white px-4 py-2 rounded pointer-events-auto"
-              >
-                Got it!
-              </button>
-            </div>
-          )}
-
-          {/* Update the floating element to handle scroll position correctly */}
-          {isDraggingFromSidebar && sidebarDraggedChar && (
-            <div 
-              className="absolute z-50 pointer-events-none"
-              style={{
-                left: `${mousePosition.x}px`,
-                top: `${mousePosition.y}px`,
-                width: '40px',
-                height: '40px',
-                backgroundColor: '#e0f2fe',
-                borderRadius: '0.375rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 3px 10px rgba(0,0,0,0.2)',
-                opacity: 0.8,
-                transform: `translate(-${dragOffset.x}px, -${dragOffset.y}px) scale(1.1)`,
-                fontSize: '1.125rem'
-              }}
-            >
-              {sidebarDraggedChar}
-            </div>
-          )}
-
-          {/* Connection lines between elements */}
-          {connections.map((connection, index) => {
-            const fromElement = connection.from === 'sidebar' 
-              ? { 
-                  position: { 
-                    x: mousePosition.x - gameAreaRef.current!.getBoundingClientRect().left - dragOffset.x,
-                    y: mousePosition.y - gameAreaRef.current!.getBoundingClientRect().top - dragOffset.y
-                  } 
-                } 
-              : elements.find(el => el.id === connection.from);
-            const toElement = elements.find(el => el.id === connection.to);
-            
-            if (!fromElement || !toElement) return null;
-            
-            const fromX = fromElement.position.x + 20; // Center X of from element
-            const fromY = fromElement.position.y + 20; // Center Y of from element
-            const toX = toElement.position.x + 20; // Center X of to element
-            const toY = toElement.position.y + 20; // Center Y of to element
+        {/* Notifications */}
+        <div className="absolute top-16 right-6 flex flex-col items-end space-y-2 max-w-xs">
+          {notifications.map((notification) => {
+            // Generate a stable but unique key for each notification item
+            const itemKey = `notification-${notification.id}`;
+            const bgColorClass = notification.type === 'success' ? 'bg-green-500' : 'bg-blue-500';
             
             return (
-              <svg 
-                key={`connection-${index}`}
-                className="absolute top-0 left-0 w-full h-full z-5 pointer-events-none"
-                style={{ overflow: 'visible' }}
+              <div 
+                key={itemKey}
+                className={`px-4 py-2 rounded-lg shadow-lg text-white flex items-center justify-between w-full
+                  ${bgColorClass} animate-in slide-in-from-right-5 duration-300`}
               >
-                <line
-                  x1={fromX}
-                  y1={fromY}
-                  x2={toX}
-                  y2={toY}
-                  stroke="#3b82f6"
-                  strokeWidth="2"
-                  strokeDasharray="3,3"
-                  opacity="0.6"
-                />
-              </svg>
+                <div className="flex items-center gap-2">
+                  {notification.kanji && (
+                    <span className="text-xl font-bold mr-2">{notification.kanji}</span>
+                  )}
+                  <span>{notification.message}</span>
+                </div>
+                <button 
+                  onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+                  className="ml-2 text-white hover:text-gray-200"
+                  aria-label="Close notification"
+                >
+                  <X size={14} />
+                </button>
+              </div>
             );
           })}
         </div>
 
-        {/* Sidebar */}
-        <div className="w-96 border-l border-stone-200 dark:border-stone-700 flex flex-col overflow-y-auto bg-[#E8DED2] dark:bg-[#302B27]">
-          {/* Radical container */}
-          <div className="p-3 border-b border-stone-200">
-            <h3 className="font-semibold mb-2">Radicals</h3>
-            <div className="grid grid-cols-17 gap-1">
-              {sidebarRadicals.map(({ char }, index) => {
-                // Generate a truly unique key for each radical
-                const radicalKey = `sidebar-radical-${index}-${char}-${Math.random().toString(36).slice(2, 5)}`;
+        {/* Auth buttons at bottom left */}
+        <div className="absolute bottom-6 left-6 flex gap-2">
+          {isLoading ? (
+            <div className="text-stone-400 text-sm">Loading...</div>
+          ) : user ? (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleSignOut}
+              className="text-red-500 hover:text-red-700 hover:bg-transparent p-0 flex items-center gap-1"
+            >
+              <LogOut size={16} /> Sign out
+            </Button>
+          ) : (
+            <>
+              <Dialog open={isSignInOpen} onOpenChange={setIsSignInOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={() => handleOpenAuth('signin')}>
+                    Sign in
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px] bg-stone-800/80 dark:bg-stone-50/80">
+                  <DialogHeader>
+                    <DialogTitle className="text-white dark:text-black">Sign in to Jijutsu</DialogTitle>
+                  </DialogHeader>
+                  <div className="py-4">
+                    <SignInForm 
+                      onSwitchToSignUp={() => handleOpenAuth('signup')}
+                      onSuccess={handleAuthSuccess}
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={isSignUpOpen} onOpenChange={setIsSignUpOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="default" size="sm" onClick={() => handleOpenAuth('signup')}>
+                    Sign up
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px] bg-stone-800/80 dark:bg-stone-50/80">
+                  <DialogHeader>
+                    <DialogTitle className="text-white dark:text-black">Create your Jijutsu account</DialogTitle>
+                  </DialogHeader>
+                  <div className="py-4">
+                    <SignupForm 
+                      onSuccess={handleAuthSuccess}
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
+        </div>
+
+        {/* Tutorial cue */}
+        {showTutorialCue && (
+          <div className="absolute inset-0 z-30 pointer-events-none">
+            <div className="absolute top-1/2 left-1/3 transform -translate-y-1/2">
+              <div className="animate-float text-center">
+                <div className="w-16 h-16 bg-sky-100 rounded-lg shadow-md flex items-center justify-center text-xl mb-2 mx-auto">
+                  一
+                </div>
+                <div className="text-sm text-gray-600 font-medium">
+                  Drag radicals from sidebar
+                </div>
+                <div className="mt-4 flex items-center justify-center">
+                  <svg width="50" height="24" viewBox="0 0 50 24" className="text-gray-400">
+                    <path 
+                      d="M2,12 L48,12" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      strokeDasharray="4"
+                    />
+                    <path 
+                      d="M40,6 L48,12 L40,18" 
+                      stroke="currentColor" 
+                      strokeWidth="2" 
+                      fill="none"
+                    />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            
+            <div className="absolute top-1/2 right-1/3 transform -translate-y-1/2">
+              <div className="animate-float text-center animation-delay-500">
+                <div className="w-16 h-16 bg-sky-100 rounded-lg shadow-md flex items-center justify-center text-xl mb-2 mx-auto">
+                  丨
+                </div>
+                <div className="text-sm text-gray-600 font-medium">
+                  Combine to form kanji
+                </div>
+              </div>
+            </div>
+            
+            <div className="absolute top-3/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animation-delay-1000">
+              <div className="animate-bounce text-center">
+                <div className="w-20 h-20 bg-blue-100 rounded-lg shadow-md flex items-center justify-center text-2xl mb-2 mx-auto">
+                  十
+                </div>
+                <div className="text-lg text-blue-600 font-medium">
+                  New kanji!
+                </div>
+              </div>
+            </div>
+            
+            <button 
+              onClick={() => setShowTutorialCue(false)} 
+              className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-70 text-white px-4 py-2 rounded pointer-events-auto"
+            >
+              Got it!
+            </button>
+          </div>
+        )}
+
+        {/* Update the floating element to handle scroll position correctly */}
+        {isDraggingFromSidebar && sidebarDraggedChar && (
+          <div 
+            className="absolute z-50 pointer-events-none"
+            style={{
+              left: `${mousePosition.x}px`,
+              top: `${mousePosition.y}px`,
+              width: '40px',
+              height: '40px',
+              backgroundColor: '#e0f2fe',
+              borderRadius: '0.375rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 3px 10px rgba(0,0,0,0.2)',
+              opacity: 0.8,
+              transform: `translate(-${dragOffset.x}px, -${dragOffset.y}px) scale(1.1)`,
+              fontSize: '1.125rem'
+            }}
+          >
+            {sidebarDraggedChar}
+          </div>
+        )}
+
+        {/* Connection lines between elements */}
+        {connections.map((connection, index) => {
+          const fromElement = connection.from === 'sidebar' 
+            ? { 
+                position: { 
+                  x: mousePosition.x - gameAreaRef.current!.getBoundingClientRect().left - dragOffset.x,
+                  y: mousePosition.y - gameAreaRef.current!.getBoundingClientRect().top - dragOffset.y
+                } 
+              } 
+            : elements.find(el => el.id === connection.from);
+          const toElement = elements.find(el => el.id === connection.to);
+          
+          if (!fromElement || !toElement) return null;
+          
+          const fromX = fromElement.position.x + 20; // Center X of from element
+          const fromY = fromElement.position.y + 20; // Center Y of from element
+          const toX = toElement.position.x + 20; // Center X of to element
+          const toY = toElement.position.y + 20; // Center Y of to element
+          
+          return (
+            <svg 
+              key={`connection-${index}`}
+              className="absolute top-0 left-0 w-full h-full z-5 pointer-events-none"
+              style={{ overflow: 'visible' }}
+            >
+              <line
+                x1={fromX}
+                y1={fromY}
+                x2={toX}
+                y2={toY}
+                stroke="#3b82f6"
+                strokeWidth="2"
+                strokeDasharray="3,3"
+                opacity="0.6"
+              />
+            </svg>
+          );
+        })}
+      </div>
+
+      {/* Sidebar */}
+      <div className="w-96 border-l border-stone-200 dark:border-stone-700 flex flex-col overflow-y-auto bg-[#E8DED2] dark:bg-[#302B27]">
+        {/* Radical container */}
+        <div className="p-3 border-b border-stone-200">
+          <h3 className="font-semibold mb-2">Radicals</h3>
+          <div className="grid grid-cols-17 gap-1">
+            {sidebarRadicals.map(({ char }, index) => {
+              // Generate a truly unique key for each radical
+              const radicalKey = `sidebar-radical-${index}-${char}-${Math.random().toString(36).slice(2, 5)}`;
+              
+              return (
+                <div
+                  key={radicalKey}
+                  className="w-4 h-4 text-xs flex items-center justify-center bg-sky-100 rounded cursor-grab select-none"
+                  style={{
+                    userSelect: 'none'
+                  }}
+                  onMouseDown={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    handleSidebarDragStart(char, e.clientX, e.clientY, rect);
+                    e.preventDefault(); // Prevent text selection
+                  }}
+                  onTouchStart={(e) => {
+                    if (e.touches[0]) {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      handleSidebarDragStart(char, e.touches[0].clientX, e.touches[0].clientY, rect);
+                      e.preventDefault();
+                    }
+                  }}
+                >
+                  {char}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        
+        {/* Discovered kanji container */}
+        <div className="flex-1 p-3 overflow-y-auto">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="font-semibold">Discovered Kanji ({discoveredKanji.size})</h3>
+            
+            {discoveredKanji.size > 0 && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={resetProgress}
+                className="text-red-500 hover:text-red-600 text-xs p-1 h-auto"
+              >
+                Reset
+              </Button>
+            )}
+          </div>
+          
+          {discoveredKanji.size === 0 ? (
+            <div className="text-stone-400 text-sm">
+              Drag and combine radicals to discover kanji!
+            </div>
+          ) : (
+            <div className="grid grid-cols-8 gap-2">
+              {Array.from(discoveredKanji).map((kanji, index) => {
+                // Generate a stable unique key for each discovered kanji
+                const kanjiKey = `discovered-${kanji}-${index}`;
                 
                 return (
                   <div
-                    key={radicalKey}
-                    className="w-4 h-4 text-xs flex items-center justify-center bg-sky-100 rounded cursor-grab select-none"
-                    style={{
-                      userSelect: 'none'
-                    }}
+                    key={kanjiKey}
+                    className="w-9 h-9 flex items-center justify-center bg-sky-200 rounded cursor-grab select-none"
+                    style={{ userSelect: 'none' }}
                     onMouseDown={(e) => {
                       const rect = e.currentTarget.getBoundingClientRect();
-                      handleSidebarDragStart(char, e.clientX, e.clientY, rect);
+                      handleSidebarDragStart(kanji, e.clientX, e.clientY, rect);
                       e.preventDefault(); // Prevent text selection
                     }}
                     onTouchStart={(e) => {
                       if (e.touches[0]) {
                         const rect = e.currentTarget.getBoundingClientRect();
-                        handleSidebarDragStart(char, e.touches[0].clientX, e.touches[0].clientY, rect);
+                        handleSidebarDragStart(kanji, e.touches[0].clientX, e.touches[0].clientY, rect);
                         e.preventDefault();
                       }
                     }}
                   >
-                    {char}
+                    {kanji}
                   </div>
                 );
               })}
             </div>
-          </div>
-          
-          {/* Discovered kanji container */}
-          <div className="flex-1 p-3 overflow-y-auto">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="font-semibold">Discovered Kanji ({discoveredKanji.size})</h3>
-              
-              {discoveredKanji.size > 0 && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={resetProgress}
-                  className="text-red-500 hover:text-red-600 text-xs p-1 h-auto"
-                >
-                  Reset
-                </Button>
-              )}
-            </div>
-            
-            {discoveredKanji.size === 0 ? (
-              <div className="text-stone-400 text-sm">
-                Drag and combine radicals to discover kanji!
-              </div>
-            ) : (
-              <div className="grid grid-cols-8 gap-2">
-                {Array.from(discoveredKanji).map((kanji, index) => {
-                  // Generate a stable unique key for each discovered kanji
-                  const kanjiKey = `discovered-${kanji}-${index}`;
-                  
-                  return (
-                    <div
-                      key={kanjiKey}
-                      className="w-9 h-9 flex items-center justify-center bg-sky-200 rounded cursor-grab select-none"
-                      style={{ userSelect: 'none' }}
-                      onMouseDown={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        handleSidebarDragStart(kanji, e.clientX, e.clientY, rect);
-                        e.preventDefault(); // Prevent text selection
-                      }}
-                      onTouchStart={(e) => {
-                        if (e.touches[0]) {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          handleSidebarDragStart(kanji, e.touches[0].clientX, e.touches[0].clientY, rect);
-                          e.preventDefault();
-                        }
-                      }}
-                    >
-                      {kanji}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-          
-          {/* User info at bottom */}
-          {user && (
-            <div className="p-4 border-t border-stone-200">
-              <div className="text-sm font-medium">
-                <div className="text-stone-600">Logged in as:</div>
-                <div className="text-stone-900">{user.email}</div>
-              </div>
-            </div>
           )}
         </div>
+        
+        {/* User info at bottom */}
+        {user && (
+          <div className="p-4 border-t border-stone-200">
+            <div className="text-sm font-medium">
+              <div className="text-stone-600">Logged in as:</div>
+              <div className="text-stone-900">{user.email}</div>
+            </div>
+          </div>
+        )}
       </div>
-    </MainLayout>
+    </div>
   );
 } 
