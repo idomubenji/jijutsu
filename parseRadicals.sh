@@ -25,6 +25,12 @@ mkdir -p $(dirname "$OUTPUT")
 echo "Installing required dependencies..."
 npm install --save-dev typescript ts-node
 
+# Remove any previously compiled JavaScript file to ensure we use the latest code
+if [ -f "parseKanjiRadicals.js" ]; then
+  echo "Removing old JavaScript file..."
+  rm parseKanjiRadicals.js
+fi
+
 # Compile the TypeScript file to JavaScript
 echo "Compiling TypeScript to JavaScript..."
 npx tsc --esModuleInterop parseKanjiRadicals.ts || {
@@ -63,4 +69,10 @@ else
   }
 fi
 
-echo "If successful, the kanji radical data is now available at $OUTPUT" 
+# Display summary of what was done
+echo "If successful, the kanji radical data is now available at $OUTPUT"
+echo "The data now includes:"
+echo "1. radicalToKanji mapping (which kanji contain which radicals)"
+echo "2. kanjiToRadicals mapping (optimized list of radicals in each kanji)"
+echo "3. radicalDecomposition (raw list of sub-radicals for each kanji/radical)"
+echo "4. radicalEquivalencies (list of equivalent radicals due to mutual sub-radical relationships)" 

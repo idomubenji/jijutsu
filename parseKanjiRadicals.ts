@@ -6,6 +6,7 @@ interface KanjiData {
   radicalToKanji: Record<string, string[]>;
   kanjiToRadicals: Record<string, string[]>;
   radicalDecomposition: Record<string, string[]>; // Stores which radicals are made of which sub-radicals
+  radicalEquivalencies: Record<string, string[]>; // Stores which radicals are equivalent due to mutual subradical relationships
 }
 
 /**
@@ -112,13 +113,109 @@ function extractRadicalDecomposition(kanjiToRadicals: Record<string, string[]>):
 }
 
 /**
+ * Detect radicals that have a mutual sub-radical relationship
+ * (i.e., radicals that are sub-radicals of each other)
+ */
+function detectRadicalEquivalencies(
+  radicalDecomposition: Record<string, string[]>
+): Record<string, string[]> {
+  const equivalencies: Record<string, string[]> = {};
+  
+  // Initialize equivalencies for all radicals
+  Object.keys(radicalDecomposition).forEach(radical => {
+    equivalencies[radical] = [radical]; // Each radical is equivalent to itself
+  });
+  
+  // Helper function to check if radical1 contains radical2 as a sub-radical
+  function containsSubRadical(radical1: string, radical2: string, visited = new Set<string>()): boolean {
+    if (visited.has(radical1)) return false; // Prevent infinite recursion
+    visited.add(radical1);
+    
+    // Direct check
+    if (radicalDecomposition[radical1]?.includes(radical2)) {
+      return true;
+    }
+    
+    // Recursive check through all sub-radicals
+    for (const subRadical of (radicalDecomposition[radical1] || [])) {
+      if (subRadical !== radical1 && containsSubRadical(subRadical, radical2, visited)) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
+  // Find all pairs of radicals where each is a sub-radical of the other
+  const radicals = Object.keys(radicalDecomposition);
+  for (let i = 0; i < radicals.length; i++) {
+    const radical1 = radicals[i];
+    for (let j = i + 1; j < radicals.length; j++) {
+      const radical2 = radicals[j];
+      
+      // Check for mutual sub-radical relationship
+      if (containsSubRadical(radical1, radical2) && containsSubRadical(radical2, radical1)) {
+        // Add each to the other's equivalency list
+        if (!equivalencies[radical1].includes(radical2)) {
+          equivalencies[radical1].push(radical2);
+        }
+        if (!equivalencies[radical2].includes(radical1)) {
+          equivalencies[radical2].push(radical1);
+        }
+      }
+    }
+  }
+  
+  // Ensure transitive equivalence
+  // If A ≡ B and B ≡ C, then A ≡ C
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const radical in equivalencies) {
+      const equivSet = new Set(equivalencies[radical]);
+      const initialSize = equivSet.size;
+      
+      // For each equivalent radical, add all of its equivalents
+      for (const equiv of equivSet) {
+        for (const transEquiv of equivalencies[equiv] || []) {
+          equivSet.add(transEquiv);
+        }
+      }
+      
+      // If we added new equivalents, update and mark as changed
+      if (equivSet.size > initialSize) {
+        equivalencies[radical] = Array.from(equivSet);
+        changed = true;
+      }
+    }
+  }
+  
+  // Filter out entries that only contain self-references
+  // (i.e., radicals that have no equivalents)
+  const filteredEquivalencies: Record<string, string[]> = {};
+  for (const radical in equivalencies) {
+    // Only include entries with at least one equivalent besides itself
+    if (equivalencies[radical].length > 1) {
+      // Create a new array without the self-reference
+      filteredEquivalencies[radical] = equivalencies[radical].filter(
+        equiv => equiv !== radical
+      );
+    }
+  }
+  
+  return filteredEquivalencies;
+}
+
+/**
  * Optimize the kanjiToRadicals mapping by:
  * 1. Removing self-references (e.g., remove 糸 from the radicals for 糸)
- * 2. Removing sub-radicals that are contained in other radicals in the list
+ * 2. Taking into account radical equivalencies
+ * 3. Removing sub-radicals that are contained in other radicals in the list
  */
 function optimizeKanjiToRadicals(
   kanjiToRadicals: Record<string, string[]>,
-  radicalDecomposition: Record<string, string[]>
+  radicalDecomposition: Record<string, string[]>,
+  radicalEquivalencies: Record<string, string[]>
 ): Record<string, string[]> {
   const optimized: Record<string, string[]> = {};
   
@@ -138,12 +235,48 @@ function optimizeKanjiToRadicals(
     return visited;
   }
   
+  // Helper function to get equivalent radicals for a given radical
+  function getEquivalentRadicals(radical: string): string[] {
+    // If the radical has equivalents in the dictionary, return them
+    if (radical in radicalEquivalencies) {
+      return [radical, ...radicalEquivalencies[radical]];
+    }
+    // Otherwise, just return the radical itself
+    return [radical];
+  }
+  
   // Process each kanji
   Object.entries(kanjiToRadicals).forEach(([kanji, radicals]) => {
     // Step 1: Remove self-references
     let filteredRadicals = radicals.filter(radical => radical !== kanji);
     
-    // Step 2: Remove sub-radicals
+    // Step 2: Handle radical equivalencies
+    // Group radicals by their equivalency classes
+    const equivalencyGroups = new Map<string, string[]>();
+    
+    filteredRadicals.forEach(radical => {
+      // Create a key for the equivalency group based on sorted equivalents
+      const equivalents = getEquivalentRadicals(radical);
+      const equivKey = equivalents.sort().join('|');
+      
+      if (!equivalencyGroups.has(equivKey)) {
+        equivalencyGroups.set(equivKey, []);
+      }
+      equivalencyGroups.get(equivKey)?.push(radical);
+    });
+    
+    // Select a representative from each equivalency group
+    const representativeRadicals: string[] = [];
+    equivalencyGroups.forEach((group) => {
+      if (group.length > 0) {
+        // Choose the first radical in the group as representative
+        representativeRadicals.push(group[0]);
+      }
+    });
+    
+    filteredRadicals = representativeRadicals;
+    
+    // Step 3: Remove sub-radicals
     // For each radical, collect all its sub-radicals
     const radicalWithSubRadicals = new Map<string, Set<string>>();
     filteredRadicals.forEach(radical => {
@@ -151,13 +284,19 @@ function optimizeKanjiToRadicals(
     });
     
     // For each pair of radicals, if one's sub-radicals contain the other, mark for removal
+    // Skip this check for radicals that are equivalent to each other
     const toRemove = new Set<string>();
     filteredRadicals.forEach(radical1 => {
       filteredRadicals.forEach(radical2 => {
         if (radical1 !== radical2) {
-          const subRadicals1 = radicalWithSubRadicals.get(radical1) || new Set();
-          if (subRadicals1.has(radical2)) {
-            toRemove.add(radical2);
+          // Check if they're equivalent
+          const isEquivalent = getEquivalentRadicals(radical1).includes(radical2);
+          
+          if (!isEquivalent) {
+            const subRadicals1 = radicalWithSubRadicals.get(radical1) || new Set();
+            if (subRadicals1.has(radical2)) {
+              toRemove.add(radical2);
+            }
           }
         }
       });
@@ -187,14 +326,18 @@ function generateKanjiRadicalJson(radkFilePath: string, kradFilePath: string, ou
   console.log('Extracting radical decomposition information...');
   const radicalDecomposition = extractRadicalDecomposition(rawKanjiToRadicals);
   
+  console.log('Detecting radical equivalencies...');
+  const radicalEquivalencies = detectRadicalEquivalencies(radicalDecomposition);
+  
   console.log('Optimizing kanji-to-radicals mapping...');
-  const kanjiToRadicals = optimizeKanjiToRadicals(rawKanjiToRadicals, radicalDecomposition);
+  const kanjiToRadicals = optimizeKanjiToRadicals(rawKanjiToRadicals, radicalDecomposition, radicalEquivalencies);
   
   console.log('Writing output JSON...');
   const kanjiData: KanjiData = {
     radicalToKanji,
     kanjiToRadicals,
-    radicalDecomposition
+    radicalDecomposition,
+    radicalEquivalencies
   };
   
   fs.writeFileSync(outputPath, JSON.stringify(kanjiData, null, 2), 'utf8');
@@ -248,6 +391,7 @@ if (require.main === module) {
     printDebugInfo(jsonData.radicalToKanji, 'Radical To Kanji');
     printDebugInfo(jsonData.kanjiToRadicals, 'Kanji To Radicals');
     printDebugInfo(jsonData.radicalDecomposition, 'Radical Decomposition');
+    printDebugInfo(jsonData.radicalEquivalencies, 'Radical Equivalencies');
   } catch (error) {
     console.error('Error generating kanji radical JSON:', error);
     process.exit(1);
