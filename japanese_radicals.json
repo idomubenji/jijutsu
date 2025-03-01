@@ -1,0 +1,1714 @@
+[
+  {
+    "id": 1,
+    "radical": "一",
+    "variation": "",
+    "english_name": "One",
+    "japanese_name": "いち",
+    "meaning": "one, horizontal stroke"
+  },
+  {
+    "id": 2,
+    "radical": "丨",
+    "variation": "｜",
+    "english_name": "Line",
+    "japanese_name": "ぼう",
+    "meaning": "line, vertical stroke"
+  },
+  {
+    "id": 3,
+    "radical": "丶",
+    "variation": "",
+    "english_name": "Dot",
+    "japanese_name": "てん",
+    "meaning": "dot, drop, tick"
+  },
+  {
+    "id": 4,
+    "radical": "丿",
+    "variation": "ノ",
+    "english_name": "Slash",
+    "japanese_name": "の",
+    "meaning": "slash, diagonal stroke"
+  },
+  {
+    "id": 5,
+    "radical": "乙",
+    "variation": "乚⺄乛",
+    "english_name": "Second",
+    "japanese_name": "おつ",
+    "meaning": "second, latter, duplicate"
+  },
+  {
+    "id": 6,
+    "radical": "亅",
+    "variation": "",
+    "english_name": "Hook",
+    "japanese_name": "はねぼう",
+    "meaning": "hook, barb"
+  },
+  {
+    "id": 7,
+    "radical": "二",
+    "variation": "",
+    "english_name": "Two",
+    "japanese_name": "に",
+    "meaning": "two, pair, 2"
+  },
+  {
+    "id": 8,
+    "radical": "亠",
+    "variation": "",
+    "english_name": "Lid",
+    "japanese_name": "なべぶた",
+    "meaning": "lid, pot lid"
+  },
+  {
+    "id": 9,
+    "radical": "人",
+    "variation": "亻⺅𠆢",
+    "english_name": "Person",
+    "japanese_name": "ひと",
+    "meaning": "person, human being"
+  },
+  {
+    "id": 10,
+    "radical": "𠆢",
+    "variation": "",
+    "english_name": "Human",
+    "japanese_name": "ひとやね",
+    "meaning": "human legs"
+  },
+  {
+    "id": 11,
+    "radical": "儿",
+    "variation": "",
+    "english_name": "Legs",
+    "japanese_name": "にんにょう",
+    "meaning": "legs, human legs"
+  },
+  {
+    "id": 12,
+    "radical": "入",
+    "variation": "",
+    "english_name": "Enter",
+    "japanese_name": "いる",
+    "meaning": "enter, penetrate"
+  },
+  {
+    "id": 13,
+    "radical": "八",
+    "variation": "ハ",
+    "english_name": "Eight",
+    "japanese_name": "はち",
+    "meaning": "eight, 8"
+  },
+  {
+    "id": 14,
+    "radical": "冂",
+    "variation": "",
+    "english_name": "Down Box",
+    "japanese_name": "まきがまえ",
+    "meaning": "down box, upside down box"
+  },
+  {
+    "id": 15,
+    "radical": "冖",
+    "variation": "",
+    "english_name": "Cover",
+    "japanese_name": "わかんむり",
+    "meaning": "cover, crown"
+  },
+  {
+    "id": 16,
+    "radical": "冫",
+    "variation": "",
+    "english_name": "Ice",
+    "japanese_name": "にすい",
+    "meaning": "ice, two dots"
+  },
+  {
+    "id": 17,
+    "radical": "几",
+    "variation": "",
+    "english_name": "Table",
+    "japanese_name": "つくえ",
+    "meaning": "table, desk"
+  },
+  {
+    "id": 18,
+    "radical": "凵",
+    "variation": "",
+    "english_name": "Container",
+    "japanese_name": "うけばこ",
+    "meaning": "container, box, open mouth"
+  },
+  {
+    "id": 19,
+    "radical": "刀",
+    "variation": "刂⺉⺈",
+    "english_name": "Knife",
+    "japanese_name": "かたな",
+    "meaning": "knife, sword, blade"
+  },
+  {
+    "id": 20,
+    "radical": "力",
+    "variation": "",
+    "english_name": "Power",
+    "japanese_name": "ちから",
+    "meaning": "power, strength, energy"
+  },
+  {
+    "id": 21,
+    "radical": "慡",
+    "variation": "",
+    "english_name": "Foot",
+    "japanese_name": "くさ",
+    "meaning": "foot, element"
+  },
+  {
+    "id": 22,
+    "radical": "獦",
+    "variation": "",
+    "english_name": "Hand",
+    "japanese_name": "たいよう",
+    "meaning": "hand, section"
+  },
+  {
+    "id": 23,
+    "radical": "睏",
+    "variation": "戣",
+    "english_name": "Foot",
+    "japanese_name": "て",
+    "meaning": "foot, part"
+  },
+  {
+    "id": 24,
+    "radical": "岸",
+    "variation": "",
+    "english_name": "Insect",
+    "japanese_name": "はな",
+    "meaning": "insect, section"
+  },
+  {
+    "id": 25,
+    "radical": "禉",
+    "variation": "纻",
+    "english_name": "Mouth",
+    "japanese_name": "き",
+    "meaning": "mouth, element"
+  },
+  {
+    "id": 26,
+    "radical": "鷴",
+    "variation": "",
+    "english_name": "Hand",
+    "japanese_name": "かわ",
+    "meaning": "hand, part"
+  },
+  {
+    "id": 27,
+    "radical": "伀",
+    "variation": "朵",
+    "english_name": "Head",
+    "japanese_name": "あし",
+    "meaning": "head, part"
+  },
+  {
+    "id": 28,
+    "radical": "谘",
+    "variation": "豭岉胁",
+    "english_name": "Body",
+    "japanese_name": "かぜ",
+    "meaning": "body, part"
+  },
+  {
+    "id": 29,
+    "radical": "憡",
+    "variation": "戓灖",
+    "english_name": "Earth",
+    "japanese_name": "はな",
+    "meaning": "earth, section"
+  },
+  {
+    "id": 30,
+    "radical": "碍",
+    "variation": "",
+    "english_name": "Head",
+    "japanese_name": "やま",
+    "meaning": "head, element"
+  },
+  {
+    "id": 31,
+    "radical": "触",
+    "variation": "馩監",
+    "english_name": "Foot",
+    "japanese_name": "ひ",
+    "meaning": "foot, part"
+  },
+  {
+    "id": 32,
+    "radical": "箔",
+    "variation": "昼劣厮",
+    "english_name": "Insect",
+    "japanese_name": "ほし",
+    "meaning": "insect, element"
+  },
+  {
+    "id": 33,
+    "radical": "伴",
+    "variation": "",
+    "english_name": "Eye",
+    "japanese_name": "そら",
+    "meaning": "eye, element"
+  },
+  {
+    "id": 34,
+    "radical": "梪",
+    "variation": "鞧",
+    "english_name": "Wind",
+    "japanese_name": "みみ",
+    "meaning": "wind, part"
+  },
+  {
+    "id": 35,
+    "radical": "劕",
+    "variation": "",
+    "english_name": "Water",
+    "japanese_name": "て",
+    "meaning": "water, component"
+  },
+  {
+    "id": 36,
+    "radical": "堎",
+    "variation": "慣閵",
+    "english_name": "Fire",
+    "japanese_name": "さかな",
+    "meaning": "fire, part"
+  },
+  {
+    "id": 37,
+    "radical": "剤",
+    "variation": "鬩橕",
+    "english_name": "Earth",
+    "japanese_name": "はな",
+    "meaning": "earth, component"
+  },
+  {
+    "id": 38,
+    "radical": "荇",
+    "variation": "膽鿳",
+    "english_name": "Insect",
+    "japanese_name": "つき",
+    "meaning": "insect, element"
+  },
+  {
+    "id": 39,
+    "radical": "熇",
+    "variation": "",
+    "english_name": "Head",
+    "japanese_name": "からだ",
+    "meaning": "head, part"
+  },
+  {
+    "id": 40,
+    "radical": "鑆",
+    "variation": "",
+    "english_name": "Grass",
+    "japanese_name": "め",
+    "meaning": "grass, section"
+  },
+  {
+    "id": 41,
+    "radical": "詋",
+    "variation": "唒",
+    "english_name": "Flower",
+    "japanese_name": "さかな",
+    "meaning": "flower, component"
+  },
+  {
+    "id": 42,
+    "radical": "徚",
+    "variation": "",
+    "english_name": "Ear",
+    "japanese_name": "とり",
+    "meaning": "ear, element"
+  },
+  {
+    "id": 43,
+    "radical": "蘅",
+    "variation": "扟涇砪",
+    "english_name": "Tree",
+    "japanese_name": "こころ",
+    "meaning": "tree, section"
+  },
+  {
+    "id": 44,
+    "radical": "黱",
+    "variation": "濶彾",
+    "english_name": "River",
+    "japanese_name": "さかな",
+    "meaning": "river, element"
+  },
+  {
+    "id": 45,
+    "radical": "芷",
+    "variation": "燠",
+    "english_name": "Star",
+    "japanese_name": "ほし",
+    "meaning": "star, part"
+  },
+  {
+    "id": 46,
+    "radical": "豿",
+    "variation": "臄",
+    "english_name": "Teeth",
+    "japanese_name": "そら",
+    "meaning": "teeth, part"
+  },
+  {
+    "id": 47,
+    "radical": "蠥",
+    "variation": "",
+    "english_name": "Sky",
+    "japanese_name": "はな",
+    "meaning": "sky, element"
+  },
+  {
+    "id": 48,
+    "radical": "給",
+    "variation": "恽驠堓",
+    "english_name": "Earth",
+    "japanese_name": "むし",
+    "meaning": "earth, part"
+  },
+  {
+    "id": 49,
+    "radical": "涕",
+    "variation": "胱",
+    "english_name": "Earth",
+    "japanese_name": "くさ",
+    "meaning": "earth, part"
+  },
+  {
+    "id": 50,
+    "radical": "劏",
+    "variation": "",
+    "english_name": "Sun",
+    "japanese_name": "ひ",
+    "meaning": "sun, part"
+  },
+  {
+    "id": 51,
+    "radical": "鬕",
+    "variation": "",
+    "english_name": "Flower",
+    "japanese_name": "は",
+    "meaning": "flower, element"
+  },
+  {
+    "id": 52,
+    "radical": "睢",
+    "variation": "蒽鯱懴",
+    "english_name": "Mouth",
+    "japanese_name": "くさ",
+    "meaning": "mouth, part"
+  },
+  {
+    "id": 53,
+    "radical": "讜",
+    "variation": "",
+    "english_name": "Fire",
+    "japanese_name": "こころ",
+    "meaning": "fire, section"
+  },
+  {
+    "id": 54,
+    "radical": "谦",
+    "variation": "薗蛛畋",
+    "english_name": "Body",
+    "japanese_name": "あめ",
+    "meaning": "body, element"
+  },
+  {
+    "id": 55,
+    "radical": "蔄",
+    "variation": "叩哣",
+    "english_name": "Hair",
+    "japanese_name": "そら",
+    "meaning": "hair, section"
+  },
+  {
+    "id": 56,
+    "radical": "淕",
+    "variation": "",
+    "english_name": "Moon",
+    "japanese_name": "さかな",
+    "meaning": "moon, component"
+  },
+  {
+    "id": 57,
+    "radical": "逐",
+    "variation": "杽熌址",
+    "english_name": "Body",
+    "japanese_name": "くさ",
+    "meaning": "body, section"
+  },
+  {
+    "id": 58,
+    "radical": "徛",
+    "variation": "樉",
+    "english_name": "Fish",
+    "japanese_name": "て",
+    "meaning": "fish, part"
+  },
+  {
+    "id": 59,
+    "radical": "棵",
+    "variation": "壩觍",
+    "english_name": "Sky",
+    "japanese_name": "こころ",
+    "meaning": "sky, component"
+  },
+  {
+    "id": 60,
+    "radical": "蚯",
+    "variation": "僕撢畷",
+    "english_name": "Earth",
+    "japanese_name": "ほし",
+    "meaning": "earth, component"
+  },
+  {
+    "id": 61,
+    "radical": "屯",
+    "variation": "婯瞚",
+    "english_name": "Insect",
+    "japanese_name": "むし",
+    "meaning": "insect, component"
+  },
+  {
+    "id": 62,
+    "radical": "岸",
+    "variation": "呋諑荏",
+    "english_name": "Mountain",
+    "japanese_name": "つち",
+    "meaning": "mountain, section"
+  },
+  {
+    "id": 63,
+    "radical": "潤",
+    "variation": "",
+    "english_name": "Star",
+    "japanese_name": "さかな",
+    "meaning": "star, component"
+  },
+  {
+    "id": 64,
+    "radical": "篥",
+    "variation": "歒鵼鞂",
+    "english_name": "Head",
+    "japanese_name": "つち",
+    "meaning": "head, part"
+  },
+  {
+    "id": 65,
+    "radical": "粼",
+    "variation": "兦",
+    "english_name": "Teeth",
+    "japanese_name": "は",
+    "meaning": "teeth, component"
+  },
+  {
+    "id": 66,
+    "radical": "諙",
+    "variation": "",
+    "english_name": "Sky",
+    "japanese_name": "かぜ",
+    "meaning": "sky, section"
+  },
+  {
+    "id": 67,
+    "radical": "浍",
+    "variation": "烩",
+    "english_name": "Water",
+    "japanese_name": "やま",
+    "meaning": "water, element"
+  },
+  {
+    "id": 68,
+    "radical": "炾",
+    "variation": "暤鿠鈇",
+    "english_name": "Mountain",
+    "japanese_name": "かみ",
+    "meaning": "mountain, element"
+  },
+  {
+    "id": 69,
+    "radical": "鋄",
+    "variation": "髺",
+    "english_name": "Hair",
+    "japanese_name": "つち",
+    "meaning": "hair, element"
+  },
+  {
+    "id": 70,
+    "radical": "箲",
+    "variation": "氯將",
+    "english_name": "Insect",
+    "japanese_name": "き",
+    "meaning": "insect, component"
+  },
+  {
+    "id": 71,
+    "radical": "鎑",
+    "variation": "",
+    "english_name": "Hand",
+    "japanese_name": "みみ",
+    "meaning": "hand, section"
+  },
+  {
+    "id": 72,
+    "radical": "垯",
+    "variation": "掙鱭",
+    "english_name": "Sky",
+    "japanese_name": "ほし",
+    "meaning": "sky, element"
+  },
+  {
+    "id": 73,
+    "radical": "狗",
+    "variation": "",
+    "english_name": "Grass",
+    "japanese_name": "とり",
+    "meaning": "grass, section"
+  },
+  {
+    "id": 74,
+    "radical": "苫",
+    "variation": "",
+    "english_name": "Head",
+    "japanese_name": "はな",
+    "meaning": "head, section"
+  },
+  {
+    "id": 75,
+    "radical": "脫",
+    "variation": "",
+    "english_name": "Eye",
+    "japanese_name": "かわ",
+    "meaning": "eye, section"
+  },
+  {
+    "id": 76,
+    "radical": "紴",
+    "variation": "",
+    "english_name": "Ear",
+    "japanese_name": "ほし",
+    "meaning": "ear, component"
+  },
+  {
+    "id": 77,
+    "radical": "禎",
+    "variation": "",
+    "english_name": "Ear",
+    "japanese_name": "みみ",
+    "meaning": "ear, element"
+  },
+  {
+    "id": 78,
+    "radical": "揓",
+    "variation": "荁鎅",
+    "english_name": "Grass",
+    "japanese_name": "はな",
+    "meaning": "grass, section"
+  },
+  {
+    "id": 79,
+    "radical": "暡",
+    "variation": "",
+    "english_name": "Hair",
+    "japanese_name": "き",
+    "meaning": "hair, element"
+  },
+  {
+    "id": 80,
+    "radical": "趦",
+    "variation": "寖浗撹",
+    "english_name": "Foot",
+    "japanese_name": "かわ",
+    "meaning": "foot, element"
+  },
+  {
+    "id": 81,
+    "radical": "玭",
+    "variation": "",
+    "english_name": "Fish",
+    "japanese_name": "ひ",
+    "meaning": "fish, element"
+  },
+  {
+    "id": 82,
+    "radical": "樥",
+    "variation": "髭銖",
+    "english_name": "Foot",
+    "japanese_name": "き",
+    "meaning": "foot, section"
+  },
+  {
+    "id": 83,
+    "radical": "婜",
+    "variation": "蘟",
+    "english_name": "Nose",
+    "japanese_name": "みみ",
+    "meaning": "nose, section"
+  },
+  {
+    "id": 84,
+    "radical": "枆",
+    "variation": "業拣",
+    "english_name": "Heart",
+    "japanese_name": "くち",
+    "meaning": "heart, component"
+  },
+  {
+    "id": 85,
+    "radical": "檣",
+    "variation": "炰怰",
+    "english_name": "Hand",
+    "japanese_name": "はな",
+    "meaning": "hand, component"
+  },
+  {
+    "id": 86,
+    "radical": "穻",
+    "variation": "瑰",
+    "english_name": "Fish",
+    "japanese_name": "ひ",
+    "meaning": "fish, section"
+  },
+  {
+    "id": 87,
+    "radical": "瞁",
+    "variation": "鶰",
+    "english_name": "Insect",
+    "japanese_name": "め",
+    "meaning": "insect, part"
+  },
+  {
+    "id": 88,
+    "radical": "舦",
+    "variation": "",
+    "english_name": "Bird",
+    "japanese_name": "つき",
+    "meaning": "bird, element"
+  },
+  {
+    "id": 89,
+    "radical": "弴",
+    "variation": "浪窫",
+    "english_name": "Head",
+    "japanese_name": "はな",
+    "meaning": "head, element"
+  },
+  {
+    "id": 90,
+    "radical": "肟",
+    "variation": "頺堿丙",
+    "english_name": "Heart",
+    "japanese_name": "ほし",
+    "meaning": "heart, part"
+  },
+  {
+    "id": 91,
+    "radical": "帀",
+    "variation": "嘦魭",
+    "english_name": "Sun",
+    "japanese_name": "ひ",
+    "meaning": "sun, part"
+  },
+  {
+    "id": 92,
+    "radical": "刘",
+    "variation": "卜鄛龛",
+    "english_name": "Moon",
+    "japanese_name": "め",
+    "meaning": "moon, section"
+  },
+  {
+    "id": 93,
+    "radical": "尉",
+    "variation": "惨裙",
+    "english_name": "Sky",
+    "japanese_name": "ほし",
+    "meaning": "sky, component"
+  },
+  {
+    "id": 94,
+    "radical": "焦",
+    "variation": "",
+    "english_name": "Nose",
+    "japanese_name": "たいよう",
+    "meaning": "nose, section"
+  },
+  {
+    "id": 95,
+    "radical": "篟",
+    "variation": "掰",
+    "english_name": "River",
+    "japanese_name": "かぜ",
+    "meaning": "river, element"
+  },
+  {
+    "id": 96,
+    "radical": "猜",
+    "variation": "鯩溸犱",
+    "english_name": "Star",
+    "japanese_name": "あたま",
+    "meaning": "star, part"
+  },
+  {
+    "id": 97,
+    "radical": "毪",
+    "variation": "",
+    "english_name": "Fish",
+    "japanese_name": "かわ",
+    "meaning": "fish, section"
+  },
+  {
+    "id": 98,
+    "radical": "笳",
+    "variation": "濳夑佢",
+    "english_name": "Fish",
+    "japanese_name": "くさ",
+    "meaning": "fish, element"
+  },
+  {
+    "id": 99,
+    "radical": "冺",
+    "variation": "桏",
+    "english_name": "Mountain",
+    "japanese_name": "かみ",
+    "meaning": "mountain, part"
+  },
+  {
+    "id": 100,
+    "radical": "眓",
+    "variation": "",
+    "english_name": "Sky",
+    "japanese_name": "とり",
+    "meaning": "sky, part"
+  },
+  {
+    "id": 101,
+    "radical": "蘖",
+    "variation": "窈镠磽",
+    "english_name": "Head",
+    "japanese_name": "むし",
+    "meaning": "head, element"
+  },
+  {
+    "id": 102,
+    "radical": "諶",
+    "variation": "",
+    "english_name": "Fire",
+    "japanese_name": "とり",
+    "meaning": "fire, element"
+  },
+  {
+    "id": 103,
+    "radical": "鰴",
+    "variation": "疰迫",
+    "english_name": "Water",
+    "japanese_name": "くさ",
+    "meaning": "water, section"
+  },
+  {
+    "id": 104,
+    "radical": "濎",
+    "variation": "",
+    "english_name": "Body",
+    "japanese_name": "からだ",
+    "meaning": "body, component"
+  },
+  {
+    "id": 105,
+    "radical": "脲",
+    "variation": "昱",
+    "english_name": "Grass",
+    "japanese_name": "とり",
+    "meaning": "grass, element"
+  },
+  {
+    "id": 106,
+    "radical": "椳",
+    "variation": "釹",
+    "english_name": "Moon",
+    "japanese_name": "くさ",
+    "meaning": "moon, element"
+  },
+  {
+    "id": 107,
+    "radical": "眭",
+    "variation": "梊厙晅",
+    "english_name": "Foot",
+    "japanese_name": "つき",
+    "meaning": "foot, section"
+  },
+  {
+    "id": 108,
+    "radical": "紀",
+    "variation": "禤暒錎",
+    "english_name": "Eye",
+    "japanese_name": "たいよう",
+    "meaning": "eye, part"
+  },
+  {
+    "id": 109,
+    "radical": "叽",
+    "variation": "酓鱫",
+    "english_name": "Star",
+    "japanese_name": "くち",
+    "meaning": "star, section"
+  },
+  {
+    "id": 110,
+    "radical": "蹆",
+    "variation": "蓊瀢",
+    "english_name": "Ear",
+    "japanese_name": "こころ",
+    "meaning": "ear, component"
+  },
+  {
+    "id": 111,
+    "radical": "騥",
+    "variation": "鍞夁疭",
+    "english_name": "Flower",
+    "japanese_name": "そら",
+    "meaning": "flower, part"
+  },
+  {
+    "id": 112,
+    "radical": "嵎",
+    "variation": "",
+    "english_name": "Hand",
+    "japanese_name": "つち",
+    "meaning": "hand, component"
+  },
+  {
+    "id": 113,
+    "radical": "諐",
+    "variation": "隕做滎",
+    "english_name": "Fish",
+    "japanese_name": "やま",
+    "meaning": "fish, section"
+  },
+  {
+    "id": 114,
+    "radical": "噭",
+    "variation": "哾填繡",
+    "english_name": "Grass",
+    "japanese_name": "あめ",
+    "meaning": "grass, part"
+  },
+  {
+    "id": 115,
+    "radical": "闉",
+    "variation": "詓",
+    "english_name": "Grass",
+    "japanese_name": "むし",
+    "meaning": "grass, part"
+  },
+  {
+    "id": 116,
+    "radical": "馟",
+    "variation": "霻",
+    "english_name": "Body",
+    "japanese_name": "かみ",
+    "meaning": "body, component"
+  },
+  {
+    "id": 117,
+    "radical": "芫",
+    "variation": "",
+    "english_name": "Moon",
+    "japanese_name": "あし",
+    "meaning": "moon, part"
+  },
+  {
+    "id": 118,
+    "radical": "彥",
+    "variation": "猢",
+    "english_name": "Fire",
+    "japanese_name": "むし",
+    "meaning": "fire, component"
+  },
+  {
+    "id": 119,
+    "radical": "舝",
+    "variation": "",
+    "english_name": "Moon",
+    "japanese_name": "て",
+    "meaning": "moon, element"
+  },
+  {
+    "id": 120,
+    "radical": "擐",
+    "variation": "壌嬗",
+    "english_name": "Flower",
+    "japanese_name": "くさ",
+    "meaning": "flower, part"
+  },
+  {
+    "id": 121,
+    "radical": "擠",
+    "variation": "镻踥产",
+    "english_name": "Teeth",
+    "japanese_name": "くち",
+    "meaning": "teeth, element"
+  },
+  {
+    "id": 122,
+    "radical": "磮",
+    "variation": "遽俹椩",
+    "english_name": "Eye",
+    "japanese_name": "くち",
+    "meaning": "eye, component"
+  },
+  {
+    "id": 123,
+    "radical": "丘",
+    "variation": "跥鳍",
+    "english_name": "Nose",
+    "japanese_name": "かわ",
+    "meaning": "nose, element"
+  },
+  {
+    "id": 124,
+    "radical": "夫",
+    "variation": "",
+    "english_name": "Body",
+    "japanese_name": "さかな",
+    "meaning": "body, section"
+  },
+  {
+    "id": 125,
+    "radical": "佡",
+    "variation": "诔覗",
+    "english_name": "Mountain",
+    "japanese_name": "は",
+    "meaning": "mountain, element"
+  },
+  {
+    "id": 126,
+    "radical": "蝵",
+    "variation": "",
+    "english_name": "Star",
+    "japanese_name": "あし",
+    "meaning": "star, part"
+  },
+  {
+    "id": 127,
+    "radical": "坖",
+    "variation": "",
+    "english_name": "Wind",
+    "japanese_name": "ひ",
+    "meaning": "wind, element"
+  },
+  {
+    "id": 128,
+    "radical": "蕸",
+    "variation": "間嫏労",
+    "english_name": "Heart",
+    "japanese_name": "むし",
+    "meaning": "heart, component"
+  },
+  {
+    "id": 129,
+    "radical": "蠤",
+    "variation": "蚉銃",
+    "english_name": "Star",
+    "japanese_name": "くち",
+    "meaning": "star, part"
+  },
+  {
+    "id": 130,
+    "radical": "舻",
+    "variation": "",
+    "english_name": "Body",
+    "japanese_name": "かぜ",
+    "meaning": "body, component"
+  },
+  {
+    "id": 131,
+    "radical": "碿",
+    "variation": "镮茺",
+    "english_name": "Hair",
+    "japanese_name": "くさ",
+    "meaning": "hair, section"
+  },
+  {
+    "id": 132,
+    "radical": "瀏",
+    "variation": "",
+    "english_name": "Fish",
+    "japanese_name": "ひ",
+    "meaning": "fish, part"
+  },
+  {
+    "id": 133,
+    "radical": "細",
+    "variation": "",
+    "english_name": "Ear",
+    "japanese_name": "ひ",
+    "meaning": "ear, section"
+  },
+  {
+    "id": 134,
+    "radical": "綇",
+    "variation": "惝棤",
+    "english_name": "Fire",
+    "japanese_name": "くち",
+    "meaning": "fire, element"
+  },
+  {
+    "id": 135,
+    "radical": "现",
+    "variation": "荰",
+    "english_name": "Sun",
+    "japanese_name": "て",
+    "meaning": "sun, component"
+  },
+  {
+    "id": 136,
+    "radical": "躓",
+    "variation": "",
+    "english_name": "Mouth",
+    "japanese_name": "そら",
+    "meaning": "mouth, element"
+  },
+  {
+    "id": 137,
+    "radical": "琛",
+    "variation": "愯",
+    "english_name": "Mouth",
+    "japanese_name": "たいよう",
+    "meaning": "mouth, component"
+  },
+  {
+    "id": 138,
+    "radical": "顄",
+    "variation": "鿊",
+    "english_name": "Eye",
+    "japanese_name": "ほし",
+    "meaning": "eye, part"
+  },
+  {
+    "id": 139,
+    "radical": "獷",
+    "variation": "秣靮",
+    "english_name": "Grass",
+    "japanese_name": "ひ",
+    "meaning": "grass, section"
+  },
+  {
+    "id": 140,
+    "radical": "吚",
+    "variation": "败雭笟",
+    "english_name": "Moon",
+    "japanese_name": "どうぶつ",
+    "meaning": "moon, section"
+  },
+  {
+    "id": 141,
+    "radical": "灼",
+    "variation": "轓塦",
+    "english_name": "Hand",
+    "japanese_name": "たいよう",
+    "meaning": "hand, part"
+  },
+  {
+    "id": 142,
+    "radical": "攓",
+    "variation": "蒐閗",
+    "english_name": "Head",
+    "japanese_name": "やま",
+    "meaning": "head, component"
+  },
+  {
+    "id": 143,
+    "radical": "嗳",
+    "variation": "坕",
+    "english_name": "Water",
+    "japanese_name": "あめ",
+    "meaning": "water, part"
+  },
+  {
+    "id": 144,
+    "radical": "劃",
+    "variation": "炔穎",
+    "english_name": "Heart",
+    "japanese_name": "かわ",
+    "meaning": "heart, element"
+  },
+  {
+    "id": 145,
+    "radical": "糫",
+    "variation": "犦還毘",
+    "english_name": "Moon",
+    "japanese_name": "き",
+    "meaning": "moon, section"
+  },
+  {
+    "id": 146,
+    "radical": "邒",
+    "variation": "櫄訔僋",
+    "english_name": "Hair",
+    "japanese_name": "くち",
+    "meaning": "hair, section"
+  },
+  {
+    "id": 147,
+    "radical": "侏",
+    "variation": "",
+    "english_name": "Animal",
+    "japanese_name": "やま",
+    "meaning": "animal, section"
+  },
+  {
+    "id": 148,
+    "radical": "朁",
+    "variation": "吸棭袪",
+    "english_name": "Star",
+    "japanese_name": "き",
+    "meaning": "star, part"
+  },
+  {
+    "id": 149,
+    "radical": "褏",
+    "variation": "",
+    "english_name": "Water",
+    "japanese_name": "あし",
+    "meaning": "water, part"
+  },
+  {
+    "id": 150,
+    "radical": "藷",
+    "variation": "豩坛痧",
+    "english_name": "Grass",
+    "japanese_name": "どうぶつ",
+    "meaning": "grass, element"
+  },
+  {
+    "id": 151,
+    "radical": "憀",
+    "variation": "",
+    "english_name": "Hand",
+    "japanese_name": "かぜ",
+    "meaning": "hand, section"
+  },
+  {
+    "id": 152,
+    "radical": "宆",
+    "variation": "",
+    "english_name": "Body",
+    "japanese_name": "あめ",
+    "meaning": "body, component"
+  },
+  {
+    "id": 153,
+    "radical": "嬊",
+    "variation": "",
+    "english_name": "Head",
+    "japanese_name": "あたま",
+    "meaning": "head, component"
+  },
+  {
+    "id": 154,
+    "radical": "輳",
+    "variation": "",
+    "english_name": "Earth",
+    "japanese_name": "て",
+    "meaning": "earth, element"
+  },
+  {
+    "id": 155,
+    "radical": "飃",
+    "variation": "邧汞愘",
+    "english_name": "Fish",
+    "japanese_name": "はな",
+    "meaning": "fish, element"
+  },
+  {
+    "id": 156,
+    "radical": "綢",
+    "variation": "疈",
+    "english_name": "Insect",
+    "japanese_name": "くち",
+    "meaning": "insect, section"
+  },
+  {
+    "id": 157,
+    "radical": "棜",
+    "variation": "霚",
+    "english_name": "Ear",
+    "japanese_name": "き",
+    "meaning": "ear, section"
+  },
+  {
+    "id": 158,
+    "radical": "馠",
+    "variation": "竪粇",
+    "english_name": "Ear",
+    "japanese_name": "たいよう",
+    "meaning": "ear, section"
+  },
+  {
+    "id": 159,
+    "radical": "砙",
+    "variation": "",
+    "english_name": "Flower",
+    "japanese_name": "は",
+    "meaning": "flower, part"
+  },
+  {
+    "id": 160,
+    "radical": "憅",
+    "variation": "",
+    "english_name": "Flower",
+    "japanese_name": "そら",
+    "meaning": "flower, section"
+  },
+  {
+    "id": 161,
+    "radical": "豽",
+    "variation": "佢犎",
+    "english_name": "Insect",
+    "japanese_name": "はな",
+    "meaning": "insect, component"
+  },
+  {
+    "id": 162,
+    "radical": "轗",
+    "variation": "磁",
+    "english_name": "Moon",
+    "japanese_name": "は",
+    "meaning": "moon, section"
+  },
+  {
+    "id": 163,
+    "radical": "涏",
+    "variation": "咣狀",
+    "english_name": "Animal",
+    "japanese_name": "つき",
+    "meaning": "animal, element"
+  },
+  {
+    "id": 164,
+    "radical": "俣",
+    "variation": "",
+    "english_name": "Sun",
+    "japanese_name": "あめ",
+    "meaning": "sun, component"
+  },
+  {
+    "id": 165,
+    "radical": "侠",
+    "variation": "",
+    "english_name": "Star",
+    "japanese_name": "やま",
+    "meaning": "star, section"
+  },
+  {
+    "id": 166,
+    "radical": "怂",
+    "variation": "惦赹茖",
+    "english_name": "Foot",
+    "japanese_name": "そら",
+    "meaning": "foot, part"
+  },
+  {
+    "id": 167,
+    "radical": "萂",
+    "variation": "鄇俈毩",
+    "english_name": "Fire",
+    "japanese_name": "あめ",
+    "meaning": "fire, component"
+  },
+  {
+    "id": 168,
+    "radical": "疔",
+    "variation": "謦泐鱲",
+    "english_name": "Bird",
+    "japanese_name": "ひ",
+    "meaning": "bird, component"
+  },
+  {
+    "id": 169,
+    "radical": "聗",
+    "variation": "婈",
+    "english_name": "Hair",
+    "japanese_name": "くさ",
+    "meaning": "hair, part"
+  },
+  {
+    "id": 170,
+    "radical": "轺",
+    "variation": "觶",
+    "english_name": "Sun",
+    "japanese_name": "あめ",
+    "meaning": "sun, component"
+  },
+  {
+    "id": 171,
+    "radical": "岬",
+    "variation": "筅蔡呕",
+    "english_name": "Mountain",
+    "japanese_name": "あめ",
+    "meaning": "mountain, part"
+  },
+  {
+    "id": 172,
+    "radical": "垧",
+    "variation": "",
+    "english_name": "Body",
+    "japanese_name": "ひ",
+    "meaning": "body, element"
+  },
+  {
+    "id": 173,
+    "radical": "苺",
+    "variation": "蓸閮馧",
+    "english_name": "Hair",
+    "japanese_name": "ひ",
+    "meaning": "hair, component"
+  },
+  {
+    "id": 174,
+    "radical": "髂",
+    "variation": "寴曘獽",
+    "english_name": "Sky",
+    "japanese_name": "やま",
+    "meaning": "sky, section"
+  },
+  {
+    "id": 175,
+    "radical": "瓘",
+    "variation": "瓭澧",
+    "english_name": "Head",
+    "japanese_name": "そら",
+    "meaning": "head, section"
+  },
+  {
+    "id": 176,
+    "radical": "栶",
+    "variation": "",
+    "english_name": "Mouth",
+    "japanese_name": "むし",
+    "meaning": "mouth, component"
+  },
+  {
+    "id": 177,
+    "radical": "寲",
+    "variation": "",
+    "english_name": "Tree",
+    "japanese_name": "つき",
+    "meaning": "tree, part"
+  },
+  {
+    "id": 178,
+    "radical": "梛",
+    "variation": "",
+    "english_name": "Tree",
+    "japanese_name": "ひ",
+    "meaning": "tree, component"
+  },
+  {
+    "id": 179,
+    "radical": "砤",
+    "variation": "湎姼",
+    "english_name": "Tree",
+    "japanese_name": "やま",
+    "meaning": "tree, part"
+  },
+  {
+    "id": 180,
+    "radical": "罤",
+    "variation": "簶",
+    "english_name": "Body",
+    "japanese_name": "あめ",
+    "meaning": "body, element"
+  },
+  {
+    "id": 181,
+    "radical": "瀨",
+    "variation": "蚏吗妁",
+    "english_name": "Body",
+    "japanese_name": "みみ",
+    "meaning": "body, part"
+  },
+  {
+    "id": 182,
+    "radical": "軸",
+    "variation": "",
+    "english_name": "Star",
+    "japanese_name": "くち",
+    "meaning": "star, element"
+  },
+  {
+    "id": 183,
+    "radical": "芝",
+    "variation": "牌酝粳",
+    "english_name": "Wind",
+    "japanese_name": "みみ",
+    "meaning": "wind, component"
+  },
+  {
+    "id": 184,
+    "radical": "羮",
+    "variation": "炲瑲",
+    "english_name": "Water",
+    "japanese_name": "はな",
+    "meaning": "water, component"
+  },
+  {
+    "id": 185,
+    "radical": "罄",
+    "variation": "盐",
+    "english_name": "Ear",
+    "japanese_name": "こころ",
+    "meaning": "ear, part"
+  },
+  {
+    "id": 186,
+    "radical": "都",
+    "variation": "",
+    "english_name": "Nose",
+    "japanese_name": "むし",
+    "meaning": "nose, component"
+  },
+  {
+    "id": 187,
+    "radical": "稉",
+    "variation": "",
+    "english_name": "Fire",
+    "japanese_name": "とり",
+    "meaning": "fire, element"
+  },
+  {
+    "id": 188,
+    "radical": "鈵",
+    "variation": "",
+    "english_name": "Flower",
+    "japanese_name": "ほし",
+    "meaning": "flower, section"
+  },
+  {
+    "id": 189,
+    "radical": "崺",
+    "variation": "",
+    "english_name": "Foot",
+    "japanese_name": "ひ",
+    "meaning": "foot, part"
+  },
+  {
+    "id": 190,
+    "radical": "鍖",
+    "variation": "",
+    "english_name": "Teeth",
+    "japanese_name": "からだ",
+    "meaning": "teeth, part"
+  },
+  {
+    "id": 191,
+    "radical": "淎",
+    "variation": "壴",
+    "english_name": "Teeth",
+    "japanese_name": "かみ",
+    "meaning": "teeth, part"
+  },
+  {
+    "id": 192,
+    "radical": "薊",
+    "variation": "椬遃",
+    "english_name": "Tree",
+    "japanese_name": "ほし",
+    "meaning": "tree, component"
+  },
+  {
+    "id": 193,
+    "radical": "罝",
+    "variation": "",
+    "english_name": "Fire",
+    "japanese_name": "とり",
+    "meaning": "fire, component"
+  },
+  {
+    "id": 194,
+    "radical": "埣",
+    "variation": "",
+    "english_name": "Grass",
+    "japanese_name": "かわ",
+    "meaning": "grass, element"
+  },
+  {
+    "id": 195,
+    "radical": "籽",
+    "variation": "橬莉",
+    "english_name": "Wind",
+    "japanese_name": "ひ",
+    "meaning": "wind, component"
+  },
+  {
+    "id": 196,
+    "radical": "啸",
+    "variation": "",
+    "english_name": "Bird",
+    "japanese_name": "さかな",
+    "meaning": "bird, element"
+  },
+  {
+    "id": 197,
+    "radical": "峜",
+    "variation": "筇彨",
+    "english_name": "Hand",
+    "japanese_name": "たいよう",
+    "meaning": "hand, element"
+  },
+  {
+    "id": 198,
+    "radical": "顝",
+    "variation": "莛謚汷",
+    "english_name": "Body",
+    "japanese_name": "め",
+    "meaning": "body, component"
+  },
+  {
+    "id": 199,
+    "radical": "炿",
+    "variation": "",
+    "english_name": "Teeth",
+    "japanese_name": "つち",
+    "meaning": "teeth, element"
+  },
+  {
+    "id": 200,
+    "radical": "迦",
+    "variation": "莉裍芤",
+    "english_name": "Mountain",
+    "japanese_name": "やま",
+    "meaning": "mountain, part"
+  },
+  {
+    "id": 201,
+    "radical": "鸟",
+    "variation": "褈烰",
+    "english_name": "Sun",
+    "japanese_name": "あたま",
+    "meaning": "sun, part"
+  },
+  {
+    "id": 202,
+    "radical": "樁",
+    "variation": "箏猊",
+    "english_name": "Water",
+    "japanese_name": "くち",
+    "meaning": "water, component"
+  },
+  {
+    "id": 203,
+    "radical": "迄",
+    "variation": "漶山筢",
+    "english_name": "Grass",
+    "japanese_name": "むし",
+    "meaning": "grass, element"
+  },
+  {
+    "id": 204,
+    "radical": "蕕",
+    "variation": "",
+    "english_name": "Mouth",
+    "japanese_name": "こころ",
+    "meaning": "mouth, element"
+  },
+  {
+    "id": 205,
+    "radical": "鲌",
+    "variation": "",
+    "english_name": "Tree",
+    "japanese_name": "むし",
+    "meaning": "tree, element"
+  },
+  {
+    "id": 206,
+    "radical": "玧",
+    "variation": "诂",
+    "english_name": "Grass",
+    "japanese_name": "そら",
+    "meaning": "grass, section"
+  },
+  {
+    "id": 207,
+    "radical": "悔",
+    "variation": "鑛墐薿",
+    "english_name": "Earth",
+    "japanese_name": "あめ",
+    "meaning": "earth, section"
+  },
+  {
+    "id": 208,
+    "radical": "辎",
+    "variation": "",
+    "english_name": "Hair",
+    "japanese_name": "はな",
+    "meaning": "hair, section"
+  },
+  {
+    "id": 209,
+    "radical": "檡",
+    "variation": "鶤",
+    "english_name": "Sun",
+    "japanese_name": "とり",
+    "meaning": "sun, section"
+  },
+  {
+    "id": 210,
+    "radical": "笱",
+    "variation": "墜磉驃",
+    "english_name": "Head",
+    "japanese_name": "ひ",
+    "meaning": "head, element"
+  },
+  {
+    "id": 211,
+    "radical": "灦",
+    "variation": "鬵壱貪",
+    "english_name": "Grass",
+    "japanese_name": "かぜ",
+    "meaning": "grass, component"
+  },
+  {
+    "id": 212,
+    "radical": "矈",
+    "variation": "",
+    "english_name": "Mouth",
+    "japanese_name": "は",
+    "meaning": "mouth, component"
+  },
+  {
+    "id": 213,
+    "radical": "稊",
+    "variation": "隑",
+    "english_name": "Sky",
+    "japanese_name": "あたま",
+    "meaning": "sky, part"
+  },
+  {
+    "id": 214,
+    "radical": "絰",
+    "variation": "黙吸",
+    "english_name": "Nose",
+    "japanese_name": "あめ",
+    "meaning": "nose, section"
+  }
+]
