@@ -1,0 +1,262 @@
+[
+  {
+    "numRadicals": 5,
+    "count": 151,
+    "percentage": "2.38",
+    "formableKanji": [
+      "亜",
+      "唖",
+      "杏",
+      "一",
+      "右",
+      "雨",
+      "丑",
+      "臼",
+      "王",
+      "乙"
+    ],
+    "incrementalCount": 151,
+    "incrementalPercentage": "2.38",
+    "radicalRange": [
+      "口",
+      "一",
+      "｜",
+      "ノ",
+      "木"
+    ]
+  },
+  {
+    "numRadicals": 10,
+    "count": 211,
+    "percentage": "3.32",
+    "formableKanji": [
+      "亜",
+      "唖",
+      "杏",
+      "衣",
+      "井",
+      "一",
+      "右",
+      "雨",
+      "丑",
+      "臼"
+    ],
+    "incrementalCount": 60,
+    "incrementalPercentage": "0.94",
+    "radicalRange": [
+      "日",
+      "二",
+      "土",
+      "田",
+      "亠"
+    ]
+  },
+  {
+    "numRadicals": 15,
+    "count": 300,
+    "percentage": "4.72",
+    "formableKanji": [
+      "亜",
+      "唖",
+      "杏",
+      "衣",
+      "井",
+      "一",
+      "右",
+      "雨",
+      "丑",
+      "臼"
+    ],
+    "incrementalCount": 89,
+    "incrementalPercentage": "1.40",
+    "radicalRange": [
+      "十",
+      "艹",
+      "ハ",
+      "目",
+      "𠂉"
+    ]
+  },
+  {
+    "numRadicals": 20,
+    "count": 396,
+    "percentage": "6.23",
+    "formableKanji": [
+      "亜",
+      "唖",
+      "杏",
+      "胃",
+      "衣",
+      "井",
+      "一",
+      "右",
+      "雨",
+      "丑"
+    ],
+    "incrementalCount": 96,
+    "incrementalPercentage": "1.51",
+    "radicalRange": [
+      "⺡",
+      "小",
+      "儿",
+      "⺣",
+      "月"
+    ]
+  },
+  {
+    "numRadicals": 25,
+    "count": 514,
+    "percentage": "8.09",
+    "formableKanji": [
+      "亜",
+      "唖",
+      "杏",
+      "胃",
+      "衣",
+      "井",
+      "一",
+      "咽",
+      "胤",
+      "右"
+    ],
+    "incrementalCount": 118,
+    "incrementalPercentage": "1.86",
+    "radicalRange": [
+      "大",
+      "亻",
+      "丶",
+      "幺",
+      "冂"
+    ]
+  },
+  {
+    "numRadicals": 30,
+    "count": 666,
+    "percentage": "10.48",
+    "formableKanji": [
+      "亜",
+      "唖",
+      "杏",
+      "以",
+      "胃",
+      "衣",
+      "井",
+      "亥",
+      "育",
+      "一"
+    ],
+    "incrementalCount": 152,
+    "incrementalPercentage": "2.39",
+    "radicalRange": [
+      "勹",
+      "𠆢",
+      "人",
+      "又",
+      "厶"
+    ]
+  },
+  {
+    "numRadicals": 35,
+    "count": 816,
+    "percentage": "12.84",
+    "formableKanji": [
+      "亜",
+      "唖",
+      "杏",
+      "以",
+      "胃",
+      "衣",
+      "井",
+      "亥",
+      "育",
+      "一"
+    ],
+    "incrementalCount": 150,
+    "incrementalPercentage": "2.36",
+    "radicalRange": [
+      "冖",
+      "扌",
+      "宀",
+      "貝",
+      "王"
+    ]
+  },
+  {
+    "numRadicals": 40,
+    "count": 977,
+    "percentage": "15.37",
+    "formableKanji": [
+      "亜",
+      "唖",
+      "圧",
+      "絢",
+      "杏",
+      "以",
+      "位",
+      "胃",
+      "衣",
+      "謂"
+    ],
+    "incrementalCount": 161,
+    "incrementalPercentage": "2.53",
+    "radicalRange": [
+      "糸",
+      "匕",
+      "立",
+      "言",
+      "厂"
+    ]
+  },
+  {
+    "numRadicals": 45,
+    "count": 1184,
+    "percentage": "18.63",
+    "formableKanji": [
+      "亜",
+      "唖",
+      "娃",
+      "姶",
+      "悪",
+      "圧",
+      "姐",
+      "絢",
+      "安",
+      "按"
+    ],
+    "incrementalCount": 207,
+    "incrementalPercentage": "3.26",
+    "radicalRange": [
+      "女",
+      "止",
+      "亅",
+      "心",
+      "虫"
+    ]
+  },
+  {
+    "numRadicals": 50,
+    "count": 1383,
+    "percentage": "21.76",
+    "formableKanji": [
+      "亜",
+      "唖",
+      "娃",
+      "姶",
+      "悪",
+      "圧",
+      "姐",
+      "絢",
+      "或",
+      "安"
+    ],
+    "incrementalCount": 199,
+    "incrementalPercentage": "3.13",
+    "radicalRange": [
+      "尸",
+      "金",
+      "山",
+      "戈",
+      "辶"
+    ]
+  }
+]
