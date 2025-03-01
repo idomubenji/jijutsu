@@ -33,13 +33,19 @@ interface DexItem {
 
 interface UserKanjiResponse {
   kanji_id: string;
-  kanji_dex: KanjiData;
+  kanji_dex: {
+    id: string;
+    dex_number: number;
+    kanji: string;
+    meanings: string[];
+  };
 }
 
 export default function DexPage() {
   const [kanjiData, setKanjiData] = useState<KanjiData[]>([]);
   const [radicalData, setRadicalData] = useState<RadicalData[]>([]);
   const [unlockedKanjiNumbers, setUnlockedKanjiNumbers] = useState<Set<number>>(new Set());
+  const [unlockedKanjiDetails, setUnlockedKanjiDetails] = useState<Map<number, {kanji: string, meanings: string[]}>>(new Map());
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [showOnlyUnlocked, setShowOnlyUnlocked] = useState(false);
@@ -48,6 +54,18 @@ export default function DexPage() {
   // Convert unlocked numbers to DexItems with kanji data
   const unlockedKanjiItems = useMemo<DexItem[]>(() => {
     return Array.from(unlockedKanjiNumbers).map(dexNumber => {
+      // First try to get data from unlockedKanjiDetails, which has more reliable data from user_kanji join
+      const detailedEntry = unlockedKanjiDetails.get(dexNumber);
+      if (detailedEntry) {
+        return {
+          index: dexNumber,
+          unlocked: true,
+          character: detailedEntry.kanji,
+          meaning: detailedEntry.meanings[0] || ''
+        };
+      }
+      
+      // Fall back to kanjiData if for some reason we don't have the detailed entry
       const kanjiEntry = kanjiData.find(k => k.dex_number === dexNumber);
       return {
         index: dexNumber,
@@ -56,7 +74,7 @@ export default function DexPage() {
         meaning: kanjiEntry?.meanings?.[0] || ''
       };
     });
-  }, [unlockedKanjiNumbers, kanjiData]);
+  }, [unlockedKanjiNumbers, unlockedKanjiDetails, kanjiData]);
 
   // Create unlocked radical items (all radicals are unlocked)
   const unlockedRadicalItems = useMemo<DexItem[]>(() => {
@@ -75,7 +93,10 @@ export default function DexPage() {
         .select(`
           kanji_id,
           kanji_dex!inner (
-            dex_number
+            id,
+            dex_number,
+            kanji,
+            meanings
           )
         `)
         .eq('user_id', userId)
@@ -93,13 +114,25 @@ export default function DexPage() {
         return;
       }
 
-      // Just set the unlocked numbers, don't modify kanjiData
+      // Set unlocked dex numbers
       const unlockedDexNumbers = new Set(
         userKanjiData.map(row => row.kanji_dex.dex_number)
       );
       
+      // Create detailed map of unlocked kanji data
+      const detailsMap = new Map();
+      userKanjiData.forEach(row => {
+        detailsMap.set(row.kanji_dex.dex_number, {
+          kanji: row.kanji_dex.kanji,
+          meanings: Array.isArray(row.kanji_dex.meanings) ? row.kanji_dex.meanings : []
+        });
+      });
+      
       console.log('Unlocked dex numbers:', Array.from(unlockedDexNumbers));
+      console.log('Unlocked details map:', Object.fromEntries(detailsMap));
+      
       setUnlockedKanjiNumbers(unlockedDexNumbers);
+      setUnlockedKanjiDetails(detailsMap);
     } catch (error) {
       console.error('Error in loadUserKanji:', error);
     }
@@ -124,6 +157,7 @@ export default function DexPage() {
               await loadUserKanji(session.user.id);
             } else {
               setUnlockedKanjiNumbers(new Set()); // Clear unlocked kanji when user logs out
+              setUnlockedKanjiDetails(new Map()); // Also clear the details map
             }
           }
         );
