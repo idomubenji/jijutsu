@@ -48,6 +48,16 @@ interface SortedRadicalsData {
   sortedRadicals: string[];
 }
 
+// Add a new interface for KanjiDetails
+interface KanjiDetails {
+  id: string;
+  kanji: string;
+  dex_number: number;
+  meanings: string[];
+  on_reading?: string[];
+  kun_reading?: string[];
+}
+
 export default function GamePage() {
   // Auth state
   const [isSignInOpen, setIsSignInOpen] = useState(false);
@@ -104,6 +114,12 @@ export default function GamePage() {
   // Add a debounce map to track recent discoveries
   const recentDiscoveries = new Map<string, number>();
   const DISCOVERY_COOLDOWN = 2000; // 2 seconds cooldown
+  
+  // Add state for kanji details dialog
+  const [selectedKanji, setSelectedKanji] = useState<string | null>(null);
+  const [kanjiDetails, setKanjiDetails] = useState<KanjiDetails | null>(null);
+  const [isKanjiDetailsOpen, setIsKanjiDetailsOpen] = useState(false);
+  const [loadingKanjiDetails, setLoadingKanjiDetails] = useState(false);
   
   // Detect dark mode
   useEffect(() => {
@@ -1180,32 +1196,54 @@ export default function GamePage() {
           try {
             // Ensure we're only deleting the current user's data
             if (!user.id) {
-              console.error('User ID is missing');
+              console.error('Error: User ID is missing');
               addNotification('Failed to reset progress: User ID is missing', 'info');
               return;
             }
 
-            // Use the auth.uid() from RLS policies by using the authenticated client
-            const { error, count } = await supabase
-              .from('user_kanji')
-              .delete({ count: 'exact' }) // Get count of deleted rows
-              .eq('user_id', user.id);
+            console.log('Attempting to delete kanji for user ID:', user.id);
             
-            if (error) {
-              console.error('Error deleting user kanji:', error);
-              addNotification('Failed to reset progress', 'info');
+            // First, check if we can read the user's kanji to verify auth is working
+            const { data: userKanji, error: readError } = await supabase
+              .from('user_kanji')
+              .select('*')
+              .eq('user_id', user.id);
+              
+            if (readError) {
+              console.error('Error reading user kanji before deletion:', readError);
+              addNotification('Failed to reset: Cannot read user data', 'info');
               return;
             }
+            
+            console.log(`Found ${userKanji?.length || 0} kanji records for user`);
+            
+            // Now attempt to delete the records
+            const { error: deleteError, count } = await supabase
+              .from('user_kanji')
+              .delete({ count: 'exact' })
+              .eq('user_id', user.id);
+            
+            if (deleteError) {
+              console.error('Error deleting user kanji:', deleteError);
+              // Show more detailed error message
+              const errorMessage = deleteError.message || 'Unknown error';
+              addNotification(`Failed to reset progress: ${errorMessage}`, 'info');
+              return;
+            }
+            
+            console.log(`Successfully deleted ${count || 0} kanji records`);
             
             // Reset counts and lists
             setUserKanjiCount(0);
             setSupabaseKanji([]);
             setUnlockedRadicalCount(10); // Reset to default 10 radicals
             clearGameArea(); // Clear the game area too
-            addNotification(`Progress has been reset. ${count || 'All'} kanji removed.`, 'info');
+            addNotification(`Progress has been reset. ${count || 0} kanji removed.`, 'info');
           } catch (error) {
-            console.error('Error in deleteUserKanji:', error);
-            addNotification('Failed to reset progress', 'info');
+            // More detailed error logging
+            console.error('Unexpected error in deleteUserKanji:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            addNotification(`Failed to reset progress: ${errorMessage}`, 'info');
           }
         };
         
@@ -1288,6 +1326,70 @@ export default function GamePage() {
     }
   };
 
+  // Add a function to fetch kanji details from Supabase
+  const fetchKanjiDetails = useCallback(async (kanji: string) => {
+    if (!kanji) return;
+    
+    console.log('Fetching details for kanji:', kanji);
+    setLoadingKanjiDetails(true);
+    
+    try {
+      const { data, error } = await supabase
+        .from('kanji_dex')
+        .select('id, kanji, dex_number, meanings, on_reading, kun_reading')
+        .eq('kanji', kanji)
+        .single();
+      
+      console.log('Supabase response:', { data, error });
+      
+      if (error) {
+        console.error('Error fetching kanji details:', error);
+        addNotification(`Failed to load details for ${kanji}`, 'info');
+        return;
+      }
+      
+      setKanjiDetails(data);
+      // Open the dialog
+      setIsKanjiDetailsOpen(true);
+      console.log('Dialog should be open now with data:', data);
+    } catch (error) {
+      console.error('Unexpected error fetching kanji details:', error);
+    } finally {
+      setLoadingKanjiDetails(false);
+    }
+  }, []);
+  
+  // Use an effect to fetch kanji details when selectedKanji changes
+  useEffect(() => {
+    if (selectedKanji) {
+      console.log('Selected kanji changed, fetching details for:', selectedKanji);
+      fetchKanjiDetails(selectedKanji);
+    }
+  }, [selectedKanji, fetchKanjiDetails]);
+  
+  // Handle opening the kanji details dialog - simplified to just set the selected kanji
+  const handleKanjiClick = (kanji: string, event: React.MouseEvent | React.TouchEvent) => {
+    // Prevent any drag operations immediately
+    event.preventDefault();
+    event.stopPropagation();
+    
+    console.log('Kanji clicked, setting selectedKanji:', kanji);
+    // Directly fetch the kanji details instead of just setting selectedKanji
+    setSelectedKanji(kanji);
+    fetchKanjiDetails(kanji);
+  };
+  
+  // Close kanji details dialog
+  const handleCloseKanjiDetails = () => {
+    console.log('Closing kanji details dialog');
+    setIsKanjiDetailsOpen(false);
+    // Clear details after animation completes
+    setTimeout(() => {
+      setKanjiDetails(null);
+      setSelectedKanji(null);
+    }, 300);
+  };
+
   if (loadingData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F2E8DC] dark:bg-[#38332E]">
@@ -1301,6 +1403,107 @@ export default function GamePage() {
     <div className="min-h-screen flex bg-[#F2E8DC] dark:bg-[#38332E]">
       <AuthStateListener />
       <GameNav />
+      
+      {/* Kanji Details Dialog */}
+      <Dialog 
+        open={isKanjiDetailsOpen} 
+        onOpenChange={(open) => {
+          console.log('Dialog onOpenChange triggered, new state:', open);
+          setIsKanjiDetailsOpen(open);
+          if (!open) {
+            handleCloseKanjiDetails();
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[400px] bg-stone-50/95 dark:bg-stone-800/95 backdrop-blur-sm">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-center text-black dark:text-white">
+              Kanji Details
+            </DialogTitle>
+          </DialogHeader>
+          
+          {loadingKanjiDetails ? (
+            <div className="py-8 flex justify-center">
+              <div className="animate-spin h-8 w-8 border-4 border-[#78B693] border-t-transparent rounded-full"></div>
+            </div>
+          ) : kanjiDetails ? (
+            <div className="py-4 space-y-6">
+              {/* Kanji character - large and centered */}
+              <div className="text-center">
+                <div className="text-7xl font-bold mb-2 text-[#78B693] dark:text-[#78B693]">
+                  {kanjiDetails.kanji}
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  #{kanjiDetails.dex_number}
+                </div>
+              </div>
+              
+              {/* Meanings */}
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-black dark:text-white border-b border-stone-200 dark:border-stone-700 pb-1">
+                  Meanings
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {kanjiDetails.meanings.map((meaning, idx) => (
+                    <span 
+                      key={`meaning-${idx}`} 
+                      className="px-2 py-1 bg-stone-200 dark:bg-stone-700 rounded-md text-sm text-stone-800 dark:text-stone-200"
+                    >
+                      {meaning}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              
+              {/* On readings */}
+              {kanjiDetails.on_reading && kanjiDetails.on_reading.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold text-black dark:text-white border-b border-stone-200 dark:border-stone-700 pb-1">
+                    On Reading (音読み)
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {kanjiDetails.on_reading.map((reading, idx) => (
+                      <span 
+                        key={`on-${idx}`} 
+                        className="px-2 py-1 bg-blue-100 dark:bg-blue-900/40 rounded-md text-sm text-blue-800 dark:text-blue-200"
+                      >
+                        {reading}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Kun readings */}
+              {kanjiDetails.kun_reading && kanjiDetails.kun_reading.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold text-black dark:text-white border-b border-stone-200 dark:border-stone-700 pb-1">
+                    Kun Reading (訓読み)
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {kanjiDetails.kun_reading.map((reading, idx) => (
+                      <span 
+                        key={`kun-${idx}`} 
+                        className="px-2 py-1 bg-green-100 dark:bg-green-900/40 rounded-md text-sm text-green-800 dark:text-green-200"
+                      >
+                        {reading}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="py-4 text-center text-stone-500 dark:text-stone-400">
+              No kanji details available
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button onClick={handleCloseKanjiDetails}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       {/* Game Instructions Dialog */}
       <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
@@ -1803,25 +2006,81 @@ export default function GamePage() {
                 return (
                   <div
                     key={kanjiKey}
-                    className="w-9 h-9 flex items-center justify-center rounded cursor-grab select-none"
+                    data-kanji={kanji}
+                    className="w-9 h-9 flex items-center justify-center rounded cursor-pointer select-none relative group"
                     style={{ 
                       backgroundColor: 'rgba(120, 182, 147, 0.9)',
-                      userSelect: 'none' 
+                      userSelect: 'none',
+                      zIndex: 30 // Ensure it's above other elements
+                    }}
+                    onClick={(e) => {
+                      console.log('Kanji element clicked:', kanji);
+                      // Handle the click directly and prevent defaults
+                      e.preventDefault();
+                      e.stopPropagation();
+                      // Directly fetch details instead of just setting selectedKanji
+                      setSelectedKanji(kanji);
+                      fetchKanjiDetails(kanji);
+                    }}
+                    onContextMenu={(e) => {
+                      // Prevent context menu from showing on right-click
+                      e.preventDefault();
+                      return false;
                     }}
                     onMouseDown={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      handleSidebarDragStart(kanji, e.clientX, e.clientY, rect);
-                      e.preventDefault(); // Prevent text selection
+                      // Only handle right-click drag here
+                      if (e.button === 2) { // Right mouse button
+                        console.log('Right click on kanji, starting drag:', kanji);
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        handleSidebarDragStart(kanji, e.clientX, e.clientY, rect);
+                        e.preventDefault();
+                      }
                     }}
                     onTouchStart={(e) => {
-                      if (e.touches[0]) {
+                      // For touch devices - long press will be for dragging
+                      // Short tap will show info
+                      console.log('Touch start on kanji:', kanji);
+                      
+                      // Set up a timer for long press
+                      const timer = setTimeout(() => {
+                        // This will be a long press - start drag
+                        const touch = e.touches[0];
                         const rect = e.currentTarget.getBoundingClientRect();
-                        handleSidebarDragStart(kanji, e.touches[0].clientX, e.touches[0].clientY, rect);
-                        e.preventDefault();
+                        handleSidebarDragStart(kanji, touch.clientX, touch.clientY, rect);
+                      }, 500); // 500ms for long press
+                      
+                      // Store the timer ID
+                      e.currentTarget.setAttribute('data-timer', String(timer));
+                      
+                      // Don't prevent default here to allow both tap and long press
+                    }}
+                    onTouchEnd={(e) => {
+                      // Clear the long press timer on touch end
+                      const timer = e.currentTarget.getAttribute('data-timer');
+                      if (timer) {
+                        clearTimeout(Number(timer));
+                        e.currentTarget.removeAttribute('data-timer');
+                        
+                        // If this is a short tap (not a drag), show info
+                        if (!isDraggingFromSidebar) {
+                          e.preventDefault();
+                          setSelectedKanji(kanji);
+                          fetchKanjiDetails(kanji);
+                        }
+                      }
+                    }}
+                    onTouchCancel={(e) => {
+                      // Also clear timer on touch cancel
+                      const timer = e.currentTarget.getAttribute('data-timer');
+                      if (timer) {
+                        clearTimeout(Number(timer));
+                        e.currentTarget.removeAttribute('data-timer');
                       }
                     }}
                   >
                     {kanji}
+                    {/* Add a small info indicator - more visible by default */}
+                    <div className="absolute top-0 right-0 w-2 h-2 bg-blue-400 rounded-full opacity-70 group-hover:opacity-100 transition-opacity"></div>
                   </div>
                 );
               })}
