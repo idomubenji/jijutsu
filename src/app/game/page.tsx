@@ -1953,6 +1953,16 @@ function GamePageClient() {
         setUserKanjiCount(0);
         setUnlockedRadicalCount(10); // Reset to initial value
         
+        // Clear kanji meanings cache
+        setKanjiMeanings({});
+        loadedKanjiRef.current.clear();
+        
+        // Reset tracking refs
+        kanjiRefreshStateRef.current = {
+          userKanjiLength: 0,
+          discoveredKanjiSize: 0
+        };
+        
         // Clear game area
         clearGameArea();
         
@@ -1982,32 +1992,97 @@ function GamePageClient() {
     }
   }, [loadingGameData, kanjiData]);
 
+  // Add a ref to track which kanji we've already loaded meanings for
+  const loadedKanjiRef = useRef<Set<string>>(new Set());
+  
   // Function to fetch and store kanji meanings
   const fetchKanjiMeanings = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('kanji_dex')
-        .select('kanji, meanings');
+      // Get the array of kanji to fetch meanings for
+      const kanjiToFetch = user ? supabaseKanji : Array.from(discoveredKanji);
       
-      if (error) {
-        console.error('Error fetching kanji meanings:', error);
+      // If there are no kanji to fetch, return early
+      if (kanjiToFetch.length === 0) {
+        console.log('No kanji to fetch meanings for');
         return;
       }
       
-      const meaningsMap: Record<string, string[]> = {};
-      data.forEach(item => {
-        if (item.kanji && Array.isArray(item.meanings) && item.meanings.length > 0) {
-          meaningsMap[item.kanji] = item.meanings;
+      // Filter out kanji we already have meanings for
+      const kanjiSet = new Set(kanjiToFetch);
+      const loadedKanji = loadedKanjiRef.current;
+      
+      // Check if we've already loaded all these kanji
+      const allAlreadyLoaded = Array.from(kanjiSet).every(k => 
+        loadedKanji.has(k) || kanjiMeanings[k]
+      );
+      
+      if (allAlreadyLoaded && Object.keys(kanjiMeanings).length >= kanjiToFetch.length) {
+        console.log('All kanji meanings already loaded, skipping fetch');
+        return;
+      }
+      
+      // Find which kanji we need to fetch
+      const kanjiToActuallyFetch = kanjiToFetch.filter(k => 
+        !loadedKanji.has(k) && !kanjiMeanings[k]
+      );
+      
+      if (kanjiToActuallyFetch.length === 0) {
+        console.log('No new kanji meanings to fetch');
+        return;
+      }
+      
+      console.log(`Fetching meanings for ${kanjiToActuallyFetch.length} new kanji out of ${kanjiToFetch.length} total`);
+      
+      // Create a combined meanings map, starting with existing meanings
+      const meaningsMap: Record<string, string[]> = { ...kanjiMeanings };
+      
+      // Process in batches of 100 to avoid query limits
+      const BATCH_SIZE = 100;
+      for (let i = 0; i < kanjiToActuallyFetch.length; i += BATCH_SIZE) {
+        const batch = kanjiToActuallyFetch.slice(i, i + BATCH_SIZE);
+        console.log(`Processing batch ${i/BATCH_SIZE + 1}/${Math.ceil(kanjiToActuallyFetch.length/BATCH_SIZE)}: ${batch.length} kanji`);
+        
+        try {
+          const { data, error } = await supabase
+            .from('kanji_dex')
+            .select('kanji, meanings')
+            .in('kanji', batch);
+          
+          if (error && Object.keys(error).length > 0) {
+            console.error(`Error fetching batch ${i/BATCH_SIZE + 1}:`, error);
+            continue; // Try the next batch instead of failing completely
+          }
+          
+          if (!data || !Array.isArray(data)) {
+            console.error(`No data returned for batch ${i/BATCH_SIZE + 1}`);
+            continue;
+          }
+          
+          // Add results to the meanings map
+          data.forEach(item => {
+            if (item.kanji && Array.isArray(item.meanings) && item.meanings.length > 0) {
+              meaningsMap[item.kanji] = item.meanings;
+              loadedKanji.add(item.kanji);
+            }
+          });
+        } catch (batchError) {
+          console.error(`Error processing batch ${i/BATCH_SIZE + 1}:`, batchError);
         }
-      });
+      }
       
       setKanjiMeanings(meaningsMap);
-      console.log('Kanji meanings loaded:', Object.keys(meaningsMap).length);
+      console.log('Kanji meanings loaded:', Object.keys(meaningsMap).length, 'out of', kanjiToFetch.length, 'requested');
+      
+      // Log any missing meanings for debugging
+      const missingMeanings = kanjiToFetch.filter(k => !meaningsMap[k]);
+      if (missingMeanings.length > 0) {
+        console.log('Kanji without loaded meanings:', missingMeanings);
+      }
     } catch (error) {
       console.error('Unexpected error fetching kanji meanings:', error);
     }
-  }, [supabase]);
-  
+  }, [supabase, user, supabaseKanji, discoveredKanji, kanjiMeanings]);
+
   // Define some common radical meanings (since they may not be in the database)
   const initializeRadicalMeanings = useCallback(() => {
     // Common radical meanings - you can expand this list as needed
@@ -2065,6 +2140,46 @@ function GamePageClient() {
     fetchKanjiMeanings();
     initializeRadicalMeanings();
   }, [fetchKanjiMeanings, initializeRadicalMeanings]);
+  
+  // Add a ref to track current state to prevent unnecessary refreshes
+  const kanjiRefreshStateRef = useRef({
+    userKanjiLength: 0,
+    discoveredKanjiSize: 0
+  });
+
+  // Reload kanji meanings when discovered kanji change
+  useEffect(() => {
+    // Skip if no kanji to fetch
+    if ((user && supabaseKanji.length === 0) && (!user && discoveredKanji.size === 0)) {
+      return;
+    }
+    
+    // Check if the counts have actually changed to prevent loops
+    const currentState = {
+      userKanjiLength: user ? supabaseKanji.length : 0,
+      discoveredKanjiSize: !user ? discoveredKanji.size : 0
+    };
+    
+    const prevState = kanjiRefreshStateRef.current;
+    
+    // Only fetch if the counts have changed
+    if (
+      (user && currentState.userKanjiLength !== prevState.userKanjiLength) ||
+      (!user && currentState.discoveredKanjiSize !== prevState.discoveredKanjiSize)
+    ) {
+      console.log(
+        'Discovered kanji changed, updating meanings',
+        user ? `Supabase: ${currentState.userKanjiLength} (was ${prevState.userKanjiLength})` :
+        `Local: ${currentState.discoveredKanjiSize} (was ${prevState.discoveredKanjiSize})`
+      );
+      
+      // Update the ref with current state
+      kanjiRefreshStateRef.current = currentState;
+      
+      // Fetch kanji meanings
+      fetchKanjiMeanings();
+    }
+  }, [user, supabaseKanji.length, discoveredKanji.size, fetchKanjiMeanings]);
 
   // Calculate sidebarRadicals based on unlocked radical count
   const sidebarRadicals = useMemo(() => {
@@ -2758,6 +2873,13 @@ function GamePageClient() {
                 </Button>
               )}
             </div>
+            
+            {/* Instruction for right-clicking kanji */}
+            {((user && userKanjiCount > 0) || (!user && discoveredKanji.size > 0)) && (
+              <p className="text-stone-500 dark:text-stone-400 text-xs mb-2 italic">
+                Right-click on kanji to learn more about them!
+              </p>
+            )}
             
             {(user ? userKanjiCount === 0 : discoveredKanji.size === 0) ? (
               <div className="text-stone-400 dark:text-stone-500 text-sm">
