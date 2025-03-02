@@ -857,7 +857,20 @@ export default function DexPage() {
         </DialogContent>
       </Dialog>
 
-      <h1 className="text-3xl font-bold mt-4 mb-6 text-center">Collection Dex</h1>
+      <h1 className="text-3xl font-bold mt-4 mb-6 text-center">KanjiDex</h1>
+      
+      {!user && (
+        <div className="mx-auto mb-6 max-w-2xl">
+          <div className="bg-amber-100 dark:bg-amber-900 border-l-4 border-amber-500 text-amber-700 dark:text-amber-200 p-4 rounded shadow-md">
+            <div className="flex items-center">
+              <svg className="h-6 w-6 mr-3 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p>You must be signed in to view your kanji collection. Sign in to track your progress and unlock new kanji!</p>
+            </div>
+          </div>
+        </div>
+      )}
       
       <div className="flex-1 flex flex-col lg:flex-row gap-6 px-4 lg:px-8 pb-1 overflow-hidden">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-auto h-[calc(100vh-10rem)] p-6 order-1 lg:order-1 w-full lg:w-[20%]">
