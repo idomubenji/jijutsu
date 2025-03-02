@@ -28,6 +28,7 @@ interface GameElement {
   isDragging: boolean;
   touchingElements: Set<string>; // IDs of elements this element is touching
   className?: string; // Optional class name for animations
+  meaning?: string; // Optional meaning to display
 }
 
 interface Notification {
@@ -117,6 +118,10 @@ function GamePageClient() {
   const [isLoadingUserKanji, setIsLoadingUserKanji] = useState(false);
   const [unlockedRadicalCount, setUnlockedRadicalCount] = useState(10); // Start with 10 radicals
   
+  // Add state for kanji and radical meanings
+  const [kanjiMeanings, setKanjiMeanings] = useState<Record<string, string[]>>({});
+  const [radicalMeanings, setRadicalMeanings] = useState<Record<string, string>>({});
+  
   // Add supabase kanji state
   const [supabaseKanji, setSupabaseKanji] = useState<string[]>([]);
   
@@ -136,6 +141,9 @@ function GamePageClient() {
   
   // Game instruction dialog
   const [showInstructions, setShowInstructions] = useState(false);
+  
+  // Add state for showing kanji/radical meanings
+  const [showMeanings, setShowMeanings] = useState(false);
   
   // Tracking drag state
   const [draggedElementId, setDraggedElementId] = useState<string | null>(null);
@@ -1153,7 +1161,8 @@ function GamePageClient() {
                     },
                     isDragging: false,
                     touchingElements: new Set(),
-                    className: 'kanji-created'
+                    className: 'kanji-created',
+                    meaning: kanjiMeanings[kanji] && kanjiMeanings[kanji].length > 0 ? kanjiMeanings[kanji][0] : undefined
                   };
                   
                   // Add new kanji and remove all the radicals used
@@ -1381,7 +1390,8 @@ function GamePageClient() {
               },
               isDragging: false,
               touchingElements: new Set(),
-              className: 'kanji-created'
+              className: 'kanji-created',
+              meaning: kanjiMeanings[kanji] && kanjiMeanings[kanji].length > 0 ? kanjiMeanings[kanji][0] : undefined
             };
             
             // Remove the radicals that were used and add the new kanji
@@ -1417,7 +1427,8 @@ function GamePageClient() {
           },
           isDragging: false,
           touchingElements: new Set(),
-          className: 'kanji-created'
+          className: 'kanji-created',
+          meaning: kanjiMeanings[kanji] && kanjiMeanings[kanji].length > 0 ? kanjiMeanings[kanji][0] : undefined
         };
         
         // Remove the radicals that were used and add the new kanji
@@ -1891,6 +1902,90 @@ function GamePageClient() {
     }
   }, [loadingGameData, kanjiData]);
 
+  // Function to fetch and store kanji meanings
+  const fetchKanjiMeanings = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('kanji_dex')
+        .select('kanji, meanings');
+      
+      if (error) {
+        console.error('Error fetching kanji meanings:', error);
+        return;
+      }
+      
+      const meaningsMap: Record<string, string[]> = {};
+      data.forEach(item => {
+        if (item.kanji && Array.isArray(item.meanings) && item.meanings.length > 0) {
+          meaningsMap[item.kanji] = item.meanings;
+        }
+      });
+      
+      setKanjiMeanings(meaningsMap);
+      console.log('Kanji meanings loaded:', Object.keys(meaningsMap).length);
+    } catch (error) {
+      console.error('Unexpected error fetching kanji meanings:', error);
+    }
+  }, [supabase]);
+  
+  // Define some common radical meanings (since they may not be in the database)
+  const initializeRadicalMeanings = useCallback(() => {
+    // Common radical meanings - you can expand this list as needed
+    const commonRadicalMeanings: Record<string, string> = {
+      "口": "mouth",
+      "一": "one",
+      "｜": "line",
+      "ノ": "bend",
+      "木": "tree",
+      "日": "sun/day",
+      "二": "two",
+      "土": "earth",
+      "田": "field",
+      "亠": "lid",
+      "人": "person",
+      "女": "woman",
+      "子": "child",
+      "心": "heart",
+      "手": "hand",
+      "水": "water",
+      "火": "fire",
+      "石": "stone",
+      "言": "speech",
+      "金": "metal/gold",
+      "力": "power",
+      "山": "mountain",
+      "王": "king",
+      "大": "big",
+      "小": "small",
+      "中": "middle",
+      "刀": "knife",
+      "月": "moon",
+      "糸": "thread",
+      "門": "gate",
+      "足": "foot",
+      "車": "car",
+      "雨": "rain",
+      "食": "eat",
+      "禾": "grain",
+      "示": "show",
+      "立": "stand",
+      "辶": "walk",
+      "目": "eye",
+      "竹": "bamboo",
+      "米": "rice",
+      "耳": "ear",
+      "魚": "fish"
+    };
+    
+    setRadicalMeanings(commonRadicalMeanings);
+  }, []);
+
+  // Load kanji meanings and initialize radical meanings
+  useEffect(() => {
+    fetchKanjiMeanings();
+    initializeRadicalMeanings();
+  }, [fetchKanjiMeanings, initializeRadicalMeanings]);
+
   // Calculate sidebarRadicals based on unlocked radical count
   const sidebarRadicals = useMemo(() => {
     // Make sure we have sorted radicals data before calculating
@@ -1903,8 +1998,28 @@ function GamePageClient() {
     return sortedRadicals
       .slice(0, unlockedRadicalCount)
       .filter(radical => kanjiData?.radicalToKanji[radical]) // Ensure radical exists in data
-      .map(radical => ({ char: radical }));
-  }, [sortedRadicals, unlockedRadicalCount, kanjiData]);
+      .map(radical => ({ 
+        char: radical,
+        meaning: radicalMeanings[radical]
+      }));
+  }, [sortedRadicals, unlockedRadicalCount, kanjiData, radicalMeanings]);
+
+  // Update the function that creates new element
+  const createNewElement = useCallback((type: 'radical' | 'kanji', character: string, position: ElementPosition): GameElement => {
+    const meaning = type === 'kanji' 
+      ? (kanjiMeanings[character] && kanjiMeanings[character].length > 0 ? kanjiMeanings[character][0] : undefined)
+      : radicalMeanings[character];
+    
+    return {
+      id: generateUniqueId(type, character),
+      type,
+      char: character,
+      position,
+      isDragging: false,
+      touchingElements: new Set(),
+      meaning
+    };
+  }, [kanjiMeanings, radicalMeanings, generateUniqueId]);
 
   if (loadingData) {
     console.log('Rendering loading screen, loadingData =', loadingData);
@@ -2137,6 +2252,15 @@ function GamePageClient() {
             <ThemeToggle />
             <Button 
               variant="ghost" 
+              size="sm"
+              onClick={() => setShowMeanings(!showMeanings)}
+              className="text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300 hover:bg-transparent p-0 flex items-center gap-1"
+              title="Toggle meanings"
+            >
+              {showMeanings ? "Hide Meanings" : "Show Meanings"}
+            </Button>
+            <Button 
+              variant="ghost" 
               size="sm" 
               onClick={() => setShowInstructions(true)}
               className="text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300 hover:bg-transparent p-0 flex items-center gap-1"
@@ -2149,12 +2273,12 @@ function GamePageClient() {
           {elements.filter(el => el.position.x !== 0 || el.position.y !== 0).map((element) => (
             <div
               key={element.id}
-              className={`absolute cursor-grab select-none ${element.isDragging ? 'opacity-70 cursor-grabbing z-50' : 'opacity-100 z-10'} ${element.type === 'kanji' ? 'text-xl font-bold text-white' : 'text-lg'} rounded-md flex items-center justify-center transition-all duration-150 ${element.className || ''}`}
+              className={`absolute cursor-grab select-none ${element.isDragging ? 'opacity-70 cursor-grabbing z-50' : 'opacity-100 z-10'} ${element.type === 'kanji' ? 'text-xl font-bold text-white' : 'text-lg'} rounded-md flex flex-col items-center justify-center transition-all duration-150 ${element.className || ''}`}
               style={{
                 left: `${element.position.x}px`,
                 top: `${element.position.y}px`,
                 width: '40px',
-                height: '40px',
+                height: showMeanings && element.meaning ? '65px' : '40px',
                 backgroundColor: element.type === 'kanji' 
                   ? (hoveredElements.has(element.id) 
                     ? 'rgba(0, 79, 23, 0.9)' // #004F17 with 90% opacity for hovered kanji
@@ -2182,7 +2306,12 @@ function GamePageClient() {
                 }
               }}
             >
-              {element.char}
+              <div>{element.char}</div>
+              {showMeanings && element.meaning && (
+                <div className="text-[8px] text-white mt-1 px-1 text-center leading-tight">
+                  {element.meaning}
+                </div>
+              )}
             </div>
           ))}
 
@@ -2460,35 +2589,32 @@ function GamePageClient() {
             
             {/* Unlocked radicals grid */}
             <div className="grid grid-cols-8 gap-2 grid-flow-row-dense auto-rows-min">
-              {sidebarRadicals.map(({ char }, index) => {
-                // Generate a truly unique key for each radical
-                const radicalKey = `sidebar-radical-${index}-${char}-${Math.random().toString(36).slice(2, 5)}`;
-                
-                return (
-                  <div
-                    key={radicalKey}
-                    className="w-8 h-8 text-lg flex items-center justify-center rounded cursor-grab select-none"
-                    style={{
-                      backgroundColor: 'rgba(120, 182, 147, 0.8)',
-                      userSelect: 'none'
-                    }}
-                    onMouseDown={(e) => {
+              {sidebarRadicals.map((radical, index) => (
+                <div
+                  key={index}
+                  className="w-10 h-10 flex flex-col items-center justify-center bg-[#78B693] rounded-md text-white cursor-grab relative group hover:bg-[#6BA684] active:bg-[#5E9373]"
+                  onMouseDown={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    handleSidebarDragStart(radical.char, e.clientX, e.clientY, rect);
+                    e.preventDefault(); // Prevent text selection
+                  }}
+                  onTouchStart={(e) => {
+                    if (e.touches[0]) {
                       const rect = e.currentTarget.getBoundingClientRect();
-                      handleSidebarDragStart(char, e.clientX, e.clientY, rect);
-                      e.preventDefault(); // Prevent text selection
-                    }}
-                    onTouchStart={(e) => {
-                      if (e.touches[0]) {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        handleSidebarDragStart(char, e.touches[0].clientX, e.touches[0].clientY, rect);
-                        e.preventDefault();
-                      }
-                    }}
-                  >
-                    {char}
-                  </div>
-                );
-              })}
+                      handleSidebarDragStart(radical.char, e.touches[0].clientX, e.touches[0].clientY, rect);
+                      e.preventDefault();
+                    }
+                  }}
+                  title={radical.meaning || radical.char}
+                >
+                  {radical.char}
+                  {showMeanings && radical.meaning && (
+                    <div className="text-[6px] mt-0.5 leading-tight">
+                      {radical.meaning}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
             
             {/* Show next few locked radicals */}
@@ -2563,7 +2689,7 @@ function GamePageClient() {
                     <div
                       key={kanjiKey}
                       data-kanji={kanji}
-                      className="w-9 h-9 flex items-center justify-center rounded cursor-pointer select-none relative group text-white"
+                      className={`flex flex-col items-center justify-center rounded cursor-pointer select-none relative group text-white ${showMeanings && kanjiMeanings[kanji] && kanjiMeanings[kanji].length > 0 ? 'w-9 h-14' : 'w-9 h-9'}`}
                       style={{ 
                         backgroundColor: 'rgba(0, 79, 23, 0.9)', // #004F17 with 90% opacity
                         userSelect: 'none',
@@ -2629,6 +2755,11 @@ function GamePageClient() {
                       }}
                     >
                       {kanji}
+                      {showMeanings && kanjiMeanings[kanji] && kanjiMeanings[kanji].length > 0 && (
+                        <div className="text-[6px] mt-0.5 leading-tight">
+                          {kanjiMeanings[kanji][0]}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
