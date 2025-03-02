@@ -157,30 +157,78 @@ export default function DexPage() {
     try {
       console.log('----- DEX PAGE LOAD USER KANJI START -----');
       console.log('Loading user kanji for user:', userId);
-      const { data: userKanjiData, error: userKanjiError } = await supabase
-        .from('user_kanji')
-        .select(`
-          kanji_id,
-          kanji_dex!inner (
-            id,
-            dex_number,
-            kanji,
-            meanings
-          )
-        `)
-        .eq('user_id', userId)
-        .returns<UserKanjiResponse[]>();
-
-      if (userKanjiError) {
-        console.error('Error loading user kanji:', userKanjiError);
+      
+      // Parameters for retry logic
+      const maxRetries = 3;
+      const initialDelay = 1000; // 1 second before first retry
+      let retries = 0;
+      let error = null;
+      let userKanjiData = null;
+      
+      // Retry loop with backoff strategy
+      while (retries <= maxRetries && !userKanjiData) {
+        try {
+          if (retries > 0) {
+            console.log(`Attempt ${retries}/${maxRetries} - Retrying user kanji data fetch...`);
+          }
+          
+          const { data, error: fetchError } = await supabase
+            .from('user_kanji')
+            .select(`
+              kanji_id,
+              kanji_dex!inner (
+                id,
+                dex_number,
+                kanji,
+                meanings
+              )
+            `)
+            .eq('user_id', userId)
+            .returns<UserKanjiResponse[]>();
+          
+          if (fetchError) {
+            error = fetchError;
+            console.error(`Attempt ${retries + 1}/${maxRetries + 1} - Error loading user kanji:`, fetchError);
+            retries++;
+            
+            if (retries <= maxRetries) {
+              const delay = initialDelay * retries;
+              console.log(`Retrying in ${delay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
+          } else {
+            userKanjiData = data;
+            console.log('Successfully loaded user kanji data');
+            break;
+          }
+        } catch (unexpectedError) {
+          console.error(`Unexpected error during user kanji fetch:`, unexpectedError);
+          retries++;
+          
+          if (retries <= maxRetries) {
+            const delay = initialDelay * retries;
+            console.log(`Retrying after error in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          } else {
+            error = unexpectedError;
+          }
+        }
+      }
+      
+      // If all retries failed, handle the error
+      if (error) {
+        console.error('Error loading user kanji after all retries:', error);
         console.log('----- DEX PAGE LOAD USER KANJI END -----');
         return;
       }
-
+      
       console.log('Loaded user kanji data:', userKanjiData);
       
-      if (!userKanjiData) {
+      if (!userKanjiData || userKanjiData.length === 0) {
         console.log('No user kanji data found');
+        setUnlockedKanjiNumbers(new Set());
+        setUnlockedKanjiDetails(new Map());
+        setUnlockedRadicalCount(10); // Reset to base radicals
         console.log('----- DEX PAGE LOAD USER KANJI END -----');
         return;
       }
@@ -239,17 +287,32 @@ export default function DexPage() {
 
         // Set up auth state change listener
         const { data: { subscription } } = await supabase.auth.onAuthStateChange(
-          async (_event, session) => {
+          async (event, session) => {
             console.log('Dex page - auth state changed, session:', session ? 'Active' : 'None');
-            setUser(session?.user || null);
-            if (session?.user) {
-              console.log('Dex page - auth changed, loading kanji for user ID:', session.user.id);
-              await loadUserKanji(session.user.id);
+            
+            // Store previous user before updating state
+            const previousUser = user;
+            const currentUser = session?.user || null;
+            
+            console.log('Previous user:', previousUser ? `ID: ${previousUser?.id}` : 'null');
+            console.log('Current user:', currentUser ? `ID: ${currentUser.id}` : 'null');
+            
+            // Only update user state if it actually changed
+            if (previousUser?.id !== currentUser?.id) {
+              setUser(currentUser);
+              
+              // Only load kanji if we have a new user and they're different from the previous user
+              if (currentUser && previousUser?.id !== currentUser.id) {
+                console.log('Dex page - auth changed, loading kanji for user ID:', currentUser.id);
+                await loadUserKanji(currentUser.id);
+              } else if (!currentUser) {
+                console.log('Dex page - user logged out, clearing unlocked kanji');
+                setUnlockedKanjiNumbers(new Set()); // Clear unlocked kanji when user logs out
+                setUnlockedKanjiDetails(new Map()); // Also clear the details map
+                setUnlockedRadicalCount(10); // Reset to base radicals for non-logged in users
+              }
             } else {
-              console.log('Dex page - user logged out, clearing unlocked kanji');
-              setUnlockedKanjiNumbers(new Set()); // Clear unlocked kanji when user logs out
-              setUnlockedKanjiDetails(new Map()); // Also clear the details map
-              setUnlockedRadicalCount(10); // Reset to base radicals for non-logged in users
+              console.log('Dex page - same user, not reloading kanji data');
             }
           }
         );

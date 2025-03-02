@@ -2689,74 +2689,78 @@ function GamePageClient() {
                     <div
                       key={kanjiKey}
                       data-kanji={kanji}
-                      className={`flex flex-col items-center justify-center rounded cursor-pointer select-none relative group text-white ${showMeanings && kanjiMeanings[kanji] && kanjiMeanings[kanji].length > 0 ? 'w-9 h-14' : 'w-9 h-9'}`}
-                      style={{ 
-                        backgroundColor: 'rgba(0, 79, 23, 0.9)', // #004F17 with 90% opacity
-                        userSelect: 'none',
-                        zIndex: 30 // Ensure it's above other elements
-                      }}
-                      onContextMenu={(e) => {
-                        // Show dictionary on right-click instead of context menu
-                        e.preventDefault();
-                        console.log('Right-click on kanji, showing dictionary:', kanji);
-                        setSelectedKanji(kanji);
-                        fetchKanjiDetails(kanji);
-                        return false;
-                      }}
-                      onMouseDown={(e) => {
-                        // Use left-click for dragging (button 0 is left mouse button)
-                        if (e.button === 0) { // Left mouse button
-                          console.log('Left click on kanji, starting drag:', kanji);
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          handleSidebarDragStart(kanji, e.clientX, e.clientY, rect);
-                          e.preventDefault();
-                        }
-                      }}
-                      onTouchStart={(e) => {
-                        // For touch devices - long press will be for dragging
-                        // Short tap will show info
-                        console.log('Touch start on kanji:', kanji);
-                        
-                        // Set up a timer for long press
-                        const timer = setTimeout(() => {
-                          // This will be a long press - start drag
-                          const touch = e.touches[0];
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          handleSidebarDragStart(kanji, touch.clientX, touch.clientY, rect);
-                        }, 500); // 500ms for long press
-                        
-                        // Store the timer ID
-                        e.currentTarget.setAttribute('data-timer', String(timer));
-                        
-                        // Don't prevent default here to allow both tap and long press
-                      }}
-                      onTouchEnd={(e) => {
-                        // Clear the long press timer on touch end
-                        const timer = e.currentTarget.getAttribute('data-timer');
-                        if (timer) {
-                          clearTimeout(Number(timer));
-                          e.currentTarget.removeAttribute('data-timer');
-                          
-                          // If this is a short tap (not a drag), show info
-                          if (!isDraggingFromSidebar) {
-                            e.preventDefault();
-                            setSelectedKanji(kanji);
-                            fetchKanjiDetails(kanji);
-                          }
-                        }
-                      }}
-                      onTouchCancel={(e) => {
-                        // Also clear timer on touch cancel
-                        const timer = e.currentTarget.getAttribute('data-timer');
-                        if (timer) {
-                          clearTimeout(Number(timer));
-                          e.currentTarget.removeAttribute('data-timer');
-                        }
-                      }}
+                      className="flex flex-col items-center"
                     >
-                      {kanji}
+                      <div 
+                        className="w-9 h-9 flex items-center justify-center rounded cursor-pointer select-none relative group text-white"
+                        style={{ 
+                          backgroundColor: 'rgba(0, 79, 23, 0.9)', // #004F17 with 90% opacity
+                          userSelect: 'none',
+                          zIndex: 30 // Ensure it's above other elements
+                        }}
+                        onContextMenu={(e) => {
+                          // Show dictionary on right-click instead of context menu
+                          e.preventDefault();
+                          console.log('Right-click on kanji, showing dictionary:', kanji);
+                          setSelectedKanji(kanji);
+                          fetchKanjiDetails(kanji);
+                          return false;
+                        }}
+                        onMouseDown={(e) => {
+                          // Use left-click for dragging (button 0 is left mouse button)
+                          if (e.button === 0) { // Left mouse button
+                            console.log('Left click on kanji, starting drag:', kanji);
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            handleSidebarDragStart(kanji, e.clientX, e.clientY, rect);
+                            e.preventDefault();
+                          }
+                        }}
+                        onTouchStart={(e) => {
+                          // For touch devices - long press will be for dragging
+                          // Short tap will show info
+                          console.log('Touch start on kanji:', kanji);
+                          
+                          // Set up a timer for long press
+                          const timer = setTimeout(() => {
+                            // This will be a long press - start drag
+                            const touch = e.touches[0];
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            handleSidebarDragStart(kanji, touch.clientX, touch.clientY, rect);
+                          }, 500); // 500ms for long press
+                          
+                          // Store the timer ID
+                          e.currentTarget.setAttribute('data-timer', String(timer));
+                          
+                          // Don't prevent default here to allow both tap and long press
+                        }}
+                        onTouchEnd={(e) => {
+                          // Clear the long press timer on touch end
+                          const timer = e.currentTarget.getAttribute('data-timer');
+                          if (timer) {
+                            clearTimeout(Number(timer));
+                            e.currentTarget.removeAttribute('data-timer');
+                            
+                            // If this is a short tap (not a drag), show info
+                            if (!isDraggingFromSidebar) {
+                              e.preventDefault();
+                              setSelectedKanji(kanji);
+                              fetchKanjiDetails(kanji);
+                            }
+                          }
+                        }}
+                        onTouchCancel={(e) => {
+                          // Also clear timer on touch cancel
+                          const timer = e.currentTarget.getAttribute('data-timer');
+                          if (timer) {
+                            clearTimeout(Number(timer));
+                            e.currentTarget.removeAttribute('data-timer');
+                          }
+                        }}
+                      >
+                        {kanji}
+                      </div>
                       {showMeanings && kanjiMeanings[kanji] && kanjiMeanings[kanji].length > 0 && (
-                        <div className="text-[6px] mt-0.5 leading-tight">
+                        <div className="text-[9px] mt-1 text-center text-black dark:text-white w-full">
                           {kanjiMeanings[kanji][0]}
                         </div>
                       )}
