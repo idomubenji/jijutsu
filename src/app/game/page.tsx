@@ -322,17 +322,34 @@ function GamePageClient() {
     code?: string;
   }
 
-  // Function to add a notification - moved up before it's used
+  // Function to add notifications
   const addNotification = useCallback((message: string, type: 'success' | 'info' = 'info', kanji?: string) => {
-    // Generate a unique ID with timestamp plus random suffix
-    const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    setNotifications(prev => [...prev, { id, message, type, kanji }]);
+    // Check if we're adding a duplicate kanji discovery notification
+    if (type === 'success' && kanji) {
+      const isDuplicate = notifications.some(
+        notif => notif.type === 'success' && notif.kanji === kanji && notif.message.includes(`You discovered ${kanji}!`)
+      );
+      
+      if (isDuplicate) {
+        // Skip duplicate kanji discovery notifications
+        return;
+      }
+    }
+    
+    const newNotification: Notification = {
+      id: Date.now().toString(),
+      message,
+      type,
+      kanji
+    };
+    
+    setNotifications(prev => [...prev, newNotification]);
     
     // Auto-remove notification after 5 seconds
     setTimeout(() => {
-      setNotifications(prev => prev.filter(n => n.id !== id));
+      setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
     }, 5000);
-  }, []);
+  }, [notifications]);
 
   // Fetch user kanji data from Supabase
   const fetchUserKanjiData = useCallback(async (forceRefresh = false) => {
@@ -674,7 +691,44 @@ function GamePageClient() {
       // Check if we got any matching kanji
       if (!kanjiData || kanjiData.length === 0) {
         console.error('Kanji not found in dex:', kanji);
-        addNotification(`Kanji "${kanji}" not found in our database.`, 'info');
+        
+        // Try to find the kanji by wildcard search to help diagnose data issues
+        try {
+          console.log(`Attempting wildcard search for similar kanji...`);
+          const { data: similarKanjiData } = await supabase
+            .from('kanji_dex')
+            .select('id, kanji, dex_number')
+            .limit(5);
+          
+          if (similarKanjiData && similarKanjiData.length > 0) {
+            console.log('Found some kanji in the database (sample):', similarKanjiData);
+          } else {
+            console.log('No sample kanji found in database - possible connection issue or empty table');
+          }
+        } catch (wildcardError) {
+          console.error('Error during wildcard kanji search:', wildcardError);
+        }
+        
+        // Try to verify if kanji_dex table contains expected data
+        try {
+          console.log(`Checking if dex_number 1 exists in kanji_dex table...`);
+          const { data: firstKanjiData, error: firstKanjiError } = await supabase
+            .from('kanji_dex')
+            .select('id, kanji, dex_number')
+            .eq('dex_number', 1);
+          
+          if (firstKanjiError) {
+            console.error('Error querying first kanji:', firstKanjiError);
+          } else if (firstKanjiData && firstKanjiData.length > 0) {
+            console.log('First kanji in database:', firstKanjiData[0]);
+          } else {
+            console.log('Kanji with dex_number 1 not found - database may not be properly populated');
+          }
+        } catch (firstKanjiQueryError) {
+          console.error('Error checking first kanji:', firstKanjiQueryError);
+        }
+        
+        addNotification(`Kanji "${kanji}" not found in our database. We'll fix this in a future update.`, 'info');
         console.log('----- KANJI DISCOVERY TRACE END -----');
         return;
       }
@@ -1309,25 +1363,35 @@ function GamePageClient() {
       
       // If kanji is formed, add to discovered kanji
       for (const kanji of possibleKanji) {
-        // Add animation classes to all connected elements
-        connectedIds.forEach(id => {
-          const el = updated.find(e => e.id === id);
-          if (el) {
-            el.className = 'pulse-animation';
-            
-            // Remove animation class after animation completes
-            setTimeout(() => {
-              setElements(prev => 
-                prev.map(e => e.id === id ? { ...e, className: undefined } : e)
-              );
-            }, 1500);
-          }
-        });
-        
         // Skip if this kanji was already discovered
-        if (discoveredKanji.has(kanji)) continue;
-        
-        // Add kanji to discovered list
+        if (discoveredKanji.has(kanji)) {
+          // Check if we need to remove radicals and add the kanji to the workspace
+          // If the kanji already exists on the board, don't create a duplicate
+          const kanjiAlreadyOnBoard = updated.some(el => el.type === 'kanji' && el.char === kanji);
+          
+          if (!kanjiAlreadyOnBoard) {
+            // Create a new kanji element to replace the radicals
+            const newKanjiElement: GameElement = {
+              id: `kanji-${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${kanji}`,
+              type: 'kanji',
+              char: kanji,
+              position: {
+                x: Math.min(...Array.from(connectedIds).map(id => updated.find(e => e.id === id)?.position.x || 0)) + 10,
+                y: Math.min(...Array.from(connectedIds).map(id => updated.find(e => e.id === id)?.position.y || 0)) + 10
+              },
+              isDragging: false,
+              touchingElements: new Set(),
+              className: 'kanji-created'
+            };
+            
+            // Remove the radicals that were used and add the new kanji
+            return updated.filter(el => !connectedIds.has(el.id)).concat(newKanjiElement);
+          }
+          
+          continue;
+        }
+
+        // Add to discovered list
         setDiscoveredKanji(prev => {
           const updated = new Set(prev);
           updated.add(kanji);
@@ -1336,11 +1400,33 @@ function GamePageClient() {
         
         // Record discovery
         recordKanjiDiscovery(kanji);
+
+        // Show notification with the kanji
+        addNotification(`You discovered ${kanji}!`, 'success', kanji);
+        
+        // Create a new kanji element to replace the radicals
+        const newKanjiElement: GameElement = {
+          // Create a unique ID without using the generateUniqueId function
+          id: `kanji-${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${kanji}`,
+          type: 'kanji',
+          char: kanji,
+          position: {
+            // Position at the average of all combined elements
+            x: Math.min(...Array.from(connectedIds).map(id => updated.find(e => e.id === id)?.position.x || 0)) + 10,
+            y: Math.min(...Array.from(connectedIds).map(id => updated.find(e => e.id === id)?.position.y || 0)) + 10
+          },
+          isDragging: false,
+          touchingElements: new Set(),
+          className: 'kanji-created'
+        };
+        
+        // Remove the radicals that were used and add the new kanji
+        return updated.filter(el => !connectedIds.has(el.id)).concat(newKanjiElement);
       }
       
       return updated;
     });
-  }, [elements, setElements, discoveredKanji, setDiscoveredKanji, recordKanjiDiscovery, kanjiData]);
+  }, [elements, setElements, discoveredKanji, setDiscoveredKanji, recordKanjiDiscovery, kanjiData, addNotification]);
 
   // Health check function
   const runHealthCheck = useCallback(async () => {
@@ -1580,14 +1666,63 @@ function GamePageClient() {
     // Check which kanji can be formed with these radicals
     const possibleKanjiList: string[] = [];
     
+    // Count occurrences of each radical in our set
+    const radicalCounts = new Map<string, number>();
+    chars.forEach(char => {
+      radicalCounts.set(char, (radicalCounts.get(char) || 0) + 1);
+    });
+    
     // Go through the kanji in our data
     Object.entries(kanjiData.kanjiToRadicals).forEach(([kanji, requiredRadicals]) => {
-      // Check if all required radicals for this kanji are in our set
-      const hasAllRadicals = requiredRadicals.every(radical => chars.includes(radical));
+      // Count required radicals for this kanji
+      const requiredCounts = new Map<string, number>();
+      requiredRadicals.forEach(radical => {
+        requiredCounts.set(radical, (requiredCounts.get(radical) || 0) + 1);
+      });
       
-      // Also make sure we have exactly the required radicals (no extras)
-      const hasExactRadicals = requiredRadicals.length === chars.length && 
-        chars.every(radical => requiredRadicals.includes(radical));
+      // Check if we have all the required radicals with the right counts
+      let hasAllRadicals = true;
+      let hasExactRadicals = true;
+      
+      // Check if all required radicals are present in the right quantities
+      requiredCounts.forEach((count, radical) => {
+        if (!radicalCounts.has(radical) || radicalCounts.get(radical)! < count) {
+          hasAllRadicals = false;
+        }
+      });
+      
+      // Check if we have exactly the right radicals (no extras)
+      if (hasAllRadicals) {
+        // Total radical count should match
+        if (chars.length !== requiredRadicals.length) {
+          hasExactRadicals = false;
+        } else {
+          // Check that each radical in our set is required for this kanji
+          radicalCounts.forEach((count, radical) => {
+            if (!requiredCounts.has(radical) || requiredCounts.get(radical)! !== count) {
+              hasExactRadicals = false;
+            }
+          });
+        }
+      }
+      
+      // Special case for kanji that only list one radical but actually need multiples
+      // This is a temporary fix for data issues with certain kanji
+      if (
+        // 昌 - two suns (日 + 日)
+        (kanji === "昌" && chars.length === 2 && chars.every(c => c === "日")) ||
+        // 品 - three mouths (口 + 口 + 口)
+        (kanji === "品" && chars.length === 3 && chars.every(c => c === "口")) ||
+        // 森 - three trees (木 + 木 + 木)
+        (kanji === "森" && chars.length === 3 && chars.every(c => c === "木")) ||
+        // 炎 - two fires (火 + 火)
+        (kanji === "炎" && chars.length === 2 && chars.every(c => c === "火")) ||
+        // 晶 - three suns (日 + 日 + 日)
+        (kanji === "晶" && chars.length === 3 && chars.every(c => c === "日"))
+      ) {
+        hasAllRadicals = true;
+        hasExactRadicals = true;
+      }
       
       if (hasAllRadicals && hasExactRadicals) {
         possibleKanjiList.push(kanji);

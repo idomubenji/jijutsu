@@ -83,3 +83,29 @@ This is a [Next.js](https://nextjs.org/) project that can be deployed to Vercel,
 ## License
 
 [MIT](LICENSE)
+
+## Troubleshooting
+
+### Kanji Recognition Issues
+
+If you encounter errors with specific kanji not being recognized (e.g., "Kanji not found in dex: '唖'"), it might be because certain kanji entries are missing from the database despite being in the source data files. 
+
+To fix this issue:
+
+1. Make sure your environment variables are properly set in `.env.local`
+2. Run the fix script:
+
+```bash
+# Install dependencies if not already installed
+npm install
+
+# Run the fix script
+npx ts-node scripts/fix_kanji_data.ts
+```
+
+This script will:
+1. Check if the problematic kanji exists in the database
+2. Add it if missing
+3. Handle unique constraint errors by using an alternative dex_number if needed
+
+If you encounter other kanji recognition issues, please report them in the project's issue tracker.
