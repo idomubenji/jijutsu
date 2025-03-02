@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Gamepad2, BookOpen, DollarSign } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { LanguageToggle } from '@/components/LanguageToggle';
 
 export default function GameNav() {
   const pathname = usePathname();
@@ -49,6 +50,9 @@ export default function GameNav() {
       <div className="bg-gray-700/90 dark:bg-gray-300/90 rounded-full p-1.5 backdrop-blur-sm shadow-sm transition-colors">
         <ThemeToggle className="transition-colors" />
       </div>
+      
+      {/* Language toggle */}
+      <LanguageToggle />
       
       {/* Donate button as a glowing yellow circle */}
       <div className="relative group">

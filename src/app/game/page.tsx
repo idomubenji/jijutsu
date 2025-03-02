@@ -11,6 +11,7 @@ import { useKanjiRadicals } from '@/hooks/useKanjiRadicals';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import GameNav from '@/components/GameNav';
 import { AuthStateListener } from '@/components/AuthStateListener';
+import { useLanguage } from '@/context/LanguageContext';
 import './animations.css';
 import { useSearchParams, useRouter } from 'next/navigation';
 
@@ -343,6 +344,9 @@ function GamePageClient() {
   const addNotification = useCallback((message: string, type: 'success' | 'info' = 'info', kanji?: string) => {
     // For kanji discovery notifications, use kanji as a unique key
     if (type === 'success' && kanji && message.includes(`You discovered ${kanji}!`)) {
+      // Use our translated success message
+      message = t('success.combination');
+      
       // First check if we already have this notification
       const isDuplicate = notifications.some(
         notif => notif.type === 'success' && notif.kanji === kanji && 
@@ -2216,6 +2220,26 @@ function GamePageClient() {
     };
   }, [kanjiMeanings, radicalMeanings, generateUniqueId]);
 
+  // Add the language context
+  const { t } = useLanguage();
+
+  // Add a function to show success notification when kanji are formed
+  const showSuccessNotification = useCallback((kanji: string) => {
+    const newNotification: Notification = {
+      id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      message: t('success.combination'),
+      type: 'success',
+      kanji
+    };
+    
+    setNotifications(prev => [...prev, newNotification]);
+    
+    // Auto remove notification after a delay
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
+    }, 5000);
+  }, [t]);
+
   if (loadingData) {
     console.log('Rendering loading screen, loadingData =', loadingData);
     return (
@@ -2260,7 +2284,7 @@ function GamePageClient() {
           <DialogContent className="sm:max-w-[400px] bg-stone-50/95 dark:bg-stone-800/95 backdrop-blur-sm">
             <DialogHeader>
               <DialogTitle className="text-xl text-center text-black dark:text-white">
-                Kanji Details
+                {t('kanji.details.title')}
               </DialogTitle>
             </DialogHeader>
             
@@ -2353,7 +2377,7 @@ function GamePageClient() {
             <DialogHeader>
               <DialogTitle className="text-2xl text-black dark:text-white">Welcome to Jijutsu! 字術</DialogTitle>
               <DialogDescription className="text-base mt-2 text-black/70 dark:text-white/80">
-                Discover kanji by combining their component radicals
+                {t('drag.instructions')}
               </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-4">
@@ -2416,7 +2440,7 @@ function GamePageClient() {
               onClick={clearGameArea}
               className="bg-white/80 dark:bg-stone-800/80 backdrop-blur-sm"
             >
-              Clear Workspace
+              {t('clear.button')}
             </Button>
           </div>
 
@@ -2511,40 +2535,28 @@ function GamePageClient() {
           ))}
 
           {/* Notifications */}
-          <div className="absolute top-16 right-6 flex flex-col items-end space-y-2 max-w-xs">
-            {notifications.map((notification) => {
-              // Generate a stable but unique key for each notification item
-              const itemKey = `notification-${notification.id}`;
-              const bgColorClass = notification.type === 'success' 
-                ? 'bg-green-500 dark:bg-green-700' 
-                : 'bg-[#78B693]/80 dark:bg-[#78B693]/80';
-              
-              return (
-                <div 
-                  key={itemKey}
-                  className={`px-4 py-2 rounded-lg shadow-lg text-white flex items-center justify-between w-full
-                    ${bgColorClass} animate-in slide-in-from-right-5 duration-300`}
+          <div className="fixed top-20 right-4 z-50 flex flex-col gap-2 items-end">
+            {notifications.map((notification) => (
+              <div 
+                key={notification.id} 
+                className={`flex items-center gap-2 py-2 px-3 rounded-md shadow-md animate-slideIn ${
+                  notification.type === 'success' 
+                    ? 'bg-[#78B693]/90 text-white' 
+                    : 'bg-blue-500/90 text-white'
+                }`}
+              >
+                <span>{notification.message}</span>
+                {notification.kanji && (
+                  <span className="text-xl font-bold">{notification.kanji}</span>
+                )}
+                <button 
+                  onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+                  className="ml-2 text-white/70 hover:text-white"
                 >
-                  <div className="flex items-center gap-2">
-                    {notification.kanji && (
-                      <span className="text-xl font-bold mr-2">{notification.kanji}</span>
-                    )}
-                    <span>{notification.message}</span>
-                  </div>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation(); // Stop event propagation
-                      console.log(`Manually closing notification: ${notification.id}`);
-                      setNotifications(prev => prev.filter(n => n.id !== notification.id));
-                    }}
-                    className="ml-2 text-white hover:text-gray-200"
-                    aria-label="Close notification"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              );
-            })}
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
           </div>
 
           {/* Auth buttons at bottom left */}
@@ -2748,7 +2760,7 @@ function GamePageClient() {
           {/* Radical container */}
           <div className="p-3 border-b border-stone-200 dark:border-stone-700">
             <div className="flex justify-between items-center">
-              <h3 className="font-semibold dark:text-stone-300">Radicals ({sidebarRadicals.length})</h3>
+              <h3 className="font-semibold dark:text-stone-300">{t('radical.sidebar.title')} ({sidebarRadicals.length})</h3>
               <div className="text-xs text-stone-500 dark:text-stone-400">
                 {user ? (
                   <div className="flex items-center gap-1">
