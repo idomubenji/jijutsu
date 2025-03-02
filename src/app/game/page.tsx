@@ -92,6 +92,11 @@ function GamePageClient() {
   // Game state
   const { data: kanjiData, loading: loadingGameData } = useKanjiRadicals();
   
+  // Constants and refs
+  const DISCOVERY_COOLDOWN = 10000; // 10 seconds cooldown between same kanji discoveries
+  // Track recently discovered kanji to prevent duplicates using a ref
+  const recentDiscoveriesRef = useRef<Map<string, number>>(new Map());
+  
   // Add dark mode toggle
   const [isDarkMode, setIsDarkMode] = useState(false);
   
@@ -183,8 +188,6 @@ function GamePageClient() {
   const [sortedRadicals, setSortedRadicals] = useState<string[]>([]);
   
   // Add a debounce map to track recent discoveries
-  const recentDiscoveries = new Map<string, number>();
-  const DISCOVERY_COOLDOWN = 2000; // 2 seconds cooldown
   
   // Add state for kanji details dialog
   const [selectedKanji, setSelectedKanji] = useState<string | null>(null);
@@ -336,18 +339,31 @@ function GamePageClient() {
     code?: string;
   }
 
-  // Function to add notifications
+  // Function to add notifications with better duplicate detection
   const addNotification = useCallback((message: string, type: 'success' | 'info' = 'info', kanji?: string) => {
-    // Check if we're adding a duplicate kanji discovery notification
-    if (type === 'success' && kanji) {
+    // For kanji discovery notifications, use kanji as a unique key
+    if (type === 'success' && kanji && message.includes(`You discovered ${kanji}!`)) {
+      // First check if we already have this notification
       const isDuplicate = notifications.some(
-        notif => notif.type === 'success' && notif.kanji === kanji && notif.message.includes(`You discovered ${kanji}!`)
+        notif => notif.type === 'success' && notif.kanji === kanji && 
+          notif.message.includes(`You discovered ${kanji}!`)
       );
       
       if (isDuplicate) {
-        // Skip duplicate kanji discovery notifications
+        console.log(`Skipping duplicate kanji discovery notification for ${kanji}`);
         return;
       }
+      
+      // Also check recent discoveries to avoid duplicate notifications
+      const lastDiscoveryTime = recentDiscoveriesRef.current.get(kanji);
+      const now = Date.now();
+      if (lastDiscoveryTime && (now - lastDiscoveryTime) < DISCOVERY_COOLDOWN) {
+        console.log(`Suppressing notification for recently discovered kanji: ${kanji}`);
+        return;
+      }
+      
+      // Mark this kanji as recently discovered
+      recentDiscoveriesRef.current.set(kanji, now);
     }
     
     // For error messages about loading Kanji collection, only show once per session
@@ -371,20 +387,35 @@ function GamePageClient() {
       }
     }
     
+    // Generate a more specific ID for kanji notifications
+    const notificationId = type === 'success' && kanji 
+      ? `kanji-${kanji}-${Date.now()}`
+      : Date.now().toString();
+    
     const newNotification: Notification = {
-      id: Date.now().toString(),
+      id: notificationId,
       message,
       type,
       kanji
     };
     
+    // Log notification creation
+    console.log(`Creating notification: ${type} - ${message} - ID: ${notificationId}`);
+    
     setNotifications(prev => [...prev, newNotification]);
     
     // Auto-remove notification after 5 seconds
     setTimeout(() => {
-      setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
+      setNotifications(prev => {
+        // Only remove if the notification still exists
+        if (prev.some(n => n.id === notificationId)) {
+          console.log(`Auto-removing notification ID: ${notificationId}`);
+          return prev.filter(n => n.id !== notificationId);
+        }
+        return prev;
+      });
     }, 5000);
-  }, [notifications]);
+  }, [notifications, DISCOVERY_COOLDOWN]);
 
   // Fetch user kanji data from Supabase
   const fetchUserKanjiData = useCallback(async (forceRefresh = false) => {
@@ -662,7 +693,7 @@ function GamePageClient() {
     }
     
     // Check if this kanji was recently discovered to prevent loops
-    const lastDiscoveryTime = recentDiscoveries.get(kanji);
+    const lastDiscoveryTime = recentDiscoveriesRef.current.get(kanji);
     const now = Date.now();
     if (lastDiscoveryTime && (now - lastDiscoveryTime) < DISCOVERY_COOLDOWN) {
       console.log('Skipping duplicate discovery attempt for:', kanji);
@@ -672,12 +703,12 @@ function GamePageClient() {
       console.log('----- KANJI DISCOVERY TRACE END -----');
       return;
     }
-    recentDiscoveries.set(kanji, now);
+    recentDiscoveriesRef.current.set(kanji, now);
     
     // Clean up old entries from recentDiscoveries
-    for (const [k, time] of recentDiscoveries.entries()) {
+    for (const [k, time] of recentDiscoveriesRef.current.entries()) {
       if (now - time > DISCOVERY_COOLDOWN) {
-        recentDiscoveries.delete(k);
+        recentDiscoveriesRef.current.delete(k);
       }
     }
 
@@ -2386,7 +2417,11 @@ function GamePageClient() {
                     <span>{notification.message}</span>
                   </div>
                   <button 
-                    onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+                    onClick={(e) => {
+                      e.stopPropagation(); // Stop event propagation
+                      console.log(`Manually closing notification: ${notification.id}`);
+                      setNotifications(prev => prev.filter(n => n.id !== notification.id));
+                    }}
                     className="ml-2 text-white hover:text-gray-200"
                     aria-label="Close notification"
                   >
