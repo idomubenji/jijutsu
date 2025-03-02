@@ -137,6 +137,12 @@ function GamePageClient() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   
+  // Use a ref to store the current user ID to avoid closure issues with the auth listener
+  const currentUserIdRef = useRef<string | null>(null);
+  
+  // Use a ref to track if we've shown an error notification in this session
+  const hasShownErrorRef = useRef<boolean>(false);
+  
   const [elements, setElements] = useState<GameElement[]>([]);
   
   // Game instruction dialog
@@ -342,6 +348,15 @@ function GamePageClient() {
         // Skip duplicate kanji discovery notifications
         return;
       }
+    }
+    
+    // For error messages about loading Kanji collection, only show once per session
+    if (type === 'info' && message.includes('Error loading your Kanji Collection')) {
+      if (hasShownErrorRef.current) {
+        console.log('Suppressing duplicate Kanji Collection error notification');
+        return;
+      }
+      hasShownErrorRef.current = true;
     }
     
     // Also check for duplicate error messages
@@ -907,11 +922,15 @@ function GamePageClient() {
             lastSignIn: new Date(session.user.last_sign_in_at || '').toISOString()
           });
           
+          // Store user ID in ref for comparison
+          currentUserIdRef.current = session.user.id;
+          
           // Set user before calling any dependent functions
           setUser(session.user);
           setHasSyncedKanji(false); // Reset sync flag to ensure we sync on sign-in
         } else {
           setUser(null);
+          currentUserIdRef.current = null;
         }
         
         console.log('----- AUTH CHECK TRACE END -----');
@@ -935,34 +954,49 @@ function GamePageClient() {
         console.log('Auth state changed:', event);
         console.log('New session:', session ? 'Session exists' : 'No session');
         
-        const previousUser = user;
-        const currentUser = session?.user || null;
+        // Get new user ID from session
+        const newUserId = session?.user?.id || null;
         
-        console.log('Previous user:', previousUser ? `ID: ${previousUser.id}` : 'null');
-        console.log('Current user:', currentUser ? `ID: ${currentUser.id}` : 'null');
+        // Log for debugging
+        console.log('Current user ID in ref:', currentUserIdRef.current);
+        console.log('New user ID from event:', newUserId);
         
-        // If user just signed in (previously null, now has value)
-        if (!previousUser && currentUser) {
-          console.log('User signed in - updating state');
-          setUser(currentUser);
-          setHasSyncedKanji(false); // Reset sync flag to ensure we sync
-          await fetchUserKanjiData(true); // Force refresh
-        } 
-        // If user just signed out (previously had value, now null)
-        else if (previousUser && !currentUser) {
-          console.log('User signed out - clearing state');
-          setUser(null);
-          setDiscoveredKanji(new Set());
-          setSupabaseKanji([]);
-          setUserKanjiCount(0);
-          setHasSyncedKanji(false);
-        } 
-        // User changed - update user
-        else if (previousUser?.id !== currentUser?.id) {
-          console.log('Different user signed in - updating state');
-          setUser(currentUser);
-          setHasSyncedKanji(false); // Reset sync flag for new user
-          await fetchUserKanjiData(true); // Force refresh
+        // Skip redundant SIGNED_IN events for the same user
+        if (event === 'SIGNED_IN' && newUserId === currentUserIdRef.current) {
+          console.log('Ignoring redundant SIGNED_IN event for the same user');
+          return;
+        }
+        
+        // Handle actual user changes based on ID comparison
+        if (newUserId !== currentUserIdRef.current) {
+          // Update the ref
+          currentUserIdRef.current = newUserId;
+          
+          // If user just signed in (previously null, now has value)
+          if (!user && newUserId) {
+            console.log('User signed in - updating state');
+            setUser(session?.user || null);
+            setHasSyncedKanji(false); // Reset sync flag to ensure we sync
+            await fetchUserKanjiData(true); // Force refresh
+          } 
+          // If user just signed out (previously had value, now null)
+          else if (user && !newUserId) {
+            console.log('User signed out - clearing state');
+            setUser(null);
+            setDiscoveredKanji(new Set());
+            setSupabaseKanji([]);
+            setUserKanjiCount(0);
+            setHasSyncedKanji(false);
+          } 
+          // User changed - update user
+          else if (user?.id !== newUserId) {
+            console.log('Different user signed in - updating state');
+            setUser(session?.user || null);
+            setHasSyncedKanji(false); // Reset sync flag for new user
+            await fetchUserKanjiData(true); // Force refresh
+          }
+        } else {
+          console.log('User ID unchanged, ignoring auth state change event');
         }
       }
     );
@@ -971,7 +1005,7 @@ function GamePageClient() {
       console.log('Cleaning up auth listener');
       subscription.unsubscribe();
     };
-  }, [recordKanjiDiscovery, addNotification, fetchUserKanjiData, hasSyncedKanji]);
+  }, [user, recordKanjiDiscovery, addNotification, fetchUserKanjiData, hasSyncedKanji]);
 
   // Add this new handler for starting drags from the sidebar
   const handleSidebarDragStart = (radical: string, clientX: number, clientY: number, elementRect: DOMRect) => {

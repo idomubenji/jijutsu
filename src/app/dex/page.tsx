@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import DexGrid from "@/components/DexGrid";
 import GameNav from "@/components/GameNav";
 import { supabase } from '@/lib/supabase';
@@ -94,9 +94,24 @@ export default function DexPage() {
 
   // Track shown error messages to prevent duplicates
   const [shownErrorMessages, setShownErrorMessages] = useState<Set<string>>(new Set());
+  
+  // Use a ref to store the current user ID to avoid closure issues with the auth listener
+  const currentUserIdRef = useRef<string | null>(null);
+  
+  // Use a ref to track if we've shown an error notification in this session
+  const hasShownErrorRef = useRef<boolean>(false);
 
   // Function to add notifications
   const addNotification = useCallback((message: string, type: 'success' | 'info' = 'info') => {
+    // For error messages about loading Kanji collection, only show once per session
+    if (type === 'info' && message.includes('Error loading your Kanji Collection')) {
+      if (hasShownErrorRef.current) {
+        console.log('Suppressing duplicate Kanji Collection error notification');
+        return;
+      }
+      hasShownErrorRef.current = true;
+    }
+    
     // Check if this error message has already been shown
     if (type === 'info' && shownErrorMessages.has(message)) {
       return; // Skip duplicate error messages
@@ -314,6 +329,9 @@ export default function DexPage() {
             id: session.user.id,
             email: session.user.email
           });
+          
+          // Set the current user ID in the ref
+          currentUserIdRef.current = session.user.id;
         }
         setUser(session?.user || null);
 
@@ -322,34 +340,44 @@ export default function DexPage() {
           await loadUserKanji(session.user.id);
         }
 
-        // Set up auth state change listener
+        // Set up auth state change listener with modified approach to prevent infinite loops
         const { data: { subscription } } = await supabase.auth.onAuthStateChange(
           async (event, session) => {
-            console.log('Dex page - auth state changed, session:', session ? 'Active' : 'None');
+            console.log('Dex page - auth state changed:', event, 'session:', session ? 'Active' : 'None');
             
-            // Store previous user before updating state
-            const previousUser = user;
-            const currentUser = session?.user || null;
+            // Get the current user from the new session
+            const newUserId = session?.user?.id || null;
             
-            console.log('Previous user:', previousUser ? `ID: ${previousUser?.id}` : 'null');
-            console.log('Current user:', currentUser ? `ID: ${currentUser.id}` : 'null');
+            // Log the comparison for debugging
+            console.log('Current user ID in ref:', currentUserIdRef.current);
+            console.log('New user ID from event:', newUserId);
             
-            // Only update user state if it actually changed
-            if (previousUser?.id !== currentUser?.id) {
-              setUser(currentUser);
+            // Skip redundant SIGNED_IN events for the same user
+            if (event === 'SIGNED_IN' && newUserId === currentUserIdRef.current) {
+              console.log('Ignoring redundant SIGNED_IN event for the same user');
+              return;
+            }
+            
+            // Handle actual user changes
+            if (newUserId !== currentUserIdRef.current) {
+              console.log('User changed or auth state changed significantly');
               
-              // Only load kanji if we have a new user and they're different from the previous user
-              if (currentUser && previousUser?.id !== currentUser.id) {
-                console.log('Dex page - auth changed, loading kanji for user ID:', currentUser.id);
-                await loadUserKanji(currentUser.id);
-              } else if (!currentUser) {
+              // Update the ref and state
+              currentUserIdRef.current = newUserId;
+              setUser(session?.user || null);
+              
+              // Load kanji for new user or clear data for logout
+              if (newUserId) {
+                console.log('Dex page - auth changed, loading kanji for user ID:', newUserId);
+                await loadUserKanji(newUserId);
+              } else {
                 console.log('Dex page - user logged out, clearing unlocked kanji');
                 setUnlockedKanjiNumbers(new Set()); // Clear unlocked kanji when user logs out
                 setUnlockedKanjiDetails(new Map()); // Also clear the details map
                 setUnlockedRadicalCount(10); // Reset to base radicals for non-logged in users
               }
             } else {
-              console.log('Dex page - same user, not reloading kanji data');
+              console.log('Dex page - user ID unchanged, not reloading kanji data');
             }
           }
         );
