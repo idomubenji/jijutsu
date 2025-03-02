@@ -79,6 +79,12 @@ export default function DexPage() {
   const [isKanjiDetailsOpen, setIsKanjiDetailsOpen] = useState(false);
   const [loadingKanjiDetails, setLoadingKanjiDetails] = useState(false);
 
+  // Add a new state to store the actual maximum dex number
+  const [maxAvailableDexNumber, setMaxAvailableDexNumber] = useState(6355);
+
+  // Add a state for available kanji indices
+  const [availableKanjiIndices, setAvailableKanjiIndices] = useState<number[]>([]);
+
   // Convert unlocked numbers to DexItems with kanji data
   const unlockedKanjiItems = useMemo<DexItem[]>(() => {
     return Array.from(unlockedKanjiNumbers).map(dexNumber => {
@@ -265,29 +271,129 @@ export default function DexPage() {
     const loadKanjiData = async () => {
       try {
         console.log('Loading all kanji data from kanji_dex');
-        const { data, error } = await supabase
-          .from('kanji_dex')
-          .select('*')
-          .order('dex_number');
-
-        if (error) {
-          console.error('Error fetching kanji data:', error);
-          throw error;
+        
+        // Use pagination to load all kanji data
+        let allKanjiData: any[] = [];
+        let page = 0;
+        const pageSize = 1000; // Load in chunks of 1000
+        let hasMore = true;
+        let loadingErrors = 0;
+        const maxRetries = 3;
+        
+        while (hasMore && loadingErrors < maxRetries) {
+          try {
+            console.log(`Loading kanji data page ${page + 1}, offset: ${page * pageSize}`);
+            
+            const { data, error } = await supabase
+              .from('kanji_dex')
+              .select('*')
+              .order('dex_number')
+              .range(page * pageSize, (page + 1) * pageSize - 1);
+              
+            if (error) {
+              console.error(`Error fetching kanji data page ${page + 1}:`, error);
+              loadingErrors++;
+              
+              if (loadingErrors >= maxRetries) {
+                console.error(`Too many errors (${loadingErrors}). Stopping data load.`);
+                break;
+              }
+              
+              // Wait a little before retrying
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              continue;
+            }
+            
+            if (!data || data.length === 0) {
+              console.log(`No more kanji data to load after page ${page}`);
+              hasMore = false;
+              break;
+            }
+            
+            console.log(`Loaded ${data.length} kanji entries from page ${page + 1}`);
+            allKanjiData = [...allKanjiData, ...data];
+            
+            // Reset error counter after successful load
+            loadingErrors = 0;
+            
+            // Check if we got a full page
+            if (data.length < pageSize) {
+              hasMore = false;
+            } else {
+              page++;
+            }
+          } catch (e) {
+            console.error(`Unexpected error loading page ${page + 1}:`, e);
+            loadingErrors++;
+            
+            if (loadingErrors >= maxRetries) {
+              console.error(`Too many unexpected errors (${loadingErrors}). Stopping data load.`);
+              break;
+            }
+            
+            // Wait a little before retrying
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
         }
-
-        if (!data || data.length === 0) {
+        
+        // Even if we had errors, proceed with what we have if we got some data
+        if (allKanjiData.length === 0) {
           console.error('No kanji data returned from the database');
           return;
         }
 
+        // Log statistics about the data
+        console.log(`Loaded ${allKanjiData.length} total kanji entries from database`);
+        
+        // Check if we have expected number of kanji (should be around 6355)
+        if (allKanjiData.length < 6000) {
+          console.warn(`Only loaded ${allKanjiData.length} kanji, expected around 6355`);
+          
+          // Try a second approach - get kanji with specific high dex numbers to verify they exist
+          const highIndexesToCheck = [800, 900, 1000, 1200, 1500, 2000, 3000, 4000, 5000];
+          console.log(`Checking for specific high dex numbers: ${highIndexesToCheck.join(', ')}`);
+          
+          for (const index of highIndexesToCheck) {
+            const { data, error } = await supabase
+              .from('kanji_dex')
+              .select('dex_number, kanji')
+              .eq('dex_number', index)
+              .single();
+              
+            if (error) {
+              console.log(`No kanji found with dex_number = ${index}`);
+            } else if (data) {
+              console.log(`Found kanji with dex_number = ${index}: ${data.kanji}`);
+              // Add to our data if it's not already there
+              if (!allKanjiData.some(k => k.dex_number === index)) {
+                allKanjiData.push(data);
+              }
+            }
+          }
+        }
+        
+        // Check for any kanji with high dex numbers
+        const highIndexKanji = allKanjiData.filter(k => k.dex_number > 800);
+        console.log(`Found ${highIndexKanji.length} kanji with dex_number > 800`);
+        
+        // Sample a few high index kanji to verify data quality
+        if (highIndexKanji.length > 0) {
+          const samples = highIndexKanji.slice(0, 5);
+          console.log('Sample high index kanji:', samples.map(k => ({ 
+            dex: k.dex_number, 
+            kanji: k.kanji,
+            meaningCount: Array.isArray(k.meanings) ? k.meanings.length : 0
+          })));
+        }
+
         // Ensure meanings is always an array
-        const processedData = data.map(k => ({
+        const processedData = allKanjiData.map(k => ({
           ...k,
           meanings: Array.isArray(k.meanings) ? k.meanings : []
         }));
 
         setKanjiData(processedData);
-        console.log('Loaded all kanji data, total count:', processedData.length);
+        console.log('Successfully processed all kanji data, total count:', processedData.length);
       } catch (error) {
         console.error('Error loading kanji data:', error);
       } finally {
@@ -367,14 +473,102 @@ export default function DexPage() {
     }
   }, [unlockedRadicalCount, radicalData]);
 
+  // Update the useEffect to store available indices
+  useEffect(() => {
+    // Check if kanjiData is loaded
+    if (kanjiData.length > 0) {
+      // Get all dex numbers that exist in our data
+      const indices = kanjiData.map(k => k.dex_number).sort((a, b) => a - b);
+      setAvailableKanjiIndices(indices);
+      
+      // Get the highest dex number we have data for
+      const maxDexNumber = indices[indices.length - 1];
+      setMaxAvailableDexNumber(maxDexNumber);
+      
+      // If we're showing more kanji than we have data for, log a warning
+      if (maxDexNumber < 6355) {
+        console.warn(`Data inconsistency detected: Total dex slots would be 6355, but highest dex number in data is ${maxDexNumber}`);
+        console.log(`Total kanji available in database: ${indices.length}`);
+        
+        // Check for gaps in indices
+        let gapCount = 0;
+        for (let i = 1; i < indices.length && gapCount < 5; i++) {
+          if (indices[i] - indices[i-1] > 1) {
+            console.log(`Gap found between indices: ${indices[i-1]} and ${indices[i]}`);
+            gapCount++;
+          }
+        }
+        
+        // Log the distribution of indices to help diagnose the issue
+        const buckets = [0, 100, 200, 500, 800, 1000, 1500, 2000, 3000, 6355];
+        for (let i = 1; i < buckets.length; i++) {
+          const count = indices.filter(idx => idx > buckets[i-1] && idx <= buckets[i]).length;
+          console.log(`Kanji with indices ${buckets[i-1]}+1 to ${buckets[i]}: ${count}`);
+        }
+      }
+    }
+  }, [kanjiData]);
+  
+  // Create kanji items for the grid based on available indices
+  const kanjiGridItems = useMemo<DexItem[]>(() => {
+    // If we're in show only unlocked mode, return unlockedKanjiItems
+    if (showOnlyUnlocked) {
+      return unlockedKanjiItems;
+    }
+    
+    // Otherwise, create items for each available index
+    return availableKanjiIndices.map(index => {
+      // Check if this index is unlocked
+      const isUnlocked = unlockedKanjiNumbers.has(index);
+      
+      if (isUnlocked) {
+        // If unlocked, get data from unlocked items
+        const unlockedItem = unlockedKanjiItems.find(item => item.index === index);
+        if (unlockedItem) {
+          return unlockedItem;
+        }
+      }
+      
+      // Get data from kanjiData
+      const kanjiEntry = kanjiData.find(k => k.dex_number === index);
+      
+      return {
+        index,
+        unlocked: isUnlocked,
+        character: isUnlocked && kanjiEntry?.kanji ? kanjiEntry.kanji : '',
+        meaning: isUnlocked && kanjiEntry?.meanings?.[0] ? kanjiEntry.meanings[0] : ''
+      };
+    });
+  }, [availableKanjiIndices, unlockedKanjiItems, unlockedKanjiNumbers, kanjiData, showOnlyUnlocked]);
+
+  // Helper function to validate and process kanji data
+  const validateKanjiData = (data: any) => {
+    if (!data) return null;
+    
+    return {
+      ...data,
+      // Ensure meanings is an array
+      meanings: Array.isArray(data.meanings) ? data.meanings : [],
+      // Ensure on_reading and kun_reading are arrays if they exist
+      on_reading: data.on_reading ? 
+        (Array.isArray(data.on_reading) ? data.on_reading : []) : [],
+      kun_reading: data.kun_reading ? 
+        (Array.isArray(data.kun_reading) ? data.kun_reading : []) : []
+    };
+  };
+
   // Add function to fetch kanji details
   const fetchKanjiDetails = async (kanji: string) => {
     if (!kanji) return;
     
-    console.log('Fetching details for kanji:', kanji);
+    console.log('Fetching details for kanji:', kanji, 'Character code:', kanji.charCodeAt(0));
     setLoadingKanjiDetails(true);
     
     try {
+      // First try to get the kanji details from our already loaded kanjiData
+      const kanjiFromMemory = kanjiData.find(k => k.kanji === kanji);
+      console.log('Kanji found in memory?', !!kanjiFromMemory, kanjiFromMemory ? kanjiFromMemory.dex_number : 'N/A');
+      
       const { data, error } = await supabase
         .from('kanji_dex')
         .select('id, kanji, dex_number, meanings, on_reading, kun_reading')
@@ -385,10 +579,22 @@ export default function DexPage() {
       
       if (error) {
         console.error('Error fetching kanji details:', error);
+        
+        // If we couldn't get it from Supabase but have it in memory, use that
+        if (kanjiFromMemory) {
+          console.log('Using in-memory data as fallback for kanji:', kanji);
+          const processedData = validateKanjiData(kanjiFromMemory);
+          setKanjiDetails(processedData);
+          setIsKanjiDetailsOpen(true);
+        } else {
+          console.error('Could not find kanji data anywhere:', kanji);
+        }
         return;
       }
       
-      setKanjiDetails(data);
+      // Process data to ensure consistent format
+      const processedData = validateKanjiData(data);
+      setKanjiDetails(processedData);
       setIsKanjiDetailsOpen(true);
     } catch (error) {
       console.error('Unexpected error fetching kanji details:', error);
@@ -427,6 +633,138 @@ export default function DexPage() {
       document.body.style.overflow = originalStyle;
     };
   }, []);
+
+  // Add a helper function to fetch kanji by dex number
+  const fetchKanjiByDexNumber = async (dexNumber: number) => {
+    console.log('Attempting to fetch kanji by dex number:', dexNumber);
+    
+    // First try to find it in our cached data
+    const kanjiFromMemory = kanjiData.find(k => k.dex_number === dexNumber);
+    if (kanjiFromMemory) {
+      console.log('Found kanji in memory for dex number:', dexNumber, kanjiFromMemory);
+      
+      // Process the data to ensure it has all required fields
+      const processedKanji = {
+        ...kanjiFromMemory,
+        // Ensure meanings is an array
+        meanings: Array.isArray(kanjiFromMemory.meanings) ? kanjiFromMemory.meanings : [],
+        // Ensure on_reading and kun_reading are arrays if they exist
+        on_reading: kanjiFromMemory.on_reading ? 
+          (Array.isArray(kanjiFromMemory.on_reading) ? kanjiFromMemory.on_reading : []) : undefined,
+        kun_reading: kanjiFromMemory.kun_reading ? 
+          (Array.isArray(kanjiFromMemory.kun_reading) ? kanjiFromMemory.kun_reading : []) : undefined
+      };
+      
+      console.log('Using processed in-memory kanji data:', processedKanji);
+      setKanjiDetails(processedKanji);
+      setIsKanjiDetailsOpen(true);
+      return processedKanji;
+    }
+    
+    // If not in memory, try to fetch from the database directly
+    try {
+      console.log('Kanji not found in memory, trying database for dex number:', dexNumber);
+      const { data, error } = await supabase
+        .from('kanji_dex')
+        .select('id, kanji, dex_number, meanings, on_reading, kun_reading')
+        .eq('dex_number', dexNumber)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching kanji by dex number:', error);
+        return null;
+      }
+      
+      if (data) {
+        console.log('Found kanji in database for dex number:', dexNumber, data);
+        
+        // Process the data to ensure it has all required fields
+        const processedKanji = {
+          ...data,
+          // Ensure meanings is an array
+          meanings: Array.isArray(data.meanings) ? data.meanings : [],
+          // Ensure on_reading and kun_reading are arrays if they exist
+          on_reading: data.on_reading ? 
+            (Array.isArray(data.on_reading) ? data.on_reading : []) : undefined,
+          kun_reading: data.kun_reading ? 
+            (Array.isArray(data.kun_reading) ? data.kun_reading : []) : undefined
+        };
+        
+        console.log('Using processed database kanji data:', processedKanji);
+        setKanjiDetails(processedKanji);
+        setIsKanjiDetailsOpen(true);
+        return processedKanji;
+      } else {
+        console.warn(`No kanji found with dex_number = ${dexNumber} in database`);
+      }
+    } catch (error) {
+      console.error('Unexpected error fetching kanji by dex number:', error);
+    }
+    
+    // If we get here, we couldn't find the kanji
+    console.warn(`Could not find kanji with dex_number = ${dexNumber} anywhere`);
+    return null;
+  };
+
+  // Update the onItemClick handler to use the new function when needed
+  const handleKanjiClick = async (index: number) => {
+    console.log('DexGrid item clicked:', index);
+    
+    // Skip invalid indices
+    if (index <= 0 || index > maxAvailableDexNumber) {
+      console.warn(`Clicked on invalid kanji index: ${index}. Valid range is 1-${maxAvailableDexNumber}`);
+      return;
+    }
+    
+    // Check if this index is in our available indices list
+    if (!availableKanjiIndices.includes(index)) {
+      console.warn(`Clicked on kanji index ${index} which is not in our available indices list`);
+      // Try to fetch by dex number directly as a fallback
+      const fetchedKanji = await fetchKanjiByDexNumber(index);
+      if (fetchedKanji) {
+        console.log(`Successfully fetched and displayed kanji with dex number ${index}: ${fetchedKanji.kanji}`);
+      } else {
+        console.error(`Failed to fetch kanji with dex number ${index}`);
+      }
+      return;
+    }
+    
+    // Find the kanji data for this index
+    const kanjiItem = kanjiData.find(k => k.dex_number === index);
+    if (kanjiItem?.kanji) {
+      console.log('Found kanji data:', kanjiItem);
+      fetchKanjiDetails(kanjiItem.kanji);
+    } else {
+      console.error('Could not find kanji data for index:', index);
+      // This should be rare since we've already checked availableKanjiIndices
+      console.log('Available kanji indices count:', availableKanjiIndices.length);
+      
+      // Try to fetch by dex number directly as a fallback
+      console.log('Trying to fetch by dex number as fallback');
+      const fetchedKanji = await fetchKanjiByDexNumber(index);
+      if (fetchedKanji) {
+        console.log(`Successfully fetched and displayed kanji with dex number ${index}: ${fetchedKanji.kanji}`);
+      } else {
+        console.error(`Failed to fetch kanji with dex number ${index}`);
+        
+        // If we're in development, give info about highest and lowest indices
+        if (process.env.NODE_ENV === 'development') {
+          const indices = kanjiData.map(k => k.dex_number).sort((a, b) => a - b);
+          if (indices.length > 0) {
+            console.log('Min index:', indices[0], 'Max index:', indices[indices.length - 1]);
+            // Check if there are any gaps in the sequence
+            let gapCount = 0;
+            for (let i = 1; i < indices.length && gapCount < 5; i++) {
+              if (indices[i] - indices[i-1] > 1) {
+                console.log('Gap found between indices:', indices[i-1], 'and', indices[i]);
+                gapCount++;
+              }
+            }
+          }
+        }
+      }
+    }
+  };
 
   if (loading) {
     return (
@@ -564,17 +902,9 @@ export default function DexPage() {
           <div className="flex-1 overflow-hidden">
             <DexGrid 
               title="" 
-              totalItems={showOnlyUnlocked ? unlockedKanjiItems.length : 6355} 
+              totalItems={showOnlyUnlocked ? unlockedKanjiItems.length : kanjiGridItems.length} 
               unlockedItems={unlockedKanjiItems}
-              onItemClick={(index) => {
-                console.log('DexGrid item clicked:', index);
-                // Find the kanji data for this index
-                const kanjiItem = kanjiData.find(k => k.dex_number === index);
-                if (kanjiItem?.kanji) {
-                  console.log('Found kanji data:', kanjiItem);
-                  fetchKanjiDetails(kanjiItem.kanji);
-                }
-              }}
+              onItemClick={handleKanjiClick}
               showOnlyUnlocked={showOnlyUnlocked}
             />
           </div>

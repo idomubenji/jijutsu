@@ -24,7 +24,10 @@ export default function DexGrid({
 }: DexGridProps) {
   // Create a map for quick lookup of unlocked items
   const unlockedMap = new Map(unlockedItems.map(item => [item.index, item]));
-
+  
+  // Create a set of all indices that we know exist (both from unlocked items and the totalItems)
+  const allAvailableIndices = new Set<number>(unlockedItems.map(item => item.index));
+  
   // Generate grid items based on showOnlyUnlocked
   const gridItems = showOnlyUnlocked
     ? unlockedItems.sort((a, b) => a.index - b.index) // Sort by index when only showing unlocked
@@ -32,8 +35,24 @@ export default function DexGrid({
         const index = i + 1;
         // Check if we have an unlocked item with this index
         const unlockedItem = unlockedMap.get(index);
+        
+        // If we found an unlocked item, also add its index to our set of known indices
+        if (unlockedItem) {
+          allAvailableIndices.add(index);
+        }
+        
         return unlockedItem || { index };
       });
+
+  // Safe click handler
+  const handleItemClick = (index: number) => {
+    // Only call the click handler if we're sure this index exists
+    if (onItemClick && (allAvailableIndices.has(index) || index <= totalItems)) {
+      onItemClick(index);
+    } else {
+      console.warn(`Ignoring click on non-existent kanji index: ${index}`);
+    }
+  };
 
   return (
     <section className="flex flex-col h-full">
@@ -63,7 +82,7 @@ export default function DexGrid({
                     ? 'bg-green-50 dark:bg-green-900 hover:bg-green-100 dark:hover:bg-green-800 hover:scale-105' 
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700 hover:scale-105'}
                 `}
-                onClick={() => onItemClick && onItemClick(item.index)}
+                onClick={() => handleItemClick(item.index)}
               >
                 <div className="text-lg font-bold">
                   {isUnlocked && item.character ? item.character : item.index}
