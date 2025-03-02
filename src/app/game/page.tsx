@@ -344,6 +344,18 @@ function GamePageClient() {
       }
     }
     
+    // Also check for duplicate error messages
+    if (type === 'info' && !kanji) {
+      const isDuplicateError = notifications.some(
+        notif => notif.type === 'info' && notif.message === message
+      );
+      
+      if (isDuplicateError) {
+        // Skip duplicate error notifications
+        return;
+      }
+    }
+    
     const newNotification: Notification = {
       id: Date.now().toString(),
       message,
@@ -470,7 +482,7 @@ function GamePageClient() {
       
       if (countError) {
         console.error('Failed to get kanji count after all retries:', countError);
-        addNotification('Error loading your kanji collection. Please try again later.', 'info');
+        addNotification('Error loading your Kanji Collection. Please check your internet connection and try again.', 'info');
         setIsLoadingUserKanji(false);
         // Try to restart the connection in the background
         restartSupabaseConnection();
@@ -498,12 +510,12 @@ function GamePageClient() {
       let userKanjiData: UserKanjiResponse[] | null = null;
       let kanjiError: SupabaseError | null = null;
       
-      // Use the same retry pattern for fetching kanji details
+      // Retry loop for getting the kanji details
       while (retries <= maxRetries && userKanjiData === null && !kanjiError) {
         try {
-          // Use a regular promise race with setTimeout for timeout handling
+          // Use a regular promise with AbortController for timeout handling
           const abortController = new AbortController();
-          const timeoutId = setTimeout(() => abortController.abort(), timeout);
+          const timeoutId = setTimeout(() => abortController.abort('Timeout exceeded'), timeout);
           
           console.log(`Attempt ${retries + 1}/${maxRetries + 1} - Fetching kanji details...`);
           
@@ -515,22 +527,25 @@ function GamePageClient() {
                 kanji_id,
                 kanji_dex!inner (
                   id,
-                  dex_number,
-                  kanji,
-                  meanings
+                  kanji
                 )
               `)
-              .eq('user_id', user.id)
-              .returns<UserKanjiResponse[]>();
+              .eq('user_id', user.id);
             
             clearTimeout(timeoutId);
             
             if (error) {
-              console.error(`Attempt ${retries + 1}/${maxRetries + 1} - Error fetching kanji details:`, error);
+              console.error(`Attempt ${retries + 1}/${maxRetries + 1} - Error getting kanji details:`, error);
               kanjiError = error;
+              retries++;
+              
+              if (retries <= maxRetries) {
+                console.log(`Retrying kanji details in ${retries * 1000}ms...`);
+                await new Promise(resolve => setTimeout(resolve, retries * 1000));
+              }
             } else {
-              userKanjiData = data;
-              console.log(`Successfully got kanji details for ${data?.length || 0} kanji`);
+              userKanjiData = data as unknown as UserKanjiResponse[];
+              console.log(`Successfully got kanji details: ${userKanjiData.length} entries`);
             }
           } catch (fetchError) {
             clearTimeout(timeoutId);
@@ -576,7 +591,7 @@ function GamePageClient() {
       
       if (kanjiError) {
         console.error('Error fetching user kanji after all retries:', kanjiError instanceof Error ? kanjiError.message : JSON.stringify(kanjiError));
-        addNotification('Error loading your kanji details. Please try again later.', 'info');
+        addNotification('Error loading your Kanji Collection. Please check your internet connection and try again.', 'info');
         setIsLoadingUserKanji(false);
         // Try to restart the connection in the background
         restartSupabaseConnection();
@@ -610,7 +625,7 @@ function GamePageClient() {
       }
     } catch (error) {
       console.error('Unexpected error in fetchUserKanjiData:', error);
-      addNotification('Error loading your kanji collection. Please try again later.', 'info');
+      addNotification('Error loading your Kanji Collection. Please check your internet connection and try again.', 'info');
       // Try to restart the connection in the background
       restartSupabaseConnection();
     } finally {

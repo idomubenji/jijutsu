@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import DexGrid from "@/components/DexGrid";
 import GameNav from "@/components/GameNav";
 import { supabase } from '@/lib/supabase';
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 // Import sorted radicals
 import sortedRadicals from '../../../sorted-radicals.json';
@@ -84,6 +84,42 @@ export default function DexPage() {
 
   // Add a state for available kanji indices
   const [availableKanjiIndices, setAvailableKanjiIndices] = useState<number[]>([]);
+
+  // Add notification state
+  const [notifications, setNotifications] = useState<{
+    id: string;
+    message: string;
+    type: 'success' | 'info';
+  }[]>([]);
+
+  // Track shown error messages to prevent duplicates
+  const [shownErrorMessages, setShownErrorMessages] = useState<Set<string>>(new Set());
+
+  // Function to add notifications
+  const addNotification = useCallback((message: string, type: 'success' | 'info' = 'info') => {
+    // Check if this error message has already been shown
+    if (type === 'info' && shownErrorMessages.has(message)) {
+      return; // Skip duplicate error messages
+    }
+    
+    const newNotification = {
+      id: Date.now().toString(),
+      message,
+      type,
+    };
+    
+    setNotifications(prev => [...prev, newNotification]);
+    
+    // For error messages, track that we've shown this message
+    if (type === 'info') {
+      setShownErrorMessages(prev => new Set(prev).add(message));
+    }
+    
+    // Auto-remove notification after 5 seconds
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
+    }, 5000);
+  }, [shownErrorMessages]);
 
   // Convert unlocked numbers to DexItems with kanji data
   const unlockedKanjiItems = useMemo<DexItem[]>(() => {
@@ -218,6 +254,7 @@ export default function DexPage() {
       // If all retries failed, handle the error
       if (error) {
         console.error('Error loading user kanji after all retries:', error);
+        addNotification('Error loading your Kanji Collection. Please check your internet connection and try again.', 'info');
         console.log('----- DEX PAGE LOAD USER KANJI END -----');
         return;
       }
@@ -985,6 +1022,54 @@ export default function DexPage() {
             />
           </div>
         </div>
+      </div>
+
+      {!isKanjiDetailsOpen && (
+        <div 
+          className="fixed bottom-4 right-4 cursor-pointer" 
+          onClick={() => setShowOnlyUnlocked(!showOnlyUnlocked)}
+        >
+          <Switch 
+            checked={showOnlyUnlocked} 
+            onCheckedChange={handleToggle}
+            className="data-[state=checked]:bg-green-500"
+          />
+          <span className="text-sm ml-2 text-gray-600 dark:text-gray-400">
+            {showOnlyUnlocked ? "Showing unlocked only" : "Showing all"}
+          </span>
+        </div>
+      )}
+      
+      {/* Notifications */}
+      <div className="fixed top-20 right-6 flex flex-col items-end space-y-2 max-w-xs z-50">
+        {notifications.map((notification) => {
+          const itemKey = `notification-${notification.id}`;
+          const bgColorClass = notification.type === 'success' 
+            ? 'bg-green-500 dark:bg-green-700' 
+            : 'bg-[#78B693]/80 dark:bg-[#78B693]/80';
+          
+          return (
+            <div 
+              key={itemKey}
+              className={`px-4 py-2 rounded-lg shadow-lg text-white flex items-center justify-between w-full
+                ${bgColorClass} animate-in slide-in-from-right-5 duration-300`}
+            >
+              <div className="flex items-center gap-2">
+                <span>{notification.message}</span>
+              </div>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setNotifications(prev => prev.filter(n => n.id !== notification.id));
+                }}
+                className="ml-2 text-white hover:text-gray-200"
+                aria-label="Close notification"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
