@@ -5,12 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase';
+import { useLanguage } from '@/context/LanguageContext';
 
 interface SignupFormProps {
   onSuccess?: () => void;
 }
 
 export function SignupForm({ onSuccess }: SignupFormProps) {
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null);
@@ -21,12 +23,12 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
     e.preventDefault();
     
     if (!email || !email.includes('@')) {
-      setMessage({ text: 'Please enter a valid email address', isError: true });
+      setMessage({ text: t('invalid.email'), isError: true });
       return;
     }
 
     if (!password || password.length < 6) {
-      setMessage({ text: 'Password must be at least 6 characters', isError: true });
+      setMessage({ text: t('password.min.length'), isError: true });
       return;
     }
 
@@ -46,7 +48,7 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
         console.error('Error checking if email exists:', signInError);
       } else if (signInData?.user) {
         // The email exists and is verified (we got a wrong password error but the email is valid)
-        setMessage({ text: 'An account with this email already exists. Please sign in instead.', isError: true });
+        setMessage({ text: t('email.exists'), isError: true });
         setIsSubmitting(false);
         return;
       }
@@ -64,7 +66,7 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
       }
 
       if (existingUser) {
-        setMessage({ text: 'An account with this email already exists. Please sign in instead.', isError: true });
+        setMessage({ text: t('email.exists'), isError: true });
         setIsSubmitting(false);
         return;
       }
@@ -79,7 +81,7 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
         console.error('Supabase auth signUp error:', error);
         // Check if the error is related to an existing account
         if (error.message.includes('already registered')) {
-          setMessage({ text: 'An account with this email already exists. Please sign in instead.', isError: true });
+          setMessage({ text: t('email.exists'), isError: true });
           setIsSubmitting(false);
           return;
         }
@@ -93,7 +95,7 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
       // Check if the email was already confirmed (indicating existing verified account)
       if (data.user.email_confirmed_at) {
         console.log('User already has a verified account with this email:', data.user.id);
-        setMessage({ text: 'An account with this email already exists. Please sign in instead.', isError: true });
+        setMessage({ text: t('email.exists'), isError: true });
         setIsSubmitting(false);
         return;
       }
@@ -104,7 +106,7 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
       // They will be added after email confirmation
 
       setMessage({ 
-        text: 'Account created successfully! Check your email for the confirmation link.', 
+        text: t('signup.success'),
         isError: false 
       });
       setIsSignupComplete(true);
@@ -126,13 +128,13 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
           error.message.includes('23505')
       )) {
         setMessage({ 
-          text: 'An account with this email already exists. Please sign in instead.',
+          text: t('email.exists'),
           isError: true 
         });
       } else {
         // Generic error fallback
         setMessage({ 
-          text: `An error occurred during signup. Please try again later.`,
+          text: t('signup.error'),
           isError: true 
         });
       }
@@ -152,12 +154,12 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
       {isSignupComplete ? (
         <div className="space-y-4">
           <div className="bg-green-50 dark:bg-green-900 p-4 rounded-md border border-green-200 dark:border-green-800">
-            <p className="text-green-700 dark:text-green-300 font-medium">Account created successfully!</p>
+            <p className="text-green-700 dark:text-green-300 font-medium">{t('account.created')}</p>
             <p className="text-green-600 dark:text-green-400 mt-2">
-              Please check your email for the confirmation link to activate your account.
+              {t('check.email')}
             </p>
             <p className="text-green-600 dark:text-green-400 mt-2">
-              After confirming your email, you&apos;ll be able to sign in to your account.
+              {t('after.confirming')}
             </p>
           </div>
           <Button 
@@ -165,17 +167,17 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
             className="w-full" 
             onClick={handleCloseDialog}
           >
-            Close
+            {t('close.button')}
           </Button>
         </div>
       ) : (
         <>
           <div className="space-y-2">
-            <Label htmlFor="signup-email" className="text-white dark:text-black">Email</Label>
+            <Label htmlFor="signup-email" className="text-white dark:text-black">{t('email.label')}</Label>
             <Input
               id="signup-email"
               type="email"
-              placeholder="your@email.com"
+              placeholder={t('email.placeholder')}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -184,11 +186,11 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="signup-password" className="text-white dark:text-black">Password</Label>
+            <Label htmlFor="signup-password" className="text-white dark:text-black">{t('password.label')}</Label>
             <Input
               id="signup-password"
               type="password"
-              placeholder="••••••••"
+              placeholder={t('password.placeholder')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -203,7 +205,7 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
           )}
           
           <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? 'Signing up...' : 'Sign up'}
+            {isSubmitting ? t('signing.up') : t('sign.up')}
           </Button>
         </>
       )}
