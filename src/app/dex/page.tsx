@@ -68,14 +68,8 @@ export default function DexPage() {
   const [unlockedKanjiDetails, setUnlockedKanjiDetails] = useState<Map<number, {kanji: string, meanings: string[]}>>(new Map());
   const [unlockedRadicalCount, setUnlockedRadicalCount] = useState(10); // Start with 10 base radicals
   const [loading, setLoading] = useState(true);
-  // We are using user indirectly in the code, removing the linter warning with a comment
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [user, setUser] = useState<UserAuth | null>(null);
   const [showOnlyUnlocked, setShowOnlyUnlocked] = useState(false);
-  const [isToggling, setIsToggling] = useState(false);
-  
-  // Add state for kanji details dialog
-  // This state is used elsewhere in event handlers
   const [kanjiDetails, setKanjiDetails] = useState<KanjiDetails | null>(null);
   const [isKanjiDetailsOpen, setIsKanjiDetailsOpen] = useState(false);
   const [loadingKanjiDetails, setLoadingKanjiDetails] = useState(false);
@@ -741,13 +735,14 @@ export default function DexPage() {
   };
 
   // Handle toggle with loading animation
-  const handleToggle = (checked: boolean) => {
-    setIsToggling(true);
-    setShowOnlyUnlocked(checked);
-    // Add a small delay to simulate loading and make the animation visible
-    setTimeout(() => {
-      setIsToggling(false);
-    }, 300);
+  const handleToggle = () => {
+    // No need to show animation
+    // setIsToggling(true);
+    setShowOnlyUnlocked(!showOnlyUnlocked);
+    // No need for animation delay
+    // setTimeout(() => {
+    //   setIsToggling(false);
+    // }, 300);
   };
 
   // Prevent body scrolling when on this page
@@ -1025,24 +1020,14 @@ export default function DexPage() {
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg h-[calc(100vh-10rem)] p-6 order-2 lg:order-2 w-full lg:w-[80%] overflow-hidden flex flex-col">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-bold">{t('kanji.dex.title')}</h2>
-            <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-700 p-2 px-4 rounded-full shadow-md">
-              <Label htmlFor="show-unlocked" className="text-sm font-medium flex items-center gap-2 cursor-pointer">
-                {isToggling ? (
-                  <Loader2 className="h-5 w-5 animate-spin text-blue-500 dark:text-blue-400" />
-                ) : showOnlyUnlocked ? (
-                  <Eye className="h-5 w-5 text-green-600 dark:text-green-400" />
-                ) : (
-                  <EyeOff className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-                )}
-                {t('kanji.dex.show.unlocked')}
-              </Label>
-              <Switch
-                id="show-unlocked"
-                checked={showOnlyUnlocked}
-                onCheckedChange={handleToggle}
-                className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-600"
-              />
-            </div>
+            <button
+              onClick={handleToggle}
+              className="flex items-center gap-2 bg-slate-100 dark:bg-slate-700 p-2 px-4 rounded-full shadow-md hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+            >
+              <span className="text-sm font-medium">
+                {showOnlyUnlocked ? t('kanji.dex.show.all') : t('kanji.dex.show.unlocked')}
+              </span>
+            </button>
           </div>
           <div className="flex-1 overflow-hidden">
             <DexGrid 

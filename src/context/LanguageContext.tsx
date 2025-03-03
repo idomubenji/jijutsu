@@ -71,6 +71,7 @@ const translations: Record<Language, Record<string, string>> = {
     'kanji.dex.on.reading': 'On Reading',
     'kanji.dex.kun.reading': 'Kun Reading',
     'kanji.dex.show.unlocked': 'Show unlocked only',
+    'kanji.dex.show.all': 'Show all kanji',
     'kanji.dex.meanings': 'Meanings',
     'kanji.dex.details.title': 'Kanji Details',
     
@@ -153,6 +154,7 @@ const translations: Record<Language, Record<string, string>> = {
     'kanji.dex.on.reading': '音読み',
     'kanji.dex.kun.reading': '訓読み',
     'kanji.dex.show.unlocked': '解除済みのみ表示',
+    'kanji.dex.show.all': '全ての漢字を表示',
     'kanji.dex.meanings': '意味',
     'kanji.dex.details.title': '漢字の詳細',
     
