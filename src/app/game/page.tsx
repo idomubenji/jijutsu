@@ -340,14 +340,10 @@ function GamePageClient() {
   // Function to add notifications with better duplicate detection
   const addNotification = useCallback((message: string, type: 'success' | 'info' = 'info', kanji?: string) => {
     // For kanji discovery notifications, use kanji as a unique key
-    if (type === 'success' && kanji && message.includes(`You discovered ${kanji}!`)) {
-      // Use our translated success message
-      message = t('success.combination');
-      
+    if (type === 'success' && kanji) {
       // First check if we already have this notification
       const isDuplicate = notifications.some(
-        notif => notif.type === 'success' && notif.kanji === kanji && 
-          notif.message.includes(`You discovered ${kanji}!`)
+        notif => notif.type === 'success' && notif.kanji === kanji
       );
       
       if (isDuplicate) {
@@ -365,6 +361,9 @@ function GamePageClient() {
       
       // Mark this kanji as recently discovered
       recentDiscoveriesRef.current.set(kanji, now);
+      
+      // Use our translated success message
+      message = t('success.combination');
     }
     
     // For error messages about loading Kanji collection, only show once per session
@@ -1229,7 +1228,7 @@ function GamePageClient() {
                   recordKanjiDiscovery(kanji);
                   
                   // Show notification with the kanji
-                  addNotification(`You discovered ${kanji}!`, 'success', kanji);
+                  addNotification('', 'success', kanji);
                   
                   // Add the kanji as a new element in the workspace
                   const newKanjiElement: GameElement = {
@@ -1493,7 +1492,7 @@ function GamePageClient() {
         recordKanjiDiscovery(kanji);
 
         // Show notification with the kanji
-        addNotification(`You discovered ${kanji}!`, 'success', kanji);
+        addNotification('', 'success', kanji);
         
         // Create a new kanji element to replace the radicals
         const newKanjiElement: GameElement = {
@@ -2568,7 +2567,7 @@ function GamePageClient() {
           ))}
 
           {/* Notifications */}
-          <div className="fixed top-20 right-4 z-50 flex flex-col gap-2 items-end">
+          <div className="fixed top-24 left-4 z-50 flex flex-col gap-2 items-start">{/* Changed from centered to left-aligned */}
             {notifications.map((notification) => (
               <div 
                 key={notification.id} 
@@ -2578,7 +2577,11 @@ function GamePageClient() {
                     : 'bg-blue-500/90 text-white'
                 }`}
               >
-                <span>{notification.message}</span>
+                {notification.type === 'success' && notification.kanji ? (
+                  <span>{t('success.combination')}</span>
+                ) : (
+                  <span>{notification.message}</span>
+                )}
                 {notification.kanji && (
                   <span className="text-xl font-bold">{notification.kanji}</span>
                 )}
@@ -2596,36 +2599,19 @@ function GamePageClient() {
           <div className="absolute bottom-6 left-6 flex gap-2">
             {isLoading ? (
               <div className="text-stone-400 text-sm">{t('loading')}</div>
-            ) : user ? (
-              // Sign-out button removed as it's now in the sidebar
-              <></>
             ) : (
+              // Auth buttons removed as they are now in the sidebar
               <>
-                {/* Sign In Dialog */}
+                {/* Sign In Dialog - Keep the Dialog but remove the visible button */}
                 <Dialog 
                   open={isSignInOpen} 
                   onOpenChange={(open) => {
                     console.log('Sign In dialog onOpenChange:', open);
-                    // If we're closing this dialog via the X button, 
-                    // make sure we're not opening the other one
                     if (!open) {
                       setIsSignInOpen(false);
                     }
                   }}
                 >
-                  <DialogTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => {
-                        console.log('Sign In button clicked');
-                        setIsSignInOpen(true);
-                        setIsSignUpOpen(false);
-                      }}
-                    >
-                      {t('sign.in')}
-                    </Button>
-                  </DialogTrigger>
                   <DialogContent className="sm:max-w-[425px] bg-stone-800/80 dark:bg-stone-50/80">
                     <DialogHeader>
                       <DialogTitle className="text-white dark:text-black">{t('sign.in.to.jijutsu')}</DialogTitle>
@@ -2643,31 +2629,16 @@ function GamePageClient() {
                   </DialogContent>
                 </Dialog>
 
-                {/* Sign Up Dialog */}
+                {/* Sign Up Dialog - Keep the Dialog but remove the visible button */}
                 <Dialog 
                   open={isSignUpOpen} 
                   onOpenChange={(open) => {
                     console.log('Sign Up dialog onOpenChange:', open);
-                    // If we're closing this dialog via the X button, 
-                    // make sure we're not opening the other one
                     if (!open) {
                       setIsSignUpOpen(false);
                     }
                   }}
                 >
-                  <DialogTrigger asChild>
-                    <Button 
-                      variant="default" 
-                      size="sm" 
-                      onClick={() => {
-                        console.log('Sign Up button clicked');
-                        setIsSignUpOpen(true);
-                        setIsSignInOpen(false);
-                      }}
-                    >
-                      {t('sign.up')}
-                    </Button>
-                  </DialogTrigger>
                   <DialogContent className="sm:max-w-[425px] bg-stone-800/80 dark:bg-stone-50/80">
                     <DialogHeader>
                       <DialogTitle className="text-white dark:text-black">{t('create.account')}</DialogTitle>
