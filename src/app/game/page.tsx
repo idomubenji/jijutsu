@@ -2150,7 +2150,7 @@ function GamePageClient() {
     userKanjiLength: 0,
     discoveredKanjiSize: 0
   });
-
+  
   // Reload kanji meanings when discovered kanji change
   useEffect(() => {
     // Skip if no kanji to fetch
@@ -2184,6 +2184,36 @@ function GamePageClient() {
       fetchKanjiMeanings();
     }
   }, [user, supabaseKanji.length, discoveredKanji.size, fetchKanjiMeanings]);
+  
+  // Update existing kanji elements with meanings when kanjiMeanings changes
+  useEffect(() => {
+    // Skip if no kanji meanings are loaded yet
+    if (Object.keys(kanjiMeanings).length === 0) return;
+    
+    // Update elements with meanings
+    setElements(prevElements => {
+      // Check if any kanji elements need meaning updates
+      const needsUpdate = prevElements.some(el => 
+        el.type === 'kanji' && 
+        kanjiMeanings[el.char] && 
+        kanjiMeanings[el.char].length > 0
+      );
+      
+      // If no updates needed, return the current elements
+      if (!needsUpdate) return prevElements;
+      
+      // Update elements with meanings
+      return prevElements.map(el => {
+        if (el.type === 'kanji' && kanjiMeanings[el.char] && kanjiMeanings[el.char].length > 0) {
+          return {
+            ...el,
+            meaning: kanjiMeanings[el.char][0]
+          };
+        }
+        return el;
+      });
+    });
+  }, [kanjiMeanings, setElements]);
 
   // Calculate sidebarRadicals based on unlocked radical count
   const sidebarRadicals = useMemo(() => {
@@ -2220,7 +2250,7 @@ function GamePageClient() {
     };
   }, [kanjiMeanings, radicalMeanings, generateUniqueId]);
 
-  // Add the language context
+  // Add the language context hook
   const { t } = useLanguage();
 
   // Add a function to show success notification when kanji are formed
@@ -2245,7 +2275,7 @@ function GamePageClient() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F2E8DC] dark:bg-[#38332E]">
         <GameNav />
-        <div className="text-2xl">Loading game data...</div>
+        <div className="text-2xl">{t('loading.game.data')}</div>
       </div>
     );
   }
@@ -2263,7 +2293,7 @@ function GamePageClient() {
             disabled={isRetrying}
             className="mt-1 px-3 py-1 bg-white text-red-700 text-xs rounded hover:bg-gray-100 disabled:opacity-50"
           >
-            {isRetrying ? 'Reconnecting...' : 'Retry Connection'}
+            {isRetrying ? t('reconnecting') : t('retry.connection')}
           </button>
         </div>
       )}
@@ -2307,7 +2337,7 @@ function GamePageClient() {
                 {/* Meanings */}
                 <div className="space-y-2">
                   <h3 className="text-lg font-semibold text-black dark:text-white border-b border-stone-200 dark:border-stone-700 pb-1">
-                    Meanings
+                    {t('kanji.details.meanings')}
                   </h3>
                   <div className="flex flex-wrap gap-2">
                     {kanjiDetails.meanings.map((meaning, idx) => (
@@ -2325,7 +2355,7 @@ function GamePageClient() {
                 {kanjiDetails.on_reading && kanjiDetails.on_reading.length > 0 && (
                   <div className="space-y-2">
                     <h3 className="text-lg font-semibold text-black dark:text-white border-b border-stone-200 dark:border-stone-700 pb-1">
-                      On Reading (音読み)
+                      {t('kanji.details.on.reading')}
                     </h3>
                     <div className="flex flex-wrap gap-2">
                       {kanjiDetails.on_reading.map((reading, idx) => (
@@ -2344,7 +2374,7 @@ function GamePageClient() {
                 {kanjiDetails.kun_reading && kanjiDetails.kun_reading.length > 0 && (
                   <div className="space-y-2">
                     <h3 className="text-lg font-semibold text-black dark:text-white border-b border-stone-200 dark:border-stone-700 pb-1">
-                      Kun Reading (訓読み)
+                      {t('kanji.details.kun.reading')}
                     </h3>
                     <div className="flex flex-wrap gap-2">
                       {kanjiDetails.kun_reading.map((reading, idx) => (
@@ -2361,12 +2391,12 @@ function GamePageClient() {
               </div>
             ) : (
               <div className="py-4 text-center text-stone-500 dark:text-stone-400">
-                No kanji details available
+                {t('kanji.details.no.available')}
               </div>
             )}
             
             <DialogFooter>
-              <Button onClick={handleCloseKanjiDetails}>Close</Button>
+              <Button onClick={handleCloseKanjiDetails}>{t('kanji.details.close')}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -2375,35 +2405,43 @@ function GamePageClient() {
         <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
           <DialogContent className="sm:max-w-[500px] bg-stone-50/80 dark:bg-stone-800/80">
             <DialogHeader>
-              <DialogTitle className="text-2xl text-black dark:text-white">Welcome to Jijutsu! 字術</DialogTitle>
+              <DialogTitle className="text-2xl text-black dark:text-white">
+                {t('welcome.title')}
+              </DialogTitle>
               <DialogDescription className="text-base mt-2 text-black/70 dark:text-white/80">
-                {t('drag.instructions')}
+                {t('welcome.subtitle')}
               </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-4">
               <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-black dark:text-white">How to Play:</h3>
+                <h3 className="text-lg font-semibold text-black dark:text-white">
+                  {t('instructions.how.to.play')}
+                </h3>
                 <ul className="list-disc pl-5 space-y-2 text-black/70 dark:text-white/80">
-                  <li>Drag radicals from the sidebar into the main workspace.</li>
-                  <li>Move radicals around and bring them close to each other to combine them.</li>
-                  <li>When you have the exact set of radicals needed to form a kanji, they&apos;ll merge automatically!</li>
-                  <li>Discovered kanji will appear in the sidebar. You can also use these to create more complex kanji.</li>
-                  <li>When you see a blinking outline, it means you&apos;re close to forming a kanji!</li>
-                  <li>Drag unwanted elements to the trash can to remove them.</li>
-                  <li>The more kanji you discover, the more radicals you unlock!</li>
+                  <li>{t('instructions.step.1')}</li>
+                  <li>{t('instructions.step.2')}</li>
+                  <li>{t('instructions.step.3')}</li>
+                  <li>{t('instructions.step.4')}</li>
+                  <li>{t('instructions.step.5')}</li>
+                  <li>{t('instructions.step.6')}</li>
+                  <li>{t('instructions.step.7')}</li>
                 </ul>
               </div>
               <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-black dark:text-white">Tips:</h3>
+                <h3 className="text-lg font-semibold text-black dark:text-white">
+                  {t('instructions.tips')}
+                </h3>
                 <ul className="list-disc pl-5 space-y-2 text-black/70 dark:text-white/80">
-                  <li>Start with simple combinations of 2-3 radicals.</li>
-                  <li>Experiment! Not all combinations will create kanji.</li>
-                  <li>Try to discover as many kanji as you can!</li>
+                  <li>{t('instructions.tip.1')}</li>
+                  <li>{t('instructions.tip.2')}</li>
+                  <li>{t('instructions.tip.3')}</li>
                 </ul>
               </div>
             </div>
             <DialogFooter>
-              <Button onClick={() => setShowInstructions(false)}>Start Playing!</Button>
+              <Button onClick={() => setShowInstructions(false)}>
+                {t('start.playing')}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -2425,11 +2463,9 @@ function GamePageClient() {
         >
           {/* Kanji Counter */}
           <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-white/80 dark:bg-stone-800/80 backdrop-blur-sm px-4 py-1 rounded-full shadow-sm flex items-center">
-            <span className="text-base font-medium dark:text-stone-300">Discovered: </span>
-            <span className="text-xl font-bold text-[#78B693] dark:text-[#78B693] ml-2">
-              {user ? userKanjiCount : discoveredKanji.size}
+            <span className="text-xl font-bold text-[#78B693] dark:text-[#78B693]">
+              {t('discovered.count', { count: user ? userKanjiCount : discoveredKanji.size })}
             </span>
-            <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">kanji</span>
           </div>
 
           {/* Clear Button */}
@@ -2452,8 +2488,8 @@ function GamePageClient() {
               boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
               zIndex: 5 // Keep it above background but below dragged elements
             }}
-            title="Drag elements here to delete them"
-            aria-label="Delete area"
+            title={t('trash.can.title')}
+            aria-label={t('trash.can.label')}
           >
             <Trash2 
               size={28} 
@@ -2461,7 +2497,7 @@ function GamePageClient() {
             />
             {isOverTrash && (
               <div className="absolute bottom-full mb-2 whitespace-nowrap rounded bg-black dark:bg-white px-2 py-1 text-xs text-white dark:text-black">
-                Release to delete
+                {t('release.to.delete')}
               </div>
             )}
           </div>
@@ -2471,12 +2507,12 @@ function GamePageClient() {
             <ThemeToggle />
             <Button 
               variant="ghost" 
-              size="sm"
+              size="sm" 
               onClick={() => setShowMeanings(!showMeanings)}
               className="text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300 hover:bg-transparent p-0 flex items-center gap-1"
-              title="Toggle meanings"
+              title={t('toggle.meanings.title')}
             >
-              {showMeanings ? "Hide Meanings" : "Show Meanings"}
+              {showMeanings ? t('hide.meanings') : t('show.meanings')}
             </Button>
             <Button 
               variant="ghost" 
@@ -2484,7 +2520,7 @@ function GamePageClient() {
               onClick={() => setShowInstructions(true)}
               className="text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-300 hover:bg-transparent p-0 flex items-center gap-1"
             >
-              <Info size={16} /> Help
+              <Info size={16} /> {t('help.button')}
             </Button>
           </div>
 
@@ -2562,16 +2598,10 @@ function GamePageClient() {
           {/* Auth buttons at bottom left */}
           <div className="absolute bottom-6 left-6 flex gap-2">
             {isLoading ? (
-              <div className="text-stone-400 text-sm">Loading...</div>
+              <div className="text-stone-400 text-sm">{t('loading')}</div>
             ) : user ? (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleSignOut}
-                className="text-red-500 hover:text-red-700 hover:bg-transparent p-0 flex items-center gap-1"
-              >
-                <LogOut size={16} /> Sign out
-              </Button>
+              // Sign-out button removed as it's now in the sidebar
+              <></>
             ) : (
               <>
                 {/* Sign In Dialog */}
@@ -2596,12 +2626,12 @@ function GamePageClient() {
                         setIsSignUpOpen(false);
                       }}
                     >
-                      Sign in
+                      {t('sign.in')}
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[425px] bg-stone-800/80 dark:bg-stone-50/80">
                     <DialogHeader>
-                      <DialogTitle className="text-white dark:text-black">Sign in to Jijutsu</DialogTitle>
+                      <DialogTitle className="text-white dark:text-black">{t('sign.in.to.jijutsu')}</DialogTitle>
                     </DialogHeader>
                     <div className="py-4 text-white dark:text-black">
                       <SignInForm 
@@ -2638,12 +2668,12 @@ function GamePageClient() {
                         setIsSignInOpen(false);
                       }}
                     >
-                      Sign up
+                      {t('sign.up')}
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[425px] bg-stone-800/80 dark:bg-stone-50/80">
                     <DialogHeader>
-                      <DialogTitle className="text-white dark:text-black">Create your Jijutsu account</DialogTitle>
+                      <DialogTitle className="text-white dark:text-black">{t('create.account')}</DialogTitle>
                     </DialogHeader>
                     <div className="py-4 text-white dark:text-black">
                       <SignupForm 
@@ -2764,12 +2794,12 @@ function GamePageClient() {
               <div className="text-xs text-stone-500 dark:text-stone-400">
                 {user ? (
                   <div className="flex items-center gap-1">
-                    <span>Kanji: {userKanjiCount}</span>
+                    <span>{t('kanji.count.label', { count: userKanjiCount })}</span>
                     <span>•</span>
-                    <span>Next at: {(Math.floor(userKanjiCount / 10) + 1) * 10}</span>
+                    <span>{t('next.at')} {(Math.floor(userKanjiCount / 10) + 1) * 10}</span>
                   </div>
                 ) : (
-                  <div>Sign in to track progress</div>
+                  <div>{t('sign.in.to.track')}</div>
                 )}
               </div>
             </div>
@@ -2790,8 +2820,8 @@ function GamePageClient() {
                       />
                     </div>
                     <div className="flex justify-between mt-1 text-xs text-stone-500 dark:text-stone-400">
-                      <span>{10 - (userKanjiCount % 10)} until next radical</span>
-                      <span>{sidebarRadicals.length} of {sortedRadicals.length} radicals</span>
+                      <span>{10 - (userKanjiCount % 10)} {t('next.radical')}</span>
+                      <span>{sidebarRadicals.length} {t('of.radicals')} {sortedRadicals.length}</span>
                     </div>
                   </div>
                 );
@@ -2832,9 +2862,9 @@ function GamePageClient() {
             {user && sortedRadicals.length > unlockedRadicalCount && (
               <div className="mt-3 pt-3 border-t border-stone-200 dark:border-stone-700">
                 <div className="flex justify-between items-center mb-2">
-                  <h4 className="text-xs font-medium text-stone-500 dark:text-stone-400">Coming Next</h4>
+                  <h4 className="text-xs font-medium text-stone-500 dark:text-stone-400">{t('coming.next')}</h4>
                   <div className="text-xs text-stone-400 dark:text-stone-500">
-                    Unlock more by creating kanji
+                    {t('unlock.more')}
                   </div>
                 </div>
                 <div className="grid grid-cols-17 gap-1 grid-flow-row-dense auto-rows-min">
@@ -2867,11 +2897,11 @@ function GamePageClient() {
             )}
           </div>
           
-          {/* Discovered kanji container */}
-          <div className="flex-1 p-3 overflow-y-auto">
+          {/* Kanji container - discovered kanji */}
+          <div className="p-3 flex-1 overflow-y-auto">
             <div className="flex justify-between items-center mb-2">
               <h3 className="font-semibold dark:text-stone-300">
-                Discovered Kanji ({user ? userKanjiCount : discoveredKanji.size})
+                {t('kanji.sidebar.title')} ({user ? userKanjiCount : discoveredKanji.size})
               </h3>
               
               {((user && userKanjiCount > 0) || (!user && discoveredKanji.size > 0)) && (
@@ -2881,105 +2911,50 @@ function GamePageClient() {
                   onClick={resetProgress}
                   className="text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 text-xs p-1 h-auto"
                 >
-                  Reset
+                  {t('kanji.sidebar.reset')}
                 </Button>
               )}
             </div>
             
-            {/* Instruction for right-clicking kanji */}
-            {((user && userKanjiCount > 0) || (!user && discoveredKanji.size > 0)) && (
-              <p className="text-stone-500 dark:text-stone-400 text-xs mb-2 italic">
-                Right-click on kanji to learn more about them!
-              </p>
+            {/* Add instruction text */}
+            {(user ? userKanjiCount > 0 : discoveredKanji.size > 0) && (
+              <div className="text-xs text-stone-500 dark:text-stone-400 mb-3">
+                {t('kanji.sidebar.instructions')}
+              </div>
             )}
             
             {(user ? userKanjiCount === 0 : discoveredKanji.size === 0) ? (
               <div className="text-stone-400 dark:text-stone-500 text-sm">
-                Drag and combine radicals to discover kanji!
+                {t('kanji.sidebar.empty')}
               </div>
             ) : (
-              <div className="grid grid-cols-8 gap-2 grid-flow-row-dense auto-rows-min">
+              <div className="grid grid-cols-8 gap-x-2 gap-y-3 grid-flow-row-dense auto-rows-min">
                 {(user ? supabaseKanji : Array.from(discoveredKanji)).map((kanji, index) => {
                   // Generate a stable unique key for each discovered kanji
                   const kanjiKey = `discovered-${kanji}-${index}`;
+                  const meaning = kanjiMeanings[kanji] && kanjiMeanings[kanji].length > 0 ? kanjiMeanings[kanji][0] : '';
                   
                   return (
-                    <div
-                      key={kanjiKey}
-                      data-kanji={kanji}
-                      className="flex flex-col items-center"
-                    >
-                      <div 
+                    <div key={kanjiKey} className="flex flex-col items-center">
+                      <div
+                        data-kanji={kanji}
                         className="w-9 h-9 flex items-center justify-center rounded cursor-pointer select-none relative group text-white"
                         style={{ 
                           backgroundColor: 'rgba(0, 79, 23, 0.9)', // #004F17 with 90% opacity
                           userSelect: 'none',
                           zIndex: 30 // Ensure it's above other elements
                         }}
-                        onContextMenu={(e) => {
-                          // Show dictionary on right-click instead of context menu
-                          e.preventDefault();
-                          console.log('Right-click on kanji, showing dictionary:', kanji);
-                          setSelectedKanji(kanji);
-                          fetchKanjiDetails(kanji);
-                          return false;
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          handleCloneRadical(kanji, e.clientX, e.clientY, rect);
                         }}
-                        onMouseDown={(e) => {
-                          // Use left-click for dragging (button 0 is left mouse button)
-                          if (e.button === 0) { // Left mouse button
-                            console.log('Left click on kanji, starting drag:', kanji);
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            handleSidebarDragStart(kanji, e.clientX, e.clientY, rect);
-                            e.preventDefault();
-                          }
-                        }}
-                        onTouchStart={(e) => {
-                          // For touch devices - long press will be for dragging
-                          // Short tap will show info
-                          console.log('Touch start on kanji:', kanji);
-                          
-                          // Set up a timer for long press
-                          const timer = setTimeout(() => {
-                            // This will be a long press - start drag
-                            const touch = e.touches[0];
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            handleSidebarDragStart(kanji, touch.clientX, touch.clientY, rect);
-                          }, 500); // 500ms for long press
-                          
-                          // Store the timer ID
-                          e.currentTarget.setAttribute('data-timer', String(timer));
-                          
-                          // Don't prevent default here to allow both tap and long press
-                        }}
-                        onTouchEnd={(e) => {
-                          // Clear the long press timer on touch end
-                          const timer = e.currentTarget.getAttribute('data-timer');
-                          if (timer) {
-                            clearTimeout(Number(timer));
-                            e.currentTarget.removeAttribute('data-timer');
-                            
-                            // If this is a short tap (not a drag), show info
-                            if (!isDraggingFromSidebar) {
-                              e.preventDefault();
-                              setSelectedKanji(kanji);
-                              fetchKanjiDetails(kanji);
-                            }
-                          }
-                        }}
-                        onTouchCancel={(e) => {
-                          // Also clear timer on touch cancel
-                          const timer = e.currentTarget.getAttribute('data-timer');
-                          if (timer) {
-                            clearTimeout(Number(timer));
-                            e.currentTarget.removeAttribute('data-timer');
-                          }
-                        }}
+                        onContextMenu={(e) => handleKanjiClick(kanji, e)}
                       >
                         {kanji}
                       </div>
-                      {showMeanings && kanjiMeanings[kanji] && kanjiMeanings[kanji].length > 0 && (
-                        <div className="text-[9px] mt-1 text-center text-black dark:text-white w-full">
-                          {kanjiMeanings[kanji][0]}
+                      {showMeanings && meaning && (
+                        <div className="text-[8px] text-stone-600 dark:text-stone-400 mt-1 text-center leading-tight w-full">
+                          {meaning}
                         </div>
                       )}
                     </div>
@@ -2989,15 +2964,48 @@ function GamePageClient() {
             )}
           </div>
           
-          {/* User info at bottom */}
-          {user && (
-            <div className="p-4 border-t border-stone-200 dark:border-stone-700">
-              <div className="text-sm font-medium">
-                <div className="text-stone-600 dark:text-stone-400">Logged in as:</div>
-                <div className="text-stone-900 dark:text-stone-200">{user.email}</div>
+          {/* Auth and reset buttons at bottom of sidebar */}
+          <div className="mt-auto p-3 space-y-2 border-t border-stone-200 dark:border-stone-700">
+            {user ? (
+              <>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleSignOut}
+                  className="w-full"
+                >
+                  {t('logout.button')}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={resetProgress}
+                  className="w-full text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
+                >
+                  {t('reset.button')}
+                </Button>
+              </>
+            ) : (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleOpenAuth('signin')}
+                  className="flex-1"
+                >
+                  {t('login.button')}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleOpenAuth('signup')}
+                  className="flex-1"
+                >
+                  {t('signup.button')}
+                </Button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

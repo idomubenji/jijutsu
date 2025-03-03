@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Loader2, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useLanguage } from '@/context/LanguageContext';
 // Import sorted radicals
 import sortedRadicals from '../../../sorted-radicals.json';
 
@@ -894,6 +895,8 @@ export default function DexPage() {
     }
   };
 
+  const { t } = useLanguage();
+
   if (loading) {
     return (
       <div className="flex items-center justify-center w-full h-full min-h-screen bg-[#F2E8DC] dark:bg-[#38332E]">
@@ -921,7 +924,7 @@ export default function DexPage() {
         <DialogContent className="sm:max-w-[400px] bg-stone-50/95 dark:bg-stone-800/95 backdrop-blur-sm">
           <DialogHeader>
             <DialogTitle className="text-xl text-center text-black dark:text-white">
-              Kanji Details
+              {t('kanji.dex.details.title')}
             </DialogTitle>
           </DialogHeader>
           
@@ -943,7 +946,7 @@ export default function DexPage() {
               
               {/* Meanings */}
               <div className="space-y-2">
-                <h3 className="font-semibold text-black dark:text-white">Meanings</h3>
+                <h3 className="font-semibold text-black dark:text-white">{t('kanji.dex.meanings')}</h3>
                 <div className="flex flex-wrap gap-2">
                   {kanjiDetails.meanings.map((meaning, index) => (
                     <span key={index} className="px-2 py-1 bg-[#78B693]/20 rounded-md text-sm">
@@ -956,7 +959,7 @@ export default function DexPage() {
               {/* On readings */}
               {kanjiDetails.on_reading && kanjiDetails.on_reading.length > 0 && (
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-black dark:text-white">On Reading</h3>
+                  <h3 className="font-semibold text-black dark:text-white">{t('kanji.dex.on.reading')}</h3>
                   <div className="flex flex-wrap gap-2">
                     {kanjiDetails.on_reading.map((reading, index) => (
                       <span key={index} className="px-2 py-1 bg-blue-500/20 rounded-md text-sm">
@@ -970,7 +973,7 @@ export default function DexPage() {
               {/* Kun readings */}
               {kanjiDetails.kun_reading && kanjiDetails.kun_reading.length > 0 && (
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-black dark:text-white">Kun Reading</h3>
+                  <h3 className="font-semibold text-black dark:text-white">{t('kanji.dex.kun.reading')}</h3>
                   <div className="flex flex-wrap gap-2">
                     {kanjiDetails.kun_reading.map((reading, index) => (
                       <span key={index} className="px-2 py-1 bg-purple-500/20 rounded-md text-sm">
@@ -985,7 +988,7 @@ export default function DexPage() {
         </DialogContent>
       </Dialog>
 
-      <h1 className="text-3xl font-bold mt-4 mb-6 text-center">KanjiDex</h1>
+      <h1 className="text-3xl font-bold mt-4 mb-6 text-center">{t('kanji.dex.title')}</h1>
       
       {!user && (
         <div className="mx-auto mb-6 max-w-2xl">
@@ -1021,22 +1024,23 @@ export default function DexPage() {
         
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg h-[calc(100vh-10rem)] p-6 order-2 lg:order-2 w-full lg:w-[80%] overflow-hidden flex flex-col">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold">漢字図鑑</h2>
-            <div className="flex items-center gap-2">
-              <Label htmlFor="show-unlocked" className="text-sm flex items-center gap-2">
+            <h2 className="text-2xl font-bold">{t('kanji.dex.title')}</h2>
+            <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-700 p-2 px-4 rounded-full shadow-md">
+              <Label htmlFor="show-unlocked" className="text-sm font-medium flex items-center gap-2 cursor-pointer">
                 {isToggling ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-blue-500 dark:text-blue-400" />
+                  <Loader2 className="h-5 w-5 animate-spin text-blue-500 dark:text-blue-400" />
                 ) : showOnlyUnlocked ? (
-                  <Eye className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <Eye className="h-5 w-5 text-green-600 dark:text-green-400" />
                 ) : (
-                  <EyeOff className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                  <EyeOff className="h-5 w-5 text-slate-500 dark:text-slate-400" />
                 )}
-                Show unlocked only
+                {t('kanji.dex.show.unlocked')}
               </Label>
               <Switch
                 id="show-unlocked"
                 checked={showOnlyUnlocked}
                 onCheckedChange={handleToggle}
+                className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-600"
               />
             </div>
           </div>
@@ -1052,22 +1056,6 @@ export default function DexPage() {
         </div>
       </div>
 
-      {!isKanjiDetailsOpen && (
-        <div 
-          className="fixed bottom-4 right-4 cursor-pointer" 
-          onClick={() => setShowOnlyUnlocked(!showOnlyUnlocked)}
-        >
-          <Switch 
-            checked={showOnlyUnlocked} 
-            onCheckedChange={handleToggle}
-            className="data-[state=checked]:bg-green-500"
-          />
-          <span className="text-sm ml-2 text-gray-600 dark:text-gray-400">
-            {showOnlyUnlocked ? "Showing unlocked only" : "Showing all"}
-          </span>
-        </div>
-      )}
-      
       {/* Notifications */}
       <div className="fixed top-20 right-6 flex flex-col items-end space-y-2 max-w-xs z-50">
         {notifications.map((notification) => {
