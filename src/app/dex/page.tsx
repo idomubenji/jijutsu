@@ -1001,7 +1001,7 @@ export default function DexPage() {
       <div className="flex-1 flex flex-col lg:flex-row gap-6 px-4 lg:px-8 pb-1 overflow-hidden">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-auto h-[calc(100vh-10rem)] p-6 order-1 lg:order-1 w-full lg:w-[20%]">
           <DexGrid 
-            title="部首図鑑" 
+            title={t('kanji.dex.radical.title')}
             totalItems={showOnlyUnlocked ? unlockedRadicalItems.length : Math.max(...radicalData.map(r => r.dex_number), 0)}
             unlockedItems={unlockedRadicalItems}
             onItemClick={(index) => {

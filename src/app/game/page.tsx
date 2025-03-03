@@ -289,9 +289,6 @@ function GamePageClient() {
     }));
     
     setElements(initialElements);
-    
-    // Show tip on first load
-    addNotification('Drag radicals into the workspace and combine them to discover kanji!', 'info');
   }, [kanjiData, loadingGameData]);
 
   // Load saved kanji from localStorage when component mounts

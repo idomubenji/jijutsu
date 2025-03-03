@@ -74,6 +74,7 @@ const translations: Record<Language, Record<string, string>> = {
     'kanji.dex.show.all': 'Show all kanji',
     'kanji.dex.meanings': 'Meanings',
     'kanji.dex.details.title': 'Kanji Details',
+    'kanji.dex.radical.title': 'RadicalDex',
     
     // Authentication
     'sign.in': 'Sign In',
@@ -157,6 +158,7 @@ const translations: Record<Language, Record<string, string>> = {
     'kanji.dex.show.all': '全ての漢字を表示',
     'kanji.dex.meanings': '意味',
     'kanji.dex.details.title': '漢字の詳細',
+    'kanji.dex.radical.title': '部首図鑑',
     
     // Authentication
     'sign.in': 'ログイン',
