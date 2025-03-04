@@ -30,6 +30,7 @@ interface GameElement {
   touchingElements: Set<string>; // IDs of elements this element is touching
   className?: string; // Optional class name for animations
   meaning?: string; // Optional meaning to display
+  style?: Record<string, string>; // Optional style for scatter effect
 }
 
 interface Notification {
@@ -1558,8 +1559,64 @@ function GamePageClient() {
       // Check if these radicals form a kanji
       const possibleKanji = findPossibleKanji(connectedChars, kanjiData);
       
+      // Calculate center position of the connected elements for scatter effect
+      const centerX = Array.from(connectedIds).reduce((sum, id) => {
+        const el = updated.find(e => e.id === id);
+        return sum + (el?.position.x || 0);
+      }, 0) / connectedIds.size;
+      
+      const centerY = Array.from(connectedIds).reduce((sum, id) => {
+        const el = updated.find(e => e.id === id);
+        return sum + (el?.position.y || 0);
+      }, 0) / connectedIds.size;
+      
+      // Determine if we should use scatter effect (multiple kanji created)
+      const shouldScatter = possibleKanji.length > 1;
+      
       // If kanji is formed, add to discovered kanji
-      for (const kanji of possibleKanji) {
+      for (let i = 0; i < possibleKanji.length; i++) {
+        const kanji = possibleKanji[i];
+        
+        // Create scatter direction based on kanji's index
+        let scatterClass = 'kanji-created';
+        let scatterStyle = {};
+        
+        if (shouldScatter) {
+          // Calculate scatter angle based on index and total count
+          const angleStep = (2 * Math.PI) / possibleKanji.length;
+          const angle = angleStep * i;
+          
+          // Calculate scatter distance (60-100px)
+          const distance = 60 + Math.random() * 40;
+          
+          // Calculate scatter x and y offsets
+          let scatterX = Math.cos(angle) * distance;
+          let scatterY = Math.sin(angle) * distance;
+          
+          // Get game area dimensions - assume we're working with a game area reference
+          const gameAreaWidth = gameAreaRef.current ? gameAreaRef.current.clientWidth - 40 : 800; // 40px is the element width
+          
+          // Enforce boundaries - prevent scattering too far
+          const newPosX = centerX + scatterX;
+          const newPosY = centerY + scatterY;
+          
+          // Constrain position to keep within game area
+          // Avoid going offscreen or into sidebar
+          if (newPosX < 0) scatterX = -centerX + 10; // 10px buffer from left edge
+          if (newPosX > gameAreaWidth) scatterX = gameAreaWidth - centerX - 10; // 10px buffer from right edge
+          if (newPosY < 0) scatterY = -centerY + 10; // 10px buffer from top edge
+          const gameAreaHeight = gameAreaRef.current ? gameAreaRef.current.clientHeight - 40 : 600;
+          if (newPosY > gameAreaHeight) {
+            scatterY = gameAreaHeight - centerY - 10; // 10px buffer from bottom
+          }
+          
+          scatterClass = 'scatter-effect';
+          scatterStyle = {
+            '--scatter-x': `${scatterX}px`,
+            '--scatter-y': `${scatterY}px`
+          };
+        }
+        
         // Skip if this kanji was already discovered
         if (discoveredKanji.has(kanji)) {
           // Check if we need to remove radicals and add the kanji to the workspace
@@ -1573,12 +1630,17 @@ function GamePageClient() {
               type: 'kanji',
               char: kanji,
               position: {
-                x: Math.min(...Array.from(connectedIds).map(id => updated.find(e => e.id === id)?.position.x || 0)) + 10,
-                y: Math.min(...Array.from(connectedIds).map(id => updated.find(e => e.id === id)?.position.y || 0)) + 10
+                x: shouldScatter 
+                  ? Math.max(0, Math.min(centerX - 20, (gameAreaRef.current?.clientWidth || 800) - 40))
+                  : Math.min(...Array.from(connectedIds).map(id => updated.find(e => e.id === id)?.position.x || 0)) + 10,
+                y: shouldScatter 
+                  ? Math.max(0, Math.min(centerY - 20, (gameAreaRef.current?.clientHeight || 600) - 40)) 
+                  : Math.min(...Array.from(connectedIds).map(id => updated.find(e => e.id === id)?.position.y || 0)) + 10
               },
               isDragging: false,
               touchingElements: new Set(),
-              className: 'kanji-created',
+              className: scatterClass,
+              style: scatterStyle,
               meaning: kanjiMeanings[kanji] && kanjiMeanings[kanji].length > 0 ? kanjiMeanings[kanji][0] : undefined
             };
             
@@ -1609,13 +1671,18 @@ function GamePageClient() {
           type: 'kanji',
           char: kanji,
           position: {
-            // Position at the average of all combined elements
-            x: Math.min(...Array.from(connectedIds).map(id => updated.find(e => e.id === id)?.position.x || 0)) + 10,
-            y: Math.min(...Array.from(connectedIds).map(id => updated.find(e => e.id === id)?.position.y || 0)) + 10
+            // Position at the center for scatter effect or near connected elements otherwise
+            x: shouldScatter 
+              ? Math.max(0, Math.min(centerX - 20, (gameAreaRef.current?.clientWidth || 800) - 40))
+              : Math.min(...Array.from(connectedIds).map(id => updated.find(e => e.id === id)?.position.x || 0)) + 10,
+            y: shouldScatter 
+              ? Math.max(0, Math.min(centerY - 20, (gameAreaRef.current?.clientHeight || 600) - 40)) 
+              : Math.min(...Array.from(connectedIds).map(id => updated.find(e => e.id === id)?.position.y || 0)) + 10
           },
           isDragging: false,
           touchingElements: new Set(),
-          className: 'kanji-created',
+          className: scatterClass,
+          style: scatterStyle,
           meaning: kanjiMeanings[kanji] && kanjiMeanings[kanji].length > 0 ? kanjiMeanings[kanji][0] : undefined
         };
         
@@ -2708,7 +2775,8 @@ function GamePageClient() {
                   : '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
                 transform: hoveredElements.has(element.id) || (element.id === draggedElementId && hoveredElements.size > 0) 
                   ? 'scale(1.05)' : 'scale(1)',
-                transition: element.isDragging ? 'none' : 'all 0.15s ease-in-out'
+                transition: element.isDragging ? 'none' : 'all 0.15s ease-in-out',
+                ...(element.style || {}) // Apply custom style properties for scatter effect
               }}
               onMouseDown={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();

@@ -59,4 +59,24 @@
 
 .ripple-effect {
   animation: ripple 1s ease-out;
+}
+
+/* Scatter effect for multiple kanji creation */
+@keyframes scatter {
+  0% {
+    transform: scale(0.8) translate(0, 0);
+    opacity: 0;
+  }
+  30% {
+    transform: scale(1.2) translate(0, 0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translate(var(--scatter-x, 40px), var(--scatter-y, 40px));
+    opacity: 1;
+  }
+}
+
+.scatter-effect {
+  animation: scatter 0.5s ease-out forwards;
 } 
