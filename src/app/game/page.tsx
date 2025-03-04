@@ -1900,7 +1900,7 @@ function GamePageClient() {
       setLastAddedElementId(null);
     }
     // No setup auth listeners here anymore - it's done in the dedicated effect
-  }, []); // Empty dependency array means this only runs once on mount
+  }, [lastAddedElementId, checkElementCollisions]); // Run when lastAddedElementId changes
 
   // Define findPossibleKanji function with useCallback
   const findPossibleKanji = useCallback((chars: string[], kanjiData: KanjiRadicalsData): string[] => {
