@@ -1244,24 +1244,37 @@ function GamePageClient() {
         const elTop = el.position.y;
         const elBottom = el.position.y + elementHeight;
         
-        // Add some margin for easier merging
-        const margin = 10;
+        // Add some margin for easier connecting with dotted lines
+        const proximityMargin = 15;
         
-        // Check for overlap with margin
+        // Use a smaller margin for actual overlapping/merging
+        const overlapMargin = 5;
+        
+        // Check for proximity (for dotted line)
+        const isInProximity = 
+          draggedLeft - proximityMargin < elRight + proximityMargin && 
+          draggedRight + proximityMargin > elLeft - proximityMargin && 
+          draggedTop - proximityMargin < elBottom + proximityMargin && 
+          draggedBottom + proximityMargin > elTop - proximityMargin;
+        
+        // Check for actual overlap (for size increase and merge)
         const isOverlapping = 
-          draggedLeft - margin < elRight + margin && 
-          draggedRight + margin > elLeft - margin && 
-          draggedTop - margin < elBottom + margin && 
-          draggedBottom + margin > elTop - margin;
+          draggedLeft - overlapMargin < elRight + overlapMargin && 
+          draggedRight + overlapMargin > elLeft - overlapMargin && 
+          draggedTop - overlapMargin < elBottom + overlapMargin && 
+          draggedBottom + overlapMargin > elTop - overlapMargin;
         
-        if (isOverlapping) {
-          hoveredElements.add(el.id);
-          
-          // Add a connection between the dragged element and this element
+        if (isInProximity) {
+          // Only add connections for proximity (dotted lines)
           newConnections.push({
             from: draggedId,
             to: el.id
           });
+          
+          // Only add to hoveredElements if actually overlapping (for size increase)
+          if (isOverlapping) {
+            hoveredElements.add(el.id);
+          }
         }
       }
       
@@ -1569,8 +1582,8 @@ function GamePageClient() {
               meaning: kanjiMeanings[kanji] && kanjiMeanings[kanji].length > 0 ? kanjiMeanings[kanji][0] : undefined
             };
             
-            // Remove the radicals that were used and add the new kanji
-            return updated.filter(el => !connectedIds.has(el.id)).concat(newKanjiElement);
+            // Add the new kanji to the updated elements
+            updated.push(newKanjiElement);
           }
           
           continue;
@@ -1606,8 +1619,13 @@ function GamePageClient() {
           meaning: kanjiMeanings[kanji] && kanjiMeanings[kanji].length > 0 ? kanjiMeanings[kanji][0] : undefined
         };
         
-        // Remove the radicals that were used and add the new kanji
-        return updated.filter(el => !connectedIds.has(el.id)).concat(newKanjiElement);
+        // Add the new kanji to the updated elements
+        updated.push(newKanjiElement);
+      }
+      
+      // Remove the radicals that were used after adding all new kanji
+      if (possibleKanji.length > 0) {
+        return updated.filter(el => !connectedIds.has(el.id));
       }
       
       return updated;
@@ -1819,78 +1837,43 @@ function GamePageClient() {
 
   // Define findPossibleKanji function with useCallback
   const findPossibleKanji = useCallback((chars: string[], kanjiData: KanjiRadicalsData): string[] => {
-    if (!chars.length || !kanjiData) return [];
+    // No radicals to combine
+    if (!chars || chars.length === 0) {
+      return [];
+    }
     
-    console.log('Finding possible kanji for radicals:', chars);
+    // Create a unique set of radicals (in case there are duplicates in the input)
+    const uniqueRadicals = [...new Set(chars)];
     
-    // Check which kanji can be formed with these radicals
-    const possibleKanjiList: string[] = [];
+    // Special case for single radical type duplicated (e.g., two "口" or two "木")
+    const isSingleRadicalDuplicated = uniqueRadicals.length === 1 && chars.length > 1;
     
-    // Count occurrences of each radical in our set
-    const radicalCounts = new Map<string, number>();
-    chars.forEach(char => {
-      radicalCounts.set(char, (radicalCounts.get(char) || 0) + 1);
-    });
+    // Array to hold the possible kanji matches
+    const possibleKanji: string[] = [];
     
-    // Go through the kanji in our data
-    Object.entries(kanjiData.kanjiToRadicals).forEach(([kanji, requiredRadicals]) => {
-      // Count required radicals for this kanji
-      const requiredCounts = new Map<string, number>();
-      requiredRadicals.forEach(radical => {
-        requiredCounts.set(radical, (requiredCounts.get(radical) || 0) + 1);
-      });
-      
-      // Check if we have all the required radicals with the right counts
-      let hasAllRadicals = true;
-      let hasExactRadicals = true;
-      
-      // Check if all required radicals are present in the right quantities
-      requiredCounts.forEach((count, radical) => {
-        if (!radicalCounts.has(radical) || radicalCounts.get(radical)! < count) {
-          hasAllRadicals = false;
+    // Go through each kanji in the kanjiToRadicals dictionary
+    Object.entries(kanjiData.kanjiToRadicals).forEach(([kanji, radicals]) => {
+      // If we're dealing with a duplicated single radical
+      if (isSingleRadicalDuplicated) {
+        // Check if the kanji is made up of only the single radical we're looking for
+        if (radicals.length === 1 && radicals[0] === uniqueRadicals[0]) {
+          possibleKanji.push(kanji);
         }
-      });
-      
-      // Check if we have exactly the right radicals (no extras)
-      if (hasAllRadicals) {
-        // Total radical count should match
-        if (chars.length !== requiredRadicals.length) {
-          hasExactRadicals = false;
-        } else {
-          // Check that each radical in our set is required for this kanji
-          radicalCounts.forEach((count, radical) => {
-            if (!requiredCounts.has(radical) || requiredCounts.get(radical)! !== count) {
-              hasExactRadicals = false;
-            }
-          });
+      } 
+      // Otherwise, check for exact match of the radical set
+      else {
+        // Convert radicals to a Set for easier comparison
+        const radicalSet = new Set(radicals);
+        
+        // Check if the sets have the same size and the same elements
+        if (radicalSet.size === uniqueRadicals.length && 
+            uniqueRadicals.every(radical => radicalSet.has(radical))) {
+          possibleKanji.push(kanji);
         }
-      }
-      
-      // Special case for kanji that only list one radical but actually need multiples
-      // This is a temporary fix for data issues with certain kanji
-      if (
-        // 昌 - two suns (日 + 日)
-        (kanji === "昌" && chars.length === 2 && chars.every(c => c === "日")) ||
-        // 品 - three mouths (口 + 口 + 口)
-        (kanji === "品" && chars.length === 3 && chars.every(c => c === "口")) ||
-        // 森 - three trees (木 + 木 + 木)
-        (kanji === "森" && chars.length === 3 && chars.every(c => c === "木")) ||
-        // 炎 - two fires (火 + 火)
-        (kanji === "炎" && chars.length === 2 && chars.every(c => c === "火")) ||
-        // 晶 - three suns (日 + 日 + 日)
-        (kanji === "晶" && chars.length === 3 && chars.every(c => c === "日"))
-      ) {
-        hasAllRadicals = true;
-        hasExactRadicals = true;
-      }
-      
-      if (hasAllRadicals && hasExactRadicals) {
-        possibleKanjiList.push(kanji);
-        console.log(`Found matching kanji: ${kanji} with radicals:`, requiredRadicals);
       }
     });
     
-    return possibleKanjiList;
+    return possibleKanji;
   }, []);
 
   // Define handleRetryConnection function
@@ -2713,17 +2696,18 @@ function GamePageClient() {
                 width: '40px',
                 height: showMeanings && element.meaning ? '65px' : '40px',
                 backgroundColor: element.type === 'kanji' 
-                  ? (hoveredElements.has(element.id) 
+                  ? (hoveredElements.has(element.id) || (element.id === draggedElementId && hoveredElements.size > 0)
                     ? 'rgba(0, 79, 23, 0.9)' // #004F17 with 90% opacity for hovered kanji
                     : 'rgba(0, 79, 23, 0.8)') // #004F17 with 80% opacity for kanji
-                  : (hoveredElements.has(element.id) 
+                  : (hoveredElements.has(element.id) || (element.id === draggedElementId && hoveredElements.size > 0)
                     ? 'rgba(120, 182, 147, 0.85)' // Slightly more opaque for hovered radicals
                     : 'rgba(120, 182, 147, 0.8)'), // #78B693 with 80% opacity for radicals
                 userSelect: 'none',
-                boxShadow: hoveredElements.has(element.id) 
+                boxShadow: hoveredElements.has(element.id) || (element.id === draggedElementId && hoveredElements.size > 0)
                   ? '0 0 0 2px rgba(120, 182, 147, 1), 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)'
                   : '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
-                transform: hoveredElements.has(element.id) ? 'scale(1.05)' : 'scale(1)',
+                transform: hoveredElements.has(element.id) || (element.id === draggedElementId && hoveredElements.size > 0) 
+                  ? 'scale(1.05)' : 'scale(1)',
                 transition: element.isDragging ? 'none' : 'all 0.15s ease-in-out'
               }}
               onMouseDown={(e) => {
@@ -3172,5 +3156,5 @@ export default function GamePage() {
     </div>}>
       <GamePageClient />
     </Suspense>
-  );
-} 
+  ); 
+}
