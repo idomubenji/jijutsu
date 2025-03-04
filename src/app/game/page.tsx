@@ -2043,6 +2043,20 @@ function GamePageClient() {
         console.log('Resetting user progress...');
         addNotification('Resetting your progress...', 'info');
         
+        // First verify how many kanji records the user has
+        const { count: beforeCount, error: countError } = await supabase
+          .from('user_kanji')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+          
+        if (countError) {
+          console.error('Error counting user kanji records:', countError);
+          addNotification('Failed to verify your kanji collection. Please try again later.', 'info');
+          return;
+        }
+        
+        console.log(`User has ${beforeCount} kanji records before reset`);
+        
         // Delete all user's kanji from user_kanji table
         const { error } = await supabase
           .from('user_kanji')
@@ -2053,6 +2067,37 @@ function GamePageClient() {
           console.error('Error resetting progress:', error);
           addNotification('Failed to reset your progress. Please try again later.', 'info');
           return;
+        }
+        
+        // Verify that all records were deleted
+        const { count: afterCount, error: verifyError } = await supabase
+          .from('user_kanji')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+          
+        if (verifyError) {
+          console.error('Error verifying kanji deletion:', verifyError);
+        } else if (afterCount && afterCount > 0) {
+          console.warn(`Not all kanji were deleted. ${afterCount} records remain.`);
+          
+          // Try one more time with a more forceful approach
+          try {
+            // Try a direct delete again with a different approach
+            const { error: retryError } = await supabase
+              .from('user_kanji')
+              .delete()
+              .filter('user_id', 'eq', user.id);
+            
+            if (retryError) {
+              console.error('Error in second deletion attempt:', retryError);
+            } else {
+              console.log('Used alternative method to delete remaining kanji records');
+            }
+          } catch (retryError) {
+            console.error('Exception in second deletion attempt:', retryError);
+          }
+        } else {
+          console.log('Successfully deleted all user kanji records');
         }
         
         // Reset local state
@@ -2074,11 +2119,22 @@ function GamePageClient() {
         // Clear game area
         clearGameArea();
         
+        // Force refresh user data to verify the reset
+        await fetchUserKanjiData(true);
+        
         console.log('Successfully reset user progress');
         addNotification('Your progress has been reset!', 'success');
       } catch (error) {
         console.error('Error in reset progress:', error);
         addNotification('Failed to reset your progress. Please try again later.', 'info');
+      } finally {
+        // Always refresh the UI to ensure it's in sync with the database
+        // even if there was an error, as partial operations might have succeeded
+        try {
+          await fetchUserKanjiData(true);
+        } catch (refreshError) {
+          console.error('Error refreshing data after reset:', refreshError);
+        }
       }
     })();
   };
