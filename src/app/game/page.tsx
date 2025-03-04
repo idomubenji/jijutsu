@@ -146,6 +146,10 @@ function GamePageClient() {
   // Use a ref to store the current user ID to avoid closure issues with the auth listener
   const currentUserIdRef = useRef<string | null>(null);
   
+  // Refs to avoid duplicate auth listeners and initialization
+  const hasSetupAuthListenerRef = useRef<boolean>(false);
+  const isPerformingInitialCheckRef = useRef<boolean>(false);
+  
   // Use a ref to track if we've shown an error notification in this session
   const hasShownErrorRef = useRef<boolean>(false);
   
@@ -389,8 +393,8 @@ function GamePageClient() {
     
     // Generate a more specific ID for kanji notifications
     const notificationId = type === 'success' && kanji 
-      ? `kanji-${kanji}-${Date.now()}`
-      : Date.now().toString();
+      ? `kanji-${kanji}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+      : `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     
     const newNotification: Notification = {
       id: notificationId,
@@ -431,6 +435,12 @@ function GamePageClient() {
       console.log('fetchUserKanjiData: Already have kanji data and no force refresh, skipping');
       return;
     }
+
+    // Skip if already loading - prevent concurrent requests
+    if (isLoadingUserKanji) {
+      console.log('fetchUserKanjiData: Already loading user kanji, skipping duplicate request');
+      return;
+    }
     
     console.log('fetchUserKanjiData: Fetching kanji data');
     setIsLoadingUserKanji(true);
@@ -446,6 +456,22 @@ function GamePageClient() {
       
       let kanjiCount = 0;
       let countError: SupabaseError | null = null;
+      
+      // Check service health before attempting queries
+      try {
+        const healthCheck = await checkSupabaseHealth();
+        if (!healthCheck.success) {
+          console.error('Supabase health check failed before fetching kanji:', healthCheck.message);
+          addNotification('Server connection issue. Please try again later.', 'info');
+          setIsLoadingUserKanji(false);
+          return;
+        }
+      } catch (healthError) {
+        console.error('Error during health check:', healthError);
+        addNotification('Connection timeout. Please try again later.', 'info');
+        setIsLoadingUserKanji(false);
+        return;
+      }
       
       // Retry loop for getting the kanji count
       while (retries <= maxRetries && kanjiCount === 0 && !countError) {
@@ -471,12 +497,14 @@ function GamePageClient() {
               retries++;
               
               if (retries <= maxRetries) {
-                console.log(`Retrying count in ${retries * 1000}ms...`);
-                await new Promise(resolve => setTimeout(resolve, retries * 1000));
+                const delayMs = retries * 1000;
+                console.log(`Retrying count in ${delayMs}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delayMs));
               }
             } else {
               kanjiCount = count || 0;
               console.log(`Successfully got kanji count: ${kanjiCount}`);
+              break; // Exit the loop on success
             }
           } catch (fetchError) {
             clearTimeout(timeoutId);
@@ -509,8 +537,9 @@ function GamePageClient() {
             
             retries++;
             if (retries <= maxRetries) {
-              console.log(`Retrying count in ${retries * 1000}ms after network error...`);
-              await new Promise(resolve => setTimeout(resolve, retries * 1000));
+              const delayMs = retries * 1000;
+              console.log(`Retrying count in ${delayMs}ms after network error...`);
+              await new Promise(resolve => setTimeout(resolve, delayMs));
             } else {
               countError = new Error(`Network error: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
             }
@@ -519,9 +548,11 @@ function GamePageClient() {
           console.error(`Unexpected error in retry loop: ${outerError instanceof Error ? outerError.message : String(outerError)}`);
           retries++;
           if (retries <= maxRetries) {
-            await new Promise(resolve => setTimeout(resolve, retries * 1000));
+            const delayMs = retries * 1000;
+            console.log(`Retrying count in ${delayMs}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
           } else {
-            countError = new Error(`Unexpected error: ${outerError instanceof Error ? outerError.message : String(outerError)}`);
+            countError = new Error(`Unexpected error: ${outerError instanceof Error ? outerError.message : String(outerError)}`) as SupabaseError;
           }
         }
       }
@@ -531,7 +562,7 @@ function GamePageClient() {
         addNotification('Error loading your Kanji Collection. Please check your internet connection and try again.', 'info');
         setIsLoadingUserKanji(false);
         // Try to restart the connection in the background
-        restartSupabaseConnection();
+        await restartSupabaseConnection();
         return;
       }
       
@@ -677,7 +708,17 @@ function GamePageClient() {
     } finally {
       setIsLoadingUserKanji(false);
     }
-  }, [user, supabaseKanji.length, setSupabaseKanji, setUserKanjiCount, setUnlockedRadicalCount, setDiscoveredKanji, addNotification]);
+  }, [
+    user, 
+    // Only include the length check, not the actual data
+    supabaseKanji.length, 
+    // Remove the setter functions as they don't change
+    // setSupabaseKanji, 
+    // setUserKanjiCount, 
+    // setUnlockedRadicalCount, 
+    // setDiscoveredKanji, 
+    addNotification
+  ]);
 
   // Function to record kanji discovery in Supabase
   const recordKanjiDiscovery = useCallback(async (kanji: string) => {
@@ -976,9 +1017,17 @@ function GamePageClient() {
     checkUser();
   }, []); // Run only once on component mount, not when user changes
 
-  // Keep only one auth listener to avoid duplicates
+  // Track the last auth event time to debounce frequent events
+  const [lastAuthEventTime, setLastAuthEventTime] = useState<number>(0);
+  
   useEffect(() => {
+    // Skip if already set up to prevent duplicate listeners
+    if (hasSetupAuthListenerRef.current) {
+      return;
+    }
+    
     console.log('Setting up auth state listener...');
+    hasSetupAuthListenerRef.current = true;
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -992,6 +1041,14 @@ function GamePageClient() {
         console.log('Current user ID in ref:', currentUserIdRef.current);
         console.log('New user ID from event:', newUserId);
         
+        // Debounce rapid auth events - min 1 second between processing auth events
+        const now = Date.now();
+        if (now - lastAuthEventTime < 1000) {
+          console.log('Auth event debounced (too frequent). Skipping.');
+          return;
+        }
+        setLastAuthEventTime(now);
+        
         // Skip redundant SIGNED_IN events for the same user
         if (event === 'SIGNED_IN' && newUserId === currentUserIdRef.current) {
           console.log('Ignoring redundant SIGNED_IN event for the same user');
@@ -1003,11 +1060,17 @@ function GamePageClient() {
           // Update the ref
           currentUserIdRef.current = newUserId;
           
+          // Reset loading state on any user change
+          setIsLoadingUserKanji(false);
+          
           // If user just signed in (previously null, now has value)
           if (!user && newUserId) {
             console.log('User signed in - updating state');
             setUser(session?.user || null);
             setHasSyncedKanji(false); // Reset sync flag to ensure we sync
+            
+            // Delay data fetching slightly to allow auth state to settle
+            await new Promise(resolve => setTimeout(resolve, 500));
             await fetchUserKanjiData(true); // Force refresh
           } 
           // If user just signed out (previously had value, now null)
@@ -1024,6 +1087,9 @@ function GamePageClient() {
             console.log('Different user signed in - updating state');
             setUser(session?.user || null);
             setHasSyncedKanji(false); // Reset sync flag for new user
+            
+            // Delay data fetching slightly to allow auth state to settle
+            await new Promise(resolve => setTimeout(resolve, 500));
             await fetchUserKanjiData(true); // Force refresh
           }
         } else {
@@ -1034,9 +1100,51 @@ function GamePageClient() {
     
     return () => {
       console.log('Cleaning up auth listener');
+      hasSetupAuthListenerRef.current = false;
       subscription.unsubscribe();
     };
-  }, [user, recordKanjiDiscovery, addNotification, fetchUserKanjiData, hasSyncedKanji]);
+  }, []); // No dependencies to avoid re-creating the listener
+
+  // This effect performs the initial auth check only once when the component mounts
+  useEffect(() => {
+    const initialCheck = async () => {
+      // Skip if already performing check to prevent duplicate executions
+      if (isPerformingInitialCheckRef.current) {
+        console.log('Already performing initial auth check, skipping duplicate');
+        return;
+      }
+      
+      isPerformingInitialCheckRef.current = true;
+      console.log('Performing initial auth check...');
+      
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        // Check if we have a user and update the state
+        if (session?.user) {
+          console.log('User found in initial check, fetching kanji data...');
+          currentUserIdRef.current = session.user.id;
+          setUser(session.user);
+          await fetchUserKanjiData();
+        } else {
+          console.log('No user found in initial check');
+          setUser(null);
+        }
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error during initial auth check:', error);
+        setUser(null);
+        setIsLoading(false);
+      } finally {
+        isPerformingInitialCheckRef.current = false;
+      }
+    };
+
+    initialCheck();
+    
+    // We don't setup auth listeners here anymore - it's done in the dedicated effect
+  }, []); // Empty dependency array to run once when component mounts
 
   // Add this new handler for starting drags from the sidebar
   const handleSidebarDragStart = (radical: string, clientX: number, clientY: number, elementRect: DOMRect) => {
@@ -2265,6 +2373,44 @@ function GamePageClient() {
       setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
     }, 5000);
   }, [t]);
+
+  const resetLoadingStateIfStuck = useCallback(() => {
+    // If we have been loading for more than 10 seconds, reset the loading state
+    if (isLoadingUserKanji) {
+      console.log('Loading timeout - resetting isLoadingUserKanji state');
+      setIsLoadingUserKanji(false);
+    }
+  }, [isLoadingUserKanji]);
+
+  // Effect to reset loading state if stuck for too long
+  useEffect(() => {
+    if (isLoadingUserKanji) {
+      const timeoutId = setTimeout(() => {
+        resetLoadingStateIfStuck();
+      }, 10000); // 10 second timeout
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isLoadingUserKanji, resetLoadingStateIfStuck]);
+
+  // Global cleanup for component unmount
+  useEffect(() => {
+    // Return a cleanup function
+    return () => {
+      // Reset all the loading states
+      setIsLoadingUserKanji(false);
+      setIsLoading(false);
+      
+      // Clear user data to prevent stale state
+      currentUserIdRef.current = null;
+      
+      // Reset the refs
+      hasSetupAuthListenerRef.current = false;
+      isPerformingInitialCheckRef.current = false;
+      
+      console.log('Component unmounted - performed cleanup');
+    };
+  }, []);
 
   if (loadingData) {
     console.log('Rendering loading screen, loadingData =', loadingData);

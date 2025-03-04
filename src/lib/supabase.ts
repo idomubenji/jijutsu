@@ -21,63 +21,130 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 // Add a function to reinitialize the Supabase client if needed
-export function restartSupabaseConnection() {
+export async function restartSupabaseConnection() {
   console.log('Attempting to restart Supabase connection...');
   
-  try {
-    // Recreate the client with the same settings
-    const newClient = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-      },
-    });
-    
-    // Replace all methods on the existing client with the new one
-    // This is a workaround since we can't directly reassign the exported constant
-    Object.keys(newClient).forEach(key => {
-      // Use type assertion to handle the index signature issue
-      const clientKey = key as keyof typeof newClient;
-      const supabaseKey = key as keyof typeof supabase;
+  // Attempt reinitialization up to 3 times
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      console.log(`Restart attempt ${attempt}/3...`);
       
-      if (typeof newClient[clientKey] === 'function' || typeof newClient[clientKey] === 'object') {
-        // Use type assertion to safely copy properties
-        (supabase[supabaseKey] as unknown) = newClient[clientKey];
+      // Recreate the client with the same settings
+      const newClient = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+        },
+      });
+      
+      // Test the new connection
+      const { data, error } = await newClient.from('kanji_dex').select('id').limit(1);
+      
+      if (error) {
+        console.error(`New client test failed on attempt ${attempt}:`, error);
+        if (attempt < 3) {
+          const waitTime = attempt * 1000; // Increasing backoff
+          console.log(`Waiting ${waitTime}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          continue;
+        }
+        return false;
       }
-    });
-    
-    console.log('Supabase connection restarted successfully');
-    return true;
-  } catch (error) {
-    console.error('Failed to restart Supabase connection:', error);
-    return false;
+      
+      if (!data || data.length === 0) {
+        console.warn(`New client returned no data on attempt ${attempt}`);
+        if (attempt < 3) {
+          const waitTime = attempt * 1000;
+          console.log(`Waiting ${waitTime}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          continue;
+        }
+        return false;
+      }
+      
+      // Replace all methods on the existing client with the new one
+      // This is a workaround since we can't directly reassign the exported constant
+      Object.keys(newClient).forEach(key => {
+        // Use type assertion to handle the index signature issue
+        const clientKey = key as keyof typeof newClient;
+        const supabaseKey = key as keyof typeof supabase;
+        
+        if (typeof newClient[clientKey] === 'function' || typeof newClient[clientKey] === 'object') {
+          // Use type assertion to safely copy properties
+          (supabase[supabaseKey] as unknown) = newClient[clientKey];
+        }
+      });
+      
+      console.log('Supabase connection restarted successfully');
+      return true;
+    } catch (error) {
+      console.error(`Failed to restart Supabase connection on attempt ${attempt}:`, error);
+      if (attempt < 3) {
+        const waitTime = attempt * 1000;
+        console.log(`Waiting ${waitTime}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      } else {
+        return false;
+      }
+    }
   }
+  
+  return false;
 }
 
 // Add health check function
 export async function checkSupabaseHealth() {
+  let didTimeOut = false;
+  const timeoutPromise = new Promise((_, reject) => {
+    const timeoutId = setTimeout(() => {
+      didTimeOut = true;
+      reject(new Error('Supabase health check timed out after 5000ms'));
+    }, 5000);
+    return () => clearTimeout(timeoutId);
+  });
+
   try {
     console.log('Checking Supabase connectivity...');
+    
     // Try a simple query to see if we can connect
     const startTime = Date.now();
-    const { error } = await supabase.from('kanji_dex').select('id').limit(1);
-    const elapsedTime = Date.now() - startTime;
     
-    if (error) {
-      console.error('Supabase health check failed:', error);
+    // Use Promise.race to handle timeouts
+    try {
+      await Promise.race([
+        timeoutPromise,
+        (async () => {
+          const { data, error } = await supabase.from('kanji_dex').select('id').limit(1);
+          
+          if (error) throw error;
+          if (!data || data.length === 0) throw new Error('No data returned');
+        })()
+      ]);
+      
+      const elapsedTime = Date.now() - startTime;
+      console.log(`Supabase connection successful (${elapsedTime}ms)`);
+      
+      return { 
+        success: true, 
+        message: `Connection successful in ${elapsedTime}ms` 
+      };
+    } catch (innerError) {
+      if (didTimeOut) {
+        return {
+          success: false,
+          message: 'Connection timeout',
+          error: innerError
+        };
+      }
+      
+      console.error('Supabase health check query failed:', innerError);
       return { 
         success: false, 
-        message: `Connection failed: ${error.message}`,
-        error 
+        message: innerError instanceof Error ? innerError.message : 'Unknown error',
+        error: innerError
       };
     }
-    
-    console.log(`Supabase connection successful (${elapsedTime}ms)`);
-    return { 
-      success: true, 
-      message: `Connection successful in ${elapsedTime}ms` 
-    };
   } catch (error) {
     console.error('Supabase health check exception:', error);
     return { 
