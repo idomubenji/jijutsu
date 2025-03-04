@@ -1107,44 +1107,49 @@ function GamePageClient() {
 
   // This effect performs the initial auth check only once when the component mounts
   useEffect(() => {
+    // If already performed initial check, skip
+    if (isPerformingInitialCheckRef.current) {
+      console.log('Initial check already in progress, skipping duplicate execution');
+      return;
+    }
+    
+    // Initial check on mount - just get the session once
     const initialCheck = async () => {
-      // Skip if already performing check to prevent duplicate executions
-      if (isPerformingInitialCheckRef.current) {
-        console.log('Already performing initial auth check, skipping duplicate');
-        return;
-      }
-      
-      isPerformingInitialCheckRef.current = true;
-      console.log('Performing initial auth check...');
-      
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        isPerformingInitialCheckRef.current = true;
+        console.log('Performing initial auth check...');
         
-        // Check if we have a user and update the state
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user || null);
+        
+        // Capture current user ID in the ref to avoid auth loops
         if (session?.user) {
-          console.log('User found in initial check, fetching kanji data...');
           currentUserIdRef.current = session.user.id;
-          setUser(session.user);
-          await fetchUserKanjiData();
+          console.log('User found in initial check, fetching kanji data...');
+          
+          // Add a small delay to avoid race conditions with other effects
+          await new Promise(resolve => setTimeout(resolve, 100));
+          await fetchUserKanjiData(true);
         } else {
           console.log('No user found in initial check');
-          setUser(null);
         }
-        
+
         setIsLoading(false);
       } catch (error) {
-        console.error('Error during initial auth check:', error);
-        setUser(null);
+        console.error('Error in initial auth check:', error);
         setIsLoading(false);
       } finally {
-        isPerformingInitialCheckRef.current = false;
+        // Reset after a short delay to allow component to stabilize
+        setTimeout(() => {
+          isPerformingInitialCheckRef.current = false;
+        }, 1000);
       }
     };
 
     initialCheck();
     
-    // We don't setup auth listeners here anymore - it's done in the dedicated effect
-  }, []); // Empty dependency array to run once when component mounts
+    // No setup auth listeners here anymore - it's done in the dedicated effect
+  }, []); // Empty dependency array means this only runs once on mount
 
   // Add this new handler for starting drags from the sidebar
   const handleSidebarDragStart = (radical: string, clientX: number, clientY: number, elementRect: DOMRect) => {
@@ -1827,34 +1832,8 @@ function GamePageClient() {
       // Reset the ID after checking
       setLastAddedElementId(null);
     }
-  }, [lastAddedElementId, checkElementCollisions]);
-
-  // Fetch user data and kanji on initial load and auth state change
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    // Initial check on mount - just get the session once
-    const initialCheck = async () => {
-      try {
-        console.log('Performing initial auth check...');
-        const { data: { session } } = await supabase.auth.getSession();
-        setUser(session?.user || null);
-        
-        if (session?.user) {
-          console.log('User found in initial check, fetching kanji data...');
-          await fetchUserKanjiData();
-        }
-
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Error in initial auth check:', error);
-        setIsLoading(false);
-      }
-    };
-
-    initialCheck();
-    
-    // We don't setup auth listeners here anymore - it's done in the dedicated effect
-  }, [fetchUserKanjiData]); // Only depend on fetchUserKanjiData
+    // No setup auth listeners here anymore - it's done in the dedicated effect
+  }, []); // Empty dependency array means this only runs once on mount
 
   // Define findPossibleKanji function with useCallback
   const findPossibleKanji = useCallback((chars: string[], kanjiData: KanjiRadicalsData): string[] => {
