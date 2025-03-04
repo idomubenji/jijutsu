@@ -162,11 +162,12 @@ function GamePageClient() {
   const [showMeanings, setShowMeanings] = useState(false);
   
   // Tracking drag state
+  const [isDraggingFromSidebar, setIsDraggingFromSidebar] = useState(false);
+  const [sidebarDraggedChar, setSidebarDraggedChar] = useState<string | null>(null);
   const [draggedElementId, setDraggedElementId] = useState<string | null>(null);
-  const [offsetX, setOffsetX] = useState(0);
-  const [offsetY, setOffsetY] = useState(0);
+  const [dragOffset, setDragOffset] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
+  const [mousePosition, setMousePosition] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
   const [sidebarDragging, setSidebarDragging] = useState(false);
-  const [sidebarDraggedChar, setSidebarDraggedChar] = useState('');
   
   // Touchscreen support
   const [touchSupport, setTouchSupport] = useState(false);
@@ -180,10 +181,6 @@ function GamePageClient() {
   const [showTutorialCue, setShowTutorialCue] = useState(false);
   
   // Add this to the existing game state variables
-  const [isDraggingFromSidebar, setIsDraggingFromSidebar] = useState(false);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  
-  // Add state for tracking which elements are being hovered
   const [hoveredElements, setHoveredElements] = useState<Set<string>>(new Set());
   
   // Add a state to track connections between elements
@@ -207,12 +204,8 @@ function GamePageClient() {
   const gameAreaRef = useRef<HTMLDivElement>(null);
   
   // Drag offset for positioning elements
-  const dragOffset = { x: 0, y: 0 };
-  const setDragOffset = (offset: { x: number, y: number }) => {
-    dragOffset.x = offset.x;
-    dragOffset.y = offset.y;
-  };
-
+  // Removed mutable dragOffset object in favor of React state
+  
   // Detect dark mode
   useEffect(() => {
     const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -1153,14 +1146,18 @@ function GamePageClient() {
 
   // Add this new handler for starting drags from the sidebar
   const handleSidebarDragStart = (radical: string, clientX: number, clientY: number, elementRect: DOMRect) => {
+    // Calculate the relative position of the cursor within the element
+    const offsetX = clientX - elementRect.left;
+    const offsetY = clientY - elementRect.top;
+    
     // Set state to indicate we're dragging from sidebar
     setIsDraggingFromSidebar(true);
     setSidebarDraggedChar(radical);
     
-    // Calculate offset (for positioning the floating element)
+    // Store where on the element the user clicked using the state setter
     setDragOffset({
-      x: clientX - elementRect.left,
-      y: clientY - elementRect.top
+      x: offsetX,
+      y: offsetY
     });
   };
 
@@ -1409,14 +1406,20 @@ function GamePageClient() {
           // Create the new element
           const newId = generateUniqueId('element', sidebarDraggedChar);
           
+          // Determine if the dragged item is a kanji or radical
+          const isKanji = discoveredKanji.has(sidebarDraggedChar) || supabaseKanji.includes(sidebarDraggedChar);
+          
           const newElement: GameElement = {
             id: newId,
-            type: 'radical',
+            type: isKanji ? 'kanji' : 'radical',
             char: sidebarDraggedChar,
             position: { x: boundedX, y: boundedY },
             isDragging: false,
             touchingElements: new Set(),
-            className: 'merge-success ripple-effect' // Add animation classes
+            className: 'merge-success ripple-effect', // Add animation classes
+            meaning: isKanji && kanjiMeanings[sidebarDraggedChar] && kanjiMeanings[sidebarDraggedChar].length > 0 
+              ? kanjiMeanings[sidebarDraggedChar][0] 
+              : undefined
           };
           
           // Add the new element to the game and store its ID for collision check
@@ -1457,41 +1460,20 @@ function GamePageClient() {
   
   // Clone a radical from sidebar to game area
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleCloneRadical = (radical: string, clientX: number, clientY: number, _elementRect: DOMRect) => {
-    if (!gameAreaRef.current) return;
+  const handleCloneRadical = (radical: string, clientX: number, clientY: number, elementRect: DOMRect) => {
+    // Calculate the relative position of the cursor within the element
+    const offsetX = clientX - elementRect.left;
+    const offsetY = clientY - elementRect.top;
     
-    // Get game area bounds
-    const gameRect = gameAreaRef.current.getBoundingClientRect();
+    // Set state to indicate we're dragging from sidebar
+    setIsDraggingFromSidebar(true);
+    setSidebarDraggedChar(radical);
     
-    // Calculate position inside game area
-    const relativeX = clientX - gameRect.left - dragOffset.x;
-    const relativeY = clientY - gameRect.top - dragOffset.y;
-    
-    // Ensure element stays within bounds
-    const elementWidth = 40; // Assuming element is 40px wide
-    const elementHeight = 40; // Assuming element is 40px tall
-    
-    const boundedX = Math.max(0, Math.min(relativeX, gameRect.width - elementWidth));
-    const boundedY = Math.max(0, Math.min(relativeY, gameRect.height - elementHeight));
-    
-    // Create new element ID with randomness to ensure uniqueness
-    const newId = generateUniqueId('element', radical);
-    
-    // Add new element to game
-    const newElement: GameElement = {
-      id: newId,
-      type: 'radical',
-      char: radical,
-      position: { x: boundedX, y: boundedY },
-      isDragging: false,
-      touchingElements: new Set(),
-      className: 'merge-success ripple-effect' // Add animation classes
-    };
-    
-    setElements(prev => [...prev, newElement]);
-    
-    // Check for collisions immediately
-    setTimeout(() => checkElementCollisions(newId), 50);
+    // Store where on the element the user clicked using the state setter
+    setDragOffset({
+      x: offsetX,
+      y: offsetY
+    });
   };
   
   // Check collisions between elements
@@ -3095,11 +3077,23 @@ function GamePageClient() {
                     <div key={kanjiKey} className="flex flex-col items-center">
                       <div
                         data-kanji={kanji}
-                        className="w-9 h-9 flex items-center justify-center rounded cursor-pointer select-none relative group text-white"
+                        className="w-9 h-9 flex items-center justify-center rounded cursor-grab select-none relative group text-white"
                         style={{ 
                           backgroundColor: 'rgba(0, 79, 23, 0.9)', // #004F17 with 90% opacity
                           userSelect: 'none',
                           zIndex: 30 // Ensure it's above other elements
+                        }}
+                        onMouseDown={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          handleSidebarDragStart(kanji, e.clientX, e.clientY, rect);
+                          e.preventDefault(); // Prevent text selection
+                        }}
+                        onTouchStart={(e) => {
+                          if (e.touches[0]) {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            handleSidebarDragStart(kanji, e.touches[0].clientX, e.touches[0].clientY, rect);
+                            e.preventDefault();
+                          }
                         }}
                         onClick={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
