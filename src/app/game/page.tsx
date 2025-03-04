@@ -1952,7 +1952,26 @@ function GamePageClient() {
 
   // Define clearGameArea function
   const clearGameArea = () => {
-    // Implementation details...
+    // Only keep elements that are in the sidebar (position x and y are 0)
+    setElements(prev => prev.filter(el => el.position.x === 0 && el.position.y === 0));
+    
+    // Reset any connections
+    setConnections([]);
+    
+    // Reset hovered elements
+    setHoveredElements(new Set());
+    
+    // Reset any dragged element state
+    setDraggedElementId(null);
+    setIsDraggingFromSidebar(false);
+    setSidebarDraggedChar('');
+    setIsOverTrash(false);
+    
+    // Reset last added element id
+    setLastAddedElementId(null);
+    
+    // Add notification to confirm action
+    addNotification('Game area cleared', 'info');
   };
 
   // Define handleSignOut function
@@ -3052,17 +3071,6 @@ function GamePageClient() {
               <h3 className="font-semibold dark:text-stone-300">
                 {t('kanji.sidebar.title')} ({user ? userKanjiCount : discoveredKanji.size})
               </h3>
-              
-              {((user && userKanjiCount > 0) || (!user && discoveredKanji.size > 0)) && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={resetProgress}
-                  className="text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 text-xs p-1 h-auto"
-                >
-                  {t('kanji.sidebar.reset')}
-                </Button>
-              )}
             </div>
             
             {/* Add instruction text */}
