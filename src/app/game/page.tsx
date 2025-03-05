@@ -1477,24 +1477,6 @@ function GamePageClient() {
     }
   };
   
-  // Clone a radical from sidebar to game area
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleCloneRadical = (radical: string, clientX: number, clientY: number, elementRect: DOMRect) => {
-    // Calculate the relative position of the cursor within the element
-    const offsetX = clientX - elementRect.left;
-    const offsetY = clientY - elementRect.top;
-    
-    // Set state to indicate we're dragging from sidebar
-    setIsDraggingFromSidebar(true);
-    setSidebarDraggedChar(radical);
-    
-    // Store where on the element the user clicked using the state setter
-    setDragOffset({
-      x: offsetX,
-      y: offsetY
-    });
-  };
-  
   // Check collisions between elements
   const checkElementCollisions = useCallback((changedElementId: string) => {
     if (!kanjiData) return;
@@ -2518,6 +2500,14 @@ function GamePageClient() {
     };
   }, []);
 
+  // Clone a radical from sidebar to game area - no longer used, kept as no-op for compatibility
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleCloneRadical = (radical: string, clientX: number, clientY: number, elementRect: DOMRect) => {
+    // This function is intentionally empty to avoid unwanted behavior
+    // It used to create duplicate elements when clicking
+    console.log('handleCloneRadical called but is now disabled');
+  };
+
   if (loadingData) {
     console.log('Rendering loading screen, loadingData =', loadingData);
     return (
@@ -3181,13 +3171,6 @@ function GamePageClient() {
                             handleSidebarDragStart(kanji, e.touches[0].clientX, e.touches[0].clientY, rect);
                             e.preventDefault();
                           }
-                        }}
-                        onClick={(e) => {
-                          // Skip if we're handling a right-click
-                          if (handlingRightClick) return;
-                          
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          handleCloneRadical(kanji, e.clientX, e.clientY, rect);
                         }}
                         onContextMenu={(e) => {
                           // Immediately prevent any drag operations
