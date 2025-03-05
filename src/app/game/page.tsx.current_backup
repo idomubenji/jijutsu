@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { SignInForm } from '@/components/SignInForm';
@@ -31,6 +31,7 @@ interface GameElement {
   className?: string; // Optional class name for animations
   meaning?: string; // Optional meaning to display
   style?: Record<string, string>; // Optional style for scatter effect
+  isAnimating?: boolean; // Flag to indicate element is currently animating
 }
 
 interface Notification {
@@ -86,7 +87,10 @@ interface SupabaseError {
 }
 
 // Create a ClientSide component that safely uses useSearchParams
-function GamePageClient() {
+const GamePageClient: React.FC = () => {
+  // Extract the t function from useLanguage hook at the beginning of the component
+  const { t } = useLanguage();
+  
   // Use the supabase client from imports, not a new instance
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -169,8 +173,6 @@ function GamePageClient() {
   const [dragOffset, setDragOffset] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
   const [mousePosition, setMousePosition] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
   const [sidebarDragging, setSidebarDragging] = useState(false);
-  // Add state to track right-click
-  const [handlingRightClick, setHandlingRightClick] = useState(false);
   
   // Touchscreen support
   const [touchSupport, setTouchSupport] = useState(false);
@@ -415,7 +417,7 @@ function GamePageClient() {
         return prev;
       });
     }, 5000);
-  }, [notifications, DISCOVERY_COOLDOWN]);
+  }, [notifications, DISCOVERY_COOLDOWN, t]);
 
   // Fetch user kanji data from Supabase
   const fetchUserKanjiData = useCallback(async (forceRefresh = false) => {
@@ -950,7 +952,7 @@ function GamePageClient() {
       addNotification('Error recording your kanji discovery. Please try again.', 'info');
       console.log('----- KANJI DISCOVERY TRACE END -----');
     }
-  }, [user, addNotification, fetchUserKanjiData, hasSyncedKanji]);
+  }, [user, addNotification, fetchUserKanjiData, hasSyncedKanji, t]);
   
   // Fetch user's kanji count and kanji list from Supabase when user changes
   useEffect(() => {
@@ -1149,9 +1151,6 @@ function GamePageClient() {
 
   // Add this new handler for starting drags from the sidebar
   const handleSidebarDragStart = (radical: string, clientX: number, clientY: number, elementRect: DOMRect) => {
-    // Skip if we're handling a right-click
-    if (handlingRightClick) return;
-    
     // Calculate the relative position of the cursor within the element
     const offsetX = clientX - elementRect.left;
     const offsetY = clientY - elementRect.top;
@@ -1169,1354 +1168,77 @@ function GamePageClient() {
 
   // Handle starting a drag operation for elements already in the game area
   const handleStartDrag = (elementId: string, clientX: number, clientY: number, elementRect: DOMRect) => {
-    // Set the element being dragged
-    setDraggedElementId(elementId);
+    // Find the element
+    const element = elements.find(el => el.id === elementId);
     
-    // Calculate offset from cursor to element corner
-    setDragOffset({
-      x: clientX - elementRect.left,
-      y: clientY - elementRect.top
-    });
-    
-    // Update element state to indicate it's being dragged
-    setElements(prev => prev.map(el => 
-      el.id === elementId 
-        ? { ...el, isDragging: true } 
-        : el
-    ));
-  };
-
-  // Modify the existing handleDrag function to handle sidebar drags
-  const handleDrag = (clientX: number, clientY: number) => {
-    // Update current mouse position
-    setMousePosition({ x: clientX, y: clientY });
-    
-    if (!gameAreaRef.current) return;
-    
-    const gameRect = gameAreaRef.current.getBoundingClientRect();
-    
-    // Handle trash can hover check
-    if (trashCanRef.current) {
-      const trashRect = trashCanRef.current.getBoundingClientRect();
-      const elementCenterX = clientX;
-      const elementCenterY = clientY;
-      
-      // Check if element is overlapping with trash can
-      const isOverTrash = 
-        elementCenterX >= trashRect.left && 
-        elementCenterX <= trashRect.right &&
-        elementCenterY >= trashRect.top && 
-        elementCenterY <= trashRect.bottom;
-      
-      setIsOverTrash(isOverTrash);
+    // Skip if element not found
+    if (!element) {
+      console.log('Element not found for drag start:', elementId);
+      return;
     }
     
-    // Update hovered elements for both sidebar drags and regular drags
-    if (isDraggingFromSidebar || draggedElementId) {
-      const gameElements = elements.filter(el => (el.position.x !== 0 || el.position.y !== 0) && el.id !== draggedElementId);
-      const hoveredElements = new Set<string>();
-      const newConnections: {from: string, to: string}[] = [];
-      const elementWidth = 40;
-      const elementHeight = 40;
+    // Log but allow dragging even if animating
+    if (element.isAnimating) {
+      console.log('Element is animating, but allowing drag anyway:', elementId);
       
-      // Determine the position of the currently dragged element
-      let draggedX = 0;
-      let draggedY = 0;
-      const draggedId = draggedElementId || 'sidebar';
-      
-      if (draggedElementId) {
-        // If dragging an existing element, get its position from elements state
-        const draggedElementObj = elements.find(el => el.id === draggedElementId);
-        if (draggedElementObj) {
-          draggedX = draggedElementObj.position.x;
-          draggedY = draggedElementObj.position.y;
-        }
-      } else if (isDraggingFromSidebar) {
-        // If dragging from sidebar, calculate position from mouse and offset
-        draggedX = clientX - gameRect.left - dragOffset.x;
-        draggedY = clientY - gameRect.top - dragOffset.y;
-      }
-      
-      // Define the bounding box of the dragged element
-      const draggedLeft = draggedX;
-      const draggedRight = draggedX + elementWidth;
-      const draggedTop = draggedY;
-      const draggedBottom = draggedY + elementHeight;
-      
-      // Check for overlaps with other elements
-      for (const el of gameElements) {
-        const elLeft = el.position.x;
-        const elRight = el.position.x + elementWidth;
-        const elTop = el.position.y;
-        const elBottom = el.position.y + elementHeight;
+      // Special handling for scatter animation - update position immediately
+      if (element.className === 'scatter-effect' && element.style) {
+        const scatterX = parseFloat(element.style['--scatter-x'] as string) || 0;
+        const scatterY = parseFloat(element.style['--scatter-y'] as string) || 0;
         
-        // Add some margin for easier connecting with dotted lines
-        const proximityMargin = 15;
-        
-        // Use a smaller margin for actual overlapping/merging
-        const overlapMargin = 5;
-        
-        // Check for proximity (for dotted line)
-        const isInProximity = 
-          draggedLeft - proximityMargin < elRight + proximityMargin && 
-          draggedRight + proximityMargin > elLeft - proximityMargin && 
-          draggedTop - proximityMargin < elBottom + proximityMargin && 
-          draggedBottom + proximityMargin > elTop - proximityMargin;
-        
-        // Check for actual overlap (for size increase and merge)
-        const isOverlapping = 
-          draggedLeft - overlapMargin < elRight + overlapMargin && 
-          draggedRight + overlapMargin > elLeft - overlapMargin && 
-          draggedTop - overlapMargin < elBottom + overlapMargin && 
-          draggedBottom + overlapMargin > elTop - overlapMargin;
-        
-        if (isInProximity) {
-          // Only add connections for proximity (dotted lines)
-          newConnections.push({
-            from: draggedId,
-            to: el.id
-          });
-          
-          // Only add to hoveredElements if actually overlapping (for size increase)
-          if (isOverlapping) {
-            hoveredElements.add(el.id);
-          }
-        }
-      }
-      
-      setHoveredElements(hoveredElements);
-      setConnections(newConnections);
-    } else {
-      // Clear hover state when not dragging
-      setHoveredElements(new Set());
-      setConnections([]);
-    }
-    
-    // Handle movement for regular drag operations
-    if (draggedElementId) {
-      // Update element position, keeping it within game area bounds
-      setElements(prev => prev.map(el => {
-        if (el.id === draggedElementId) {
-          // Calculate new position relative to game area
-          const newX = clientX - gameRect.left - dragOffset.x;
-          const newY = clientY - gameRect.top - dragOffset.y;
-          
-          // Ensure element stays within bounds
-          const elementWidth = 40; // Assuming element is 40px wide
-          const elementHeight = 40; // Assuming element is 40px tall
-          
-          const boundedX = Math.max(0, Math.min(newX, gameRect.width - elementWidth));
-          const boundedY = Math.max(0, Math.min(newY, gameRect.height - elementHeight));
-          
-          return { 
-            ...el, 
-            position: { x: boundedX, y: boundedY } 
-          };
-        }
-        return el;
-      }));
-    }
-
-    // Check for kanji discoveries with the current set of touching elements
-    if (hoveredElements.size >= 2) {
-      // Get all radical characters that are touching
-      const radicalSet = new Set<string>();
-      
-      hoveredElements.forEach(id => {
-        const element = elements.find(el => el.id === id);
-        if (element) {
-          radicalSet.add(element.char);
-        }
-      });
-      
-      // Convert set to sorted array for consistent checking
-      const radicals = Array.from(radicalSet).sort();
-      
-      // Check if these radicals form a kanji
-      if (kanjiData && radicals.length >= 2) {
-        // Using every radical to check for potential kanji
-        radicals.forEach(radical => {
-          if (kanjiData.radicalToKanji[radical]) {
-            kanjiData.radicalToKanji[radical].forEach(kanji => {
-              // Get the set of radicals for this kanji
-              const kanjiRadicals = kanjiData.kanjiToRadicals[kanji] || [];
-              
-              // Check if all radicals for this kanji are present in our touching set
-              // AND check if our touching set contains exactly these radicals (no extras)
-              if (
-                kanjiRadicals.every(r => radicalSet.has(r)) && 
-                kanjiRadicals.length === radicalSet.size
-              ) {
-                // We've discovered a kanji!
-                if (!discoveredKanji.has(kanji)) {
-                  // Add to discovered set
-                  const newDiscoveredKanji = new Set(discoveredKanji);
-                  newDiscoveredKanji.add(kanji);
-                  
-                  // Update state
-                  recordKanjiDiscovery(kanji);
-                  
-                  // Show notification with the kanji
-                  addNotification('', 'success', kanji);
-                  
-                  // Add the kanji as a new element in the workspace
-                  const newKanjiElement: GameElement = {
-                    id: generateUniqueId('kanji', kanji),
-                    type: 'kanji',
-                    char: kanji,
-                    position: {
-                      x: Math.min(...Array.from(hoveredElements).map(el => elements.find(e => e.id === el)?.position.x || 0)) + 10,
-                      y: Math.min(...Array.from(hoveredElements).map(el => elements.find(e => e.id === el)?.position.y || 0)) + 10
-                    },
-                    isDragging: false,
-                    touchingElements: new Set(),
-                    className: 'kanji-created',
-                    meaning: kanjiMeanings[kanji] && kanjiMeanings[kanji].length > 0 ? kanjiMeanings[kanji][0] : undefined
-                  };
-                  
-                  // Add new kanji and remove all the radicals used
-                  setElements(prev => {
-                    // Remove the radicals that were combined
-                    const filtered = prev.filter(el => !hoveredElements.has(el.id));
-                    // Add the new kanji
-                    return [...filtered, newKanjiElement];
-                  });
-                }
-              }
-            });
-          }
-        });
-      }
-    }
-  };
-
-  // Modify the existing handleEndDrag function to handle sidebar drags
-  const handleEndDrag = () => {
-    // Clear hover state and connections
-    setHoveredElements(new Set());
-    setConnections([]);
-    
-    // Handle the case where we're dragging from the sidebar
-    if (isDraggingFromSidebar && sidebarDraggedChar && gameAreaRef.current) {
-      // Don't drop if we're over the trash
-      if (!isOverTrash) {
-        const gameRect = gameAreaRef.current.getBoundingClientRect();
-        // Use tracked mouse position instead of window.event
-        const currentPosition = mousePosition;
-        
-        // Only create element if cursor is within game area
-        if (
-          currentPosition.x >= gameRect.left && 
-          currentPosition.x <= gameRect.right && 
-          currentPosition.y >= gameRect.top && 
-          currentPosition.y <= gameRect.bottom
-        ) {
-          // Calculate position inside game area
-          const relativeX = currentPosition.x - gameRect.left - dragOffset.x;
-          const relativeY = currentPosition.y - gameRect.top - dragOffset.y;
-          
-          // Ensure element stays within bounds
-          const elementWidth = 40;
-          const elementHeight = 40;
-          
-          const boundedX = Math.max(0, Math.min(relativeX, gameRect.width - elementWidth));
-          const boundedY = Math.max(0, Math.min(relativeY, gameRect.height - elementHeight));
-          
-          // Create the new element
-          const newId = generateUniqueId('element', sidebarDraggedChar);
-          
-          // Determine if the dragged item is a kanji or radical
-          const isKanji = discoveredKanji.has(sidebarDraggedChar) || supabaseKanji.includes(sidebarDraggedChar);
-          
-          const newElement: GameElement = {
-            id: newId,
-            type: isKanji ? 'kanji' : 'radical',
-            char: sidebarDraggedChar,
-            position: { x: boundedX, y: boundedY },
-            isDragging: false,
-            touchingElements: new Set(),
-            className: 'merge-success ripple-effect', // Add animation classes
-            meaning: isKanji && kanjiMeanings[sidebarDraggedChar] && kanjiMeanings[sidebarDraggedChar].length > 0 
-              ? kanjiMeanings[sidebarDraggedChar][0] 
-              : undefined
-          };
-          
-          // Add the new element to the game and store its ID for collision check
-          setElements(prev => [...prev, newElement]);
-          
-          // Store the ID for collision checking in the next render
-          setLastAddedElementId(newId);
-        }
-      }
-      
-      // Reset sidebar drag state
-      setIsDraggingFromSidebar(false);
-      setSidebarDraggedChar('');
-      setIsOverTrash(false);
-    } 
-    // Handle the case for regular dragged elements
-    else if (draggedElementId) {
-      // If element is over trash can, delete it
-      if (isOverTrash) {
-        setElements(prev => prev.filter(el => el.id !== draggedElementId));
-        setIsOverTrash(false);
-      } else {
-        // Update element to no longer be dragging
+        // Update the element with final position and clear animation
         setElements(prev => prev.map(el => 
-          el.id === draggedElementId 
-            ? { ...el, isDragging: false } 
+          el.id === elementId 
+            ? { 
+                ...el, 
+                position: {
+                  x: el.position.x + scatterX,
+                  y: el.position.y + scatterY
+                },
+                className: (el.className || '').replace('scatter-effect', 'kanji-created').trim(),
+                style: {},
+                isAnimating: false,
+                isDragging: true
+              }
             : el
         ));
         
-        // Check for collisions and potential merges
-        checkElementCollisions(draggedElementId);
+        setDraggedElementId(elementId);
+        
+        // Set drag offset
+        setDragOffset({ x: clientX - elementRect.left, y: clientY - elementRect.top });
+        return;
       }
       
-      // Reset drag state
-      setDraggedElementId(null);
+      // For other animations, just clear animation flags
+      setElements(prev => prev.map(el => 
+        el.id === elementId 
+          ? { ...el, isAnimating: false, className: (el.className || '').replace('merge-success', '').replace('ripple-effect', '').trim() } 
+          : el
+      ));
     }
-  };
-  
-  // Clone a radical from sidebar to game area
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleCloneRadical = (radical: string, clientX: number, clientY: number, elementRect: DOMRect) => {
-    // Calculate the relative position of the cursor within the element
+    
+    console.log('Starting drag on element:', elementId);
+    
+    setDraggedElementId(elementId);
+    
+    // Calculate the offset of mouse from the element's top-left corner
     const offsetX = clientX - elementRect.left;
     const offsetY = clientY - elementRect.top;
     
-    // Set state to indicate we're dragging from sidebar
-    setIsDraggingFromSidebar(true);
-    setSidebarDraggedChar(radical);
-    
-    // Store where on the element the user clicked using the state setter
+    // Set the drag offset
     setDragOffset({
       x: offsetX,
       y: offsetY
     });
+    
+    // Mark the element as dragging
+    setElements(prev => prev.map(el => 
+      el.id === elementId 
+      ? { ...el, isDragging: true } 
+      : el
+    ));
   };
-  
-  // Check collisions between elements
-  const checkElementCollisions = useCallback((changedElementId: string) => {
-    if (!kanjiData) return;
-      
-    // Find the changed element
-    const changedElement = elements.find(el => el.id === changedElementId);
-    if (!changedElement) return;
-    
-    // Update touchingElements for all elements
-    setElements(prev => {
-      const updated = [...prev];
-      
-      // For each element, check if it's touching any other element
-      for (let i = 0; i < updated.length; i++) {
-        const el1 = updated[i];
-        el1.touchingElements = new Set(); // Reset touching elements
-        
-        for (let j = 0; j < updated.length; j++) {
-          if (i === j) continue; // Skip self
-          
-          const el2 = updated[j];
-          
-          // Check if elements are touching
-          const el1Rect = {
-            left: el1.position.x,
-            right: el1.position.x + 40,
-            top: el1.position.y,
-            bottom: el1.position.y + 40,
-          };
-          
-          const el2Rect = {
-            left: el2.position.x,
-            right: el2.position.x + 40,
-            top: el2.position.y,
-            bottom: el2.position.y + 40,
-          };
-          
-          const isTouching = !(
-            el1Rect.right < el2Rect.left ||
-            el1Rect.left > el2Rect.right ||
-            el1Rect.bottom < el2Rect.top ||
-            el1Rect.top > el2Rect.bottom
-          );
-          
-          if (isTouching) {
-            el1.touchingElements.add(el2.id);
-          }
-        }
-      }
-      
-      // Check for kanji formation
-      // Get all connected elements
-      const connectedIds = findConnectedElements(changedElementId, updated);
-      
-      // Get characters from connected elements
-      const connectedChars = Array.from(connectedIds).map(id => {
-        const el = updated.find(e => e.id === id);
-        return el ? el.char : '';
-      }).filter(Boolean);
-      
-      // Sort alphabetically to ensure consistent order
-      connectedChars.sort();
-      
-      // Skip if only one element (no combination possible)
-      if (connectedChars.length <= 1) return updated;
-      
-      // Check if these radicals form a kanji
-      const possibleKanji = findPossibleKanji(connectedChars, kanjiData);
-      
-      // Calculate center position of the connected elements for scatter effect
-      const centerX = Array.from(connectedIds).reduce((sum, id) => {
-        const el = updated.find(e => e.id === id);
-        return sum + (el?.position.x || 0);
-      }, 0) / connectedIds.size;
-      
-      const centerY = Array.from(connectedIds).reduce((sum, id) => {
-        const el = updated.find(e => e.id === id);
-        return sum + (el?.position.y || 0);
-      }, 0) / connectedIds.size;
-      
-      // Determine if we should use scatter effect (multiple kanji created)
-      const shouldScatter = possibleKanji.length > 1;
-      
-      // If kanji is formed, add to discovered kanji
-      for (let i = 0; i < possibleKanji.length; i++) {
-        const kanji = possibleKanji[i];
-        
-        // Create scatter direction based on kanji's index
-        let scatterClass = 'kanji-created';
-        let scatterStyle = {};
-        
-        if (shouldScatter) {
-          // Calculate scatter angle based on index and total count
-          const angleStep = (2 * Math.PI) / possibleKanji.length;
-          const angle = angleStep * i;
-          
-          // Calculate scatter distance (60-100px)
-          const distance = 60 + Math.random() * 40;
-          
-          // Calculate scatter x and y offsets
-          let scatterX = Math.cos(angle) * distance;
-          let scatterY = Math.sin(angle) * distance;
-          
-          // Get game area dimensions - assume we're working with a game area reference
-          const gameAreaWidth = gameAreaRef.current ? gameAreaRef.current.clientWidth - 40 : 800; // 40px is the element width
-          
-          // Enforce boundaries - prevent scattering too far
-          const newPosX = centerX + scatterX;
-          const newPosY = centerY + scatterY;
-          
-          // Constrain position to keep within game area
-          // Avoid going offscreen or into sidebar
-          if (newPosX < 0) scatterX = -centerX + 10; // 10px buffer from left edge
-          if (newPosX > gameAreaWidth) scatterX = gameAreaWidth - centerX - 10; // 10px buffer from right edge
-          if (newPosY < 0) scatterY = -centerY + 10; // 10px buffer from top edge
-          const gameAreaHeight = gameAreaRef.current ? gameAreaRef.current.clientHeight - 40 : 600;
-          if (newPosY > gameAreaHeight) {
-            scatterY = gameAreaHeight - centerY - 10; // 10px buffer from bottom
-          }
-          
-          scatterClass = 'scatter-effect';
-          scatterStyle = {
-            '--scatter-x': `${scatterX}px`,
-            '--scatter-y': `${scatterY}px`
-          };
-        }
-        
-        // Skip if this kanji was already discovered
-        if (discoveredKanji.has(kanji)) {
-          // Check if we need to remove radicals and add the kanji to the workspace
-          // If the kanji already exists on the board, don't create a duplicate
-          const kanjiAlreadyOnBoard = updated.some(el => el.type === 'kanji' && el.char === kanji);
-          
-          if (!kanjiAlreadyOnBoard) {
-            // Create a new kanji element to replace the radicals
-            const newKanjiElement: GameElement = {
-              id: `kanji-${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${kanji}`,
-              type: 'kanji',
-              char: kanji,
-              position: {
-                x: shouldScatter 
-                  ? Math.max(0, Math.min(centerX - 20, (gameAreaRef.current?.clientWidth || 800) - 40))
-                  : Math.min(...Array.from(connectedIds).map(id => updated.find(e => e.id === id)?.position.x || 0)) + 10,
-                y: shouldScatter 
-                  ? Math.max(0, Math.min(centerY - 20, (gameAreaRef.current?.clientHeight || 600) - 40)) 
-                  : Math.min(...Array.from(connectedIds).map(id => updated.find(e => e.id === id)?.position.y || 0)) + 10
-              },
-              isDragging: false,
-              touchingElements: new Set(),
-              className: scatterClass,
-              style: scatterStyle,
-              meaning: kanjiMeanings[kanji] && kanjiMeanings[kanji].length > 0 ? kanjiMeanings[kanji][0] : undefined
-            };
-            
-            // Add the new kanji to the updated elements
-            updated.push(newKanjiElement);
-          }
-          
-          continue;
-        }
-
-        // Add to discovered list
-        setDiscoveredKanji(prev => {
-          const updated = new Set(prev);
-          updated.add(kanji);
-          return updated;
-        });
-        
-        // Record discovery
-        recordKanjiDiscovery(kanji);
-
-        // Show notification with the kanji
-        addNotification('', 'success', kanji);
-        
-        // Create a new kanji element to replace the radicals
-        const newKanjiElement: GameElement = {
-          // Create a unique ID without using the generateUniqueId function
-          id: `kanji-${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${kanji}`,
-          type: 'kanji',
-          char: kanji,
-          position: {
-            // Position at the center for scatter effect or near connected elements otherwise
-            x: shouldScatter 
-              ? Math.max(0, Math.min(centerX - 20, (gameAreaRef.current?.clientWidth || 800) - 40))
-              : Math.min(...Array.from(connectedIds).map(id => updated.find(e => e.id === id)?.position.x || 0)) + 10,
-            y: shouldScatter 
-              ? Math.max(0, Math.min(centerY - 20, (gameAreaRef.current?.clientHeight || 600) - 40)) 
-              : Math.min(...Array.from(connectedIds).map(id => updated.find(e => e.id === id)?.position.y || 0)) + 10
-          },
-          isDragging: false,
-          touchingElements: new Set(),
-          className: scatterClass,
-          style: scatterStyle,
-          meaning: kanjiMeanings[kanji] && kanjiMeanings[kanji].length > 0 ? kanjiMeanings[kanji][0] : undefined
-        };
-        
-        // Add the new kanji to the updated elements
-        updated.push(newKanjiElement);
-      }
-      
-      // Remove the radicals that were used after adding all new kanji
-      if (possibleKanji.length > 0) {
-        return updated.filter(el => !connectedIds.has(el.id));
-      }
-      
-      return updated;
-    });
-  }, [elements, setElements, discoveredKanji, setDiscoveredKanji, recordKanjiDiscovery, kanjiData, addNotification]);
-
-  // Health check function
-  const runHealthCheck = useCallback(async () => {
-    try {
-      const result = await checkSupabaseHealth();
-      
-      setConnectionStatus({
-        connected: result.success,
-        message: result.message,
-        lastChecked: new Date()
-      });
-      
-      if (!result.success) {
-        // Only show notification if this is not the first health check
-        if (connectionStatus.lastChecked) {
-          addNotification('Connection to server lost. Some features may be unavailable.', 'info');
-        }
-      } else if (connectionStatus.lastChecked && !connectionStatus.connected) {
-        // If we were previously disconnected and now reconnected
-        addNotification('Connection to server restored!', 'success');
-      }
-    } catch (error) {
-      console.error('Health check failed:', error);
-      setConnectionStatus({
-        connected: false,
-        message: error instanceof Error ? error.message : 'Unknown error',
-        lastChecked: new Date()
-      });
-    }
-  }, [connectionStatus.lastChecked, connectionStatus.connected, addNotification]);
-
-  // Add health check effect - TEMPORARILY DISABLED to fix infinite loop
-  /*
-  useEffect(() => {
-    // Run an initial health check
-    runHealthCheck();
-    
-    // Set up an interval to run health checks periodically (every 30 seconds)
-    const intervalId = setInterval(() => {
-      runHealthCheck();
-    }, 30000); // 30 seconds
-    
-    // Clean up the interval when the component unmounts
-    return () => clearInterval(intervalId);
-  }, [runHealthCheck]);
-  */
-
-  // Find all elements connected in a cluster using breadth-first search
-  const findConnectedElements = (startId: string, elements: GameElement[]): Set<string> => {
-    const connected = new Set<string>();
-    const queue = [startId];
-    
-    while (queue.length > 0) {
-      const currentId = queue.shift()!;
-      
-      if (connected.has(currentId)) continue;
-      connected.add(currentId);
-      
-      // Find the current element
-      const element = elements.find(el => el.id === currentId);
-      
-      if (!element) continue;
-      
-      // Add all touching elements to the queue
-      element.touchingElements.forEach(touchingId => {
-        if (!connected.has(touchingId)) {
-          queue.push(touchingId);
-        }
-      });
-    }
-    
-    return connected;
-  };
-
-  // Function to sync localStorage kanji to database when user signs in
-  const syncLocalKanjiToDatabase = useCallback(async (userId: string) => {
-    if (hasSyncedKanji) {
-      console.log('Already synced kanji, skipping');
-      return;
-    }
-    
-    try {
-      // Get kanji from localStorage
-      const savedKanji = localStorage.getItem('jijutsu_discovered_kanji');
-      if (!savedKanji) {
-        console.log('No local kanji to sync to database');
-        return;
-      }
-
-      const localKanji = JSON.parse(savedKanji);
-      if (!Array.isArray(localKanji) || localKanji.length === 0) {
-        console.log('No local kanji to sync (empty array)');
-        return;
-      }
-
-      console.log(`Syncing ${localKanji.length} kanji from localStorage to database for user ${userId}`);
-      console.log('Kanji to sync:', localKanji);
-
-      // For each kanji in localStorage, add it to the user's account
-      for (const kanji of localKanji) {
-        await recordKanjiDiscovery(kanji);
-        // Add notification for each synced kanji
-        addNotification(`Syncing 1 kanji to your account...`, 'success');
-      }
-
-      // Clear localStorage after successful sync
-      localStorage.removeItem('jijutsu_discovered_kanji');
-      
-      // Force refresh user kanji data
-      await fetchUserKanjiData();
-      
-      // Mark as synced
-      setHasSyncedKanji(true);
-      
-      console.log('Sync completed successfully');
-    } catch (error) {
-      console.error('Error syncing local kanji to database:', error);
-    }
-  }, [recordKanjiDiscovery, addNotification, fetchUserKanjiData, hasSyncedKanji]);
-
-  // Keep this effect to handle loading kanji data when user changes
-  useEffect(() => {
-    if (user?.id) {
-      // When user changes, fetch their kanji data
-      fetchUserKanjiData();
-    }
-  }, [user, fetchUserKanjiData]);
-
-  // Add a function to fetch kanji details from Supabase
-  const fetchKanjiDetails = useCallback(async (kanji: string) => {
-    if (!kanji) return;
-    
-    console.log('Fetching details for kanji:', kanji);
-    setLoadingKanjiDetails(true);
-    
-    try {
-      const { data, error } = await supabase
-        .from('kanji_dex')
-        .select('id, kanji, dex_number, meanings, on_reading, kun_reading')
-        .eq('kanji', kanji)
-        .single();
-      
-      console.log('Supabase response:', { data, error });
-      
-      if (error) {
-        console.error('Error fetching kanji details:', error);
-        addNotification(`Failed to load details for ${kanji}`, 'info');
-        return;
-      }
-      
-      setKanjiDetails(data);
-      // Open the dialog
-      setIsKanjiDetailsOpen(true);
-      console.log('Dialog should be open now with data:', data);
-    } catch (error) {
-      console.error('Unexpected error fetching kanji details:', error);
-    } finally {
-      setLoadingKanjiDetails(false);
-    }
-  }, []);
-  
-  // Use an effect to fetch kanji details when selectedKanji changes
-  useEffect(() => {
-    if (selectedKanji) {
-      console.log('Selected kanji changed, fetching details for:', selectedKanji);
-      fetchKanjiDetails(selectedKanji);
-    }
-  }, [selectedKanji, fetchKanjiDetails]);
-  
-  // Handle opening the kanji details dialog - simplified to just set the selected kanji
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleKanjiClick = (kanji: string, event: React.MouseEvent | React.TouchEvent) => {
-    // Prevent any drag operations immediately
-    event.preventDefault();
-    event.stopPropagation();
-    
-    // Set flag to prevent onClick from firing
-    setHandlingRightClick(true);
-    
-    // Reset the flag after a short delay
-    setTimeout(() => {
-      setHandlingRightClick(false);
-    }, 300);
-    
-    // Make sure we're not in any drag state
-    setIsDraggingFromSidebar(false);
-    setSidebarDraggedChar(null);
-    setDraggedElementId(null);
-    
-    console.log('Kanji clicked, setting selectedKanji:', kanji);
-    // Directly fetch the kanji details instead of just setting selectedKanji
-    setSelectedKanji(kanji);
-    fetchKanjiDetails(kanji);
-    
-    // No need to add the kanji to the workspace here
-  };
-  
-  // Close kanji details dialog
-  const handleCloseKanjiDetails = () => {
-    console.log('Closing kanji details dialog');
-    setIsKanjiDetailsOpen(false);
-    // Clear details after animation completes
-    setTimeout(() => {
-      setKanjiDetails(null);
-      setSelectedKanji(null);
-    }, 300);
-  };
-
-  // Add this useEffect hook after the other useEffect hooks
-  useEffect(() => {
-    // If we have a lastAddedElementId, check for collisions
-    if (lastAddedElementId) {
-      checkElementCollisions(lastAddedElementId);
-      // Reset the ID after checking
-      setLastAddedElementId(null);
-    }
-    // No setup auth listeners here anymore - it's done in the dedicated effect
-  }, [lastAddedElementId, checkElementCollisions]); // Run when lastAddedElementId changes
-
-  // Define findPossibleKanji function with useCallback
-  const findPossibleKanji = useCallback((chars: string[], kanjiData: KanjiRadicalsData): string[] => {
-    // No radicals to combine
-    if (!chars || chars.length === 0) {
-      return [];
-    }
-    
-    // Create a unique set of radicals (in case there are duplicates in the input)
-    const uniqueRadicals = [...new Set(chars)];
-    
-    // Special case for single radical type duplicated (e.g., two "口" or two "木")
-    const isSingleRadicalDuplicated = uniqueRadicals.length === 1 && chars.length > 1;
-    
-    // Array to hold the possible kanji matches
-    const possibleKanji: string[] = [];
-    
-    // Go through each kanji in the kanjiToRadicals dictionary
-    Object.entries(kanjiData.kanjiToRadicals).forEach(([kanji, radicals]) => {
-      // If we're dealing with a duplicated single radical
-      if (isSingleRadicalDuplicated) {
-        // Check if the kanji is made up of only the single radical we're looking for
-        if (radicals.length === 1 && radicals[0] === uniqueRadicals[0]) {
-          possibleKanji.push(kanji);
-        }
-      } 
-      // Otherwise, check for exact match of the radical set
-      else {
-        // Convert radicals to a Set for easier comparison
-        const radicalSet = new Set(radicals);
-        
-        // Check if the sets have the same size and the same elements
-        if (radicalSet.size === uniqueRadicals.length && 
-            uniqueRadicals.every(radical => radicalSet.has(radical))) {
-          possibleKanji.push(kanji);
-        }
-      }
-    });
-    
-    return possibleKanji;
-  }, []);
-
-  // Define handleRetryConnection function
-  const handleRetryConnection = async () => {
-    setIsRetrying(true);
-    try {
-      console.log('Attempting to retry connection...');
-      
-      // Try to run a health check
-      const result = await checkSupabaseHealth();
-      
-      if (result.success) {
-        console.log('Connection restored successfully!');
-        setConnectionStatus({
-          connected: true,
-          lastChecked: new Date(),
-          message: 'Connection re-established'
-        });
-        addNotification('Connection restored successfully!', 'success');
-      } else {
-        console.error('Failed to restore connection', result);
-        setConnectionStatus({
-          connected: false,
-          lastChecked: new Date(),
-          message: result.message || 'Failed to connect'
-        });
-        addNotification('Failed to restore connection. Please try again.', 'info');
-      }
-    } catch (error) {
-      console.error('Error during retry:', error);
-      setConnectionStatus({
-        connected: false,
-        lastChecked: new Date(),
-        message: error instanceof Error ? error.message : 'Error during retry'
-      });
-      addNotification('Error while trying to reconnect. Please try again.', 'info');
-    } finally {
-      setIsRetrying(false);
-    }
-  };
-
-  // Define clearGameArea function
-  const clearGameArea = () => {
-    // Only keep elements that are in the sidebar (position x and y are 0)
-    setElements(prev => prev.filter(el => el.position.x === 0 && el.position.y === 0));
-    
-    // Reset any connections
-    setConnections([]);
-    
-    // Reset hovered elements
-    setHoveredElements(new Set());
-    
-    // Reset any dragged element state
-    setDraggedElementId(null);
-    setIsDraggingFromSidebar(false);
-    setSidebarDraggedChar('');
-    setIsOverTrash(false);
-    
-    // Reset last added element id
-    setLastAddedElementId(null);
-    
-    // Add notification to confirm action
-    addNotification('Game area cleared', 'info');
-  };
-
-  // Define handleSignOut function
-  const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
-
-  // Define handleOpenAuth function
-  const handleOpenAuth = (mode: 'signin' | 'signup') => {
-    console.log(`Opening auth mode: ${mode}`);
-    if (mode === 'signin') {
-      setIsSignInOpen(true);
-      setIsSignUpOpen(false);
-    } else {
-      setIsSignUpOpen(true);
-      setIsSignInOpen(false);
-    }
-    setAuthMode(mode);
-  };
-
-  // Define handleAuthSuccess function
-  const handleAuthSuccess = () => {
-    console.log('Auth success callback triggered');
-    setIsSignInOpen(false);
-    setIsSignUpOpen(false);
-    
-    // Reset the sync flag to force syncing local data to db
-    setHasSyncedKanji(false);
-    
-    // Get the current session after successful auth
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      console.log('Getting session after auth success:', session ? 'Session found' : 'No session');
-      
-      if (error) {
-        console.error('Error getting session after auth:', error);
-        return;
-      }
-      
-      if (session?.user) {
-        console.log('User authenticated after success:', session.user);
-        setUser(session.user);
-        // Don't call fetchUserKanjiData directly here
-        // The useEffect with the user dependency will handle that
-      }
-    });
-  };
-
-  // Define resetProgress function
-  const resetProgress = () => {
-    if (!user) {
-      console.log('No user signed in, nothing to reset');
-      addNotification('Please sign in to reset your progress.', 'info');
-      return;
-    }
-    
-    // Ask for confirmation
-    if (!window.confirm('Are you sure you want to reset your progress? This will delete all your discovered kanji.')) {
-      return;
-    }
-    
-    (async () => {
-      try {
-        console.log('Resetting user progress...');
-        addNotification('Resetting your progress...', 'info');
-        
-        // First verify how many kanji records the user has
-        const { count: beforeCount, error: countError } = await supabase
-          .from('user_kanji')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id);
-          
-        if (countError) {
-          console.error('Error counting user kanji records:', countError);
-          addNotification('Failed to verify your kanji collection. Please try again later.', 'info');
-          return;
-        }
-        
-        console.log(`User has ${beforeCount} kanji records before reset`);
-        
-        // Delete all user's kanji from user_kanji table
-        const { error } = await supabase
-          .from('user_kanji')
-          .delete()
-          .eq('user_id', user.id);
-          
-        if (error) {
-          console.error('Error resetting progress:', error);
-          addNotification('Failed to reset your progress. Please try again later.', 'info');
-          return;
-        }
-        
-        // Verify that all records were deleted
-        const { count: afterCount, error: verifyError } = await supabase
-          .from('user_kanji')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id);
-          
-        if (verifyError) {
-          console.error('Error verifying kanji deletion:', verifyError);
-        } else if (afterCount && afterCount > 0) {
-          console.warn(`Not all kanji were deleted. ${afterCount} records remain.`);
-          
-          // Try one more time with a more forceful approach
-          try {
-            // Try a direct delete again with a different approach
-            const { error: retryError } = await supabase
-              .from('user_kanji')
-              .delete()
-              .filter('user_id', 'eq', user.id);
-            
-            if (retryError) {
-              console.error('Error in second deletion attempt:', retryError);
-            } else {
-              console.log('Used alternative method to delete remaining kanji records');
-            }
-          } catch (retryError) {
-            console.error('Exception in second deletion attempt:', retryError);
-          }
-        } else {
-          console.log('Successfully deleted all user kanji records');
-        }
-        
-        // Reset local state
-        setDiscoveredKanji(new Set());
-        setSupabaseKanji([]);
-        setUserKanjiCount(0);
-        setUnlockedRadicalCount(10); // Reset to initial value
-        
-        // Clear kanji meanings cache
-        setKanjiMeanings({});
-        loadedKanjiRef.current.clear();
-        
-        // Reset tracking refs
-        kanjiRefreshStateRef.current = {
-          userKanjiLength: 0,
-          discoveredKanjiSize: 0
-        };
-        
-        // Clear game area
-        clearGameArea();
-        
-        // Force refresh user data to verify the reset
-        await fetchUserKanjiData(true);
-        
-        console.log('Successfully reset user progress');
-        addNotification('Your progress has been reset!', 'success');
-      } catch (error) {
-        console.error('Error in reset progress:', error);
-        addNotification('Failed to reset your progress. Please try again later.', 'info');
-      } finally {
-        // Always refresh the UI to ensure it's in sync with the database
-        // even if there was an error, as partial operations might have succeeded
-        try {
-          await fetchUserKanjiData(true);
-        } catch (refreshError) {
-          console.error('Error refreshing data after reset:', refreshError);
-        }
-      }
-    })();
-  };
-
-  // Add this function near the top of your component, below other state declarations
-  const generateUniqueId = useCallback((prefix: string, kanji: string) => {
-    return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${kanji}`;
-  }, []);
-
-  // Update useEffect to check loadingData state
-  useEffect(() => {
-    console.log('Kanji data loading status:', loadingGameData);
-    console.log('Is useKanjiRadicals data loaded:', kanjiData !== null);
-    
-    // Set loadingData based on kanjiData and loadingGameData
-    if (!loadingGameData && kanjiData) {
-      console.log('Setting loadingData to false, kanji data is loaded');
-      setLoadingData(false);
-    }
-  }, [loadingGameData, kanjiData]);
-
-  // Add a ref to track which kanji we've already loaded meanings for
-  const loadedKanjiRef = useRef<Set<string>>(new Set());
-  
-  // Function to fetch and store kanji meanings
-  const fetchKanjiMeanings = useCallback(async () => {
-    try {
-      // Get the array of kanji to fetch meanings for
-      const kanjiToFetch = user ? supabaseKanji : Array.from(discoveredKanji);
-      
-      // If there are no kanji to fetch, return early
-      if (kanjiToFetch.length === 0) {
-        console.log('No kanji to fetch meanings for');
-        return;
-      }
-      
-      // Filter out kanji we already have meanings for
-      const kanjiSet = new Set(kanjiToFetch);
-      const loadedKanji = loadedKanjiRef.current;
-      
-      // Check if we've already loaded all these kanji
-      const allAlreadyLoaded = Array.from(kanjiSet).every(k => 
-        loadedKanji.has(k) || kanjiMeanings[k]
-      );
-      
-      if (allAlreadyLoaded && Object.keys(kanjiMeanings).length >= kanjiToFetch.length) {
-        console.log('All kanji meanings already loaded, skipping fetch');
-        return;
-      }
-      
-      // Find which kanji we need to fetch
-      const kanjiToActuallyFetch = kanjiToFetch.filter(k => 
-        !loadedKanji.has(k) && !kanjiMeanings[k]
-      );
-      
-      if (kanjiToActuallyFetch.length === 0) {
-        console.log('No new kanji meanings to fetch');
-        return;
-      }
-      
-      console.log(`Fetching meanings for ${kanjiToActuallyFetch.length} new kanji out of ${kanjiToFetch.length} total`);
-      
-      // Create a combined meanings map, starting with existing meanings
-      const meaningsMap: Record<string, string[]> = { ...kanjiMeanings };
-      
-      // Process in batches of 100 to avoid query limits
-      const BATCH_SIZE = 100;
-      for (let i = 0; i < kanjiToActuallyFetch.length; i += BATCH_SIZE) {
-        const batch = kanjiToActuallyFetch.slice(i, i + BATCH_SIZE);
-        console.log(`Processing batch ${i/BATCH_SIZE + 1}/${Math.ceil(kanjiToActuallyFetch.length/BATCH_SIZE)}: ${batch.length} kanji`);
-        
-        try {
-          const { data, error } = await supabase
-            .from('kanji_dex')
-            .select('kanji, meanings')
-            .in('kanji', batch);
-          
-          if (error && Object.keys(error).length > 0) {
-            console.error(`Error fetching batch ${i/BATCH_SIZE + 1}:`, error);
-            continue; // Try the next batch instead of failing completely
-          }
-          
-          if (!data || !Array.isArray(data)) {
-            console.error(`No data returned for batch ${i/BATCH_SIZE + 1}`);
-            continue;
-          }
-          
-          // Add results to the meanings map
-          data.forEach(item => {
-            if (item.kanji && Array.isArray(item.meanings) && item.meanings.length > 0) {
-              meaningsMap[item.kanji] = item.meanings;
-              loadedKanji.add(item.kanji);
-            }
-          });
-        } catch (batchError) {
-          console.error(`Error processing batch ${i/BATCH_SIZE + 1}:`, batchError);
-        }
-      }
-      
-      setKanjiMeanings(meaningsMap);
-      console.log('Kanji meanings loaded:', Object.keys(meaningsMap).length, 'out of', kanjiToFetch.length, 'requested');
-      
-      // Log any missing meanings for debugging
-      const missingMeanings = kanjiToFetch.filter(k => !meaningsMap[k]);
-      if (missingMeanings.length > 0) {
-        console.log('Kanji without loaded meanings:', missingMeanings);
-      }
-    } catch (error) {
-      console.error('Unexpected error fetching kanji meanings:', error);
-    }
-  }, [supabase, user, supabaseKanji, discoveredKanji, kanjiMeanings]);
-
-  // Define some common radical meanings (since they may not be in the database)
-  const initializeRadicalMeanings = useCallback(() => {
-    // Common radical meanings - you can expand this list as needed
-    const commonRadicalMeanings: Record<string, string> = {
-      "口": "mouth",
-      "一": "one",
-      "｜": "line",
-      "ノ": "bend",
-      "木": "tree",
-      "日": "sun/day",
-      "二": "two",
-      "土": "earth",
-      "田": "field",
-      "亠": "lid",
-      "人": "person",
-      "女": "woman",
-      "子": "child",
-      "心": "heart",
-      "手": "hand",
-      "水": "water",
-      "火": "fire",
-      "石": "stone",
-      "言": "speech",
-      "金": "metal/gold",
-      "力": "power",
-      "山": "mountain",
-      "王": "king",
-      "大": "big",
-      "小": "small",
-      "中": "middle",
-      "刀": "knife",
-      "月": "moon",
-      "糸": "thread",
-      "門": "gate",
-      "足": "foot",
-      "車": "car",
-      "雨": "rain",
-      "食": "eat",
-      "禾": "grain",
-      "示": "show",
-      "立": "stand",
-      "辶": "walk",
-      "目": "eye",
-      "竹": "bamboo",
-      "米": "rice",
-      "耳": "ear",
-      "魚": "fish"
-    };
-    
-    setRadicalMeanings(commonRadicalMeanings);
-  }, []);
-
-  // Load kanji meanings and initialize radical meanings
-  useEffect(() => {
-    fetchKanjiMeanings();
-    initializeRadicalMeanings();
-  }, [fetchKanjiMeanings, initializeRadicalMeanings]);
-  
-  // Add a ref to track current state to prevent unnecessary refreshes
-  const kanjiRefreshStateRef = useRef({
-    userKanjiLength: 0,
-    discoveredKanjiSize: 0
-  });
-  
-  // Reload kanji meanings when discovered kanji change
-  useEffect(() => {
-    // Skip if no kanji to fetch
-    if ((user && supabaseKanji.length === 0) && (!user && discoveredKanji.size === 0)) {
-      return;
-    }
-    
-    // Check if the counts have actually changed to prevent loops
-    const currentState = {
-      userKanjiLength: user ? supabaseKanji.length : 0,
-      discoveredKanjiSize: !user ? discoveredKanji.size : 0
-    };
-    
-    const prevState = kanjiRefreshStateRef.current;
-    
-    // Only fetch if the counts have changed
-    if (
-      (user && currentState.userKanjiLength !== prevState.userKanjiLength) ||
-      (!user && currentState.discoveredKanjiSize !== prevState.discoveredKanjiSize)
-    ) {
-      console.log(
-        'Discovered kanji changed, updating meanings',
-        user ? `Supabase: ${currentState.userKanjiLength} (was ${prevState.userKanjiLength})` :
-        `Local: ${currentState.discoveredKanjiSize} (was ${prevState.discoveredKanjiSize})`
-      );
-      
-      // Update the ref with current state
-      kanjiRefreshStateRef.current = currentState;
-      
-      // Fetch kanji meanings
-      fetchKanjiMeanings();
-    }
-  }, [user, supabaseKanji.length, discoveredKanji.size, fetchKanjiMeanings]);
-  
-  // Update existing kanji elements with meanings when kanjiMeanings changes
-  useEffect(() => {
-    // Skip if no kanji meanings are loaded yet
-    if (Object.keys(kanjiMeanings).length === 0) return;
-    
-    // Update elements with meanings
-    setElements(prevElements => {
-      // Check if any kanji elements need meaning updates
-      const needsUpdate = prevElements.some(el => 
-        el.type === 'kanji' && 
-        kanjiMeanings[el.char] && 
-        kanjiMeanings[el.char].length > 0
-      );
-      
-      // If no updates needed, return the current elements
-      if (!needsUpdate) return prevElements;
-      
-      // Update elements with meanings
-      return prevElements.map(el => {
-        if (el.type === 'kanji' && kanjiMeanings[el.char] && kanjiMeanings[el.char].length > 0) {
-          return {
-            ...el,
-            meaning: kanjiMeanings[el.char][0]
-          };
-        }
-        return el;
-      });
-    });
-  }, [kanjiMeanings, setElements]);
-
-  // Calculate sidebarRadicals based on unlocked radical count
-  const sidebarRadicals = useMemo(() => {
-    // Make sure we have sorted radicals data before calculating
-    if (!sortedRadicals || sortedRadicals.length === 0) {
-      return [];
-    }
-    
-    // Take the first unlockedRadicalCount radicals from the sorted list
-    // and convert them to the format expected by the UI
-    return sortedRadicals
-      .slice(0, unlockedRadicalCount)
-      .filter(radical => kanjiData?.radicalToKanji[radical]) // Ensure radical exists in data
-      .map(radical => ({ 
-        char: radical,
-        meaning: radicalMeanings[radical]
-      }));
-  }, [sortedRadicals, unlockedRadicalCount, kanjiData, radicalMeanings]);
-
-  // Update the function that creates new element
-  const createNewElement = useCallback((type: 'radical' | 'kanji', character: string, position: ElementPosition): GameElement => {
-    const meaning = type === 'kanji' 
-      ? (kanjiMeanings[character] && kanjiMeanings[character].length > 0 ? kanjiMeanings[character][0] : undefined)
-      : radicalMeanings[character];
-    
-    return {
-      id: generateUniqueId(type, character),
-      type,
-      char: character,
-      position,
-      isDragging: false,
-      touchingElements: new Set(),
-      meaning
-    };
-  }, [kanjiMeanings, radicalMeanings, generateUniqueId]);
-
-  // Add the language context hook
-  const { t } = useLanguage();
-
-  // Add a function to show success notification when kanji are formed
-  const showSuccessNotification = useCallback((kanji: string) => {
-    const newNotification: Notification = {
-      id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-      message: t('success.combination'),
-      type: 'success',
-      kanji
-    };
-    
-    setNotifications(prev => [...prev, newNotification]);
-    
-    // Auto remove notification after a delay
-    setTimeout(() => {
-      setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
-    }, 5000);
-  }, [t]);
-
-  const resetLoadingStateIfStuck = useCallback(() => {
-    // If we have been loading for more than 10 seconds, reset the loading state
-    if (isLoadingUserKanji) {
-      console.log('Loading timeout - resetting isLoadingUserKanji state');
-      setIsLoadingUserKanji(false);
-    }
-  }, [isLoadingUserKanji]);
-
-  // Effect to reset loading state if stuck for too long
-  useEffect(() => {
-    if (isLoadingUserKanji) {
-      const timeoutId = setTimeout(() => {
-        resetLoadingStateIfStuck();
-      }, 10000); // 10 second timeout
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [isLoadingUserKanji, resetLoadingStateIfStuck]);
-
-  // Global cleanup for component unmount
-  useEffect(() => {
-    // Return a cleanup function
-    return () => {
-      // Reset all the loading states
-      setIsLoadingUserKanji(false);
-      setIsLoading(false);
-      
-      // Clear user data to prevent stale state
-      currentUserIdRef.current = null;
-      
-      // Reset the refs
-      hasSetupAuthListenerRef.current = false;
-      isPerformingInitialCheckRef.current = false;
-      
-      console.log('Component unmounted - performed cleanup');
-    };
-  }, []);
 
   if (loadingData) {
     console.log('Rendering loading screen, loadingData =', loadingData);
@@ -2776,40 +1498,38 @@ function GamePageClient() {
           {elements.filter(el => el.position.x !== 0 || el.position.y !== 0).map((element) => (
             <div
               key={element.id}
-              className={`absolute cursor-grab select-none ${element.isDragging ? 'opacity-70 cursor-grabbing z-50' : 'opacity-100 z-10'} ${element.type === 'kanji' ? 'text-xl font-bold text-white' : 'text-lg'} rounded-md flex flex-col items-center justify-center transition-all duration-150 ${element.className || ''}`}
+              className={`absolute cursor-${element.isDragging ? 'grabbing' : 'grab'} select-none 
+              ${element.isDragging ? 'opacity-70 z-50' : 'opacity-100 z-10'} 
+              ${element.type === 'kanji' ? 'text-xl font-bold text-white' : 'text-lg'} 
+              rounded-md flex flex-col items-center justify-center 
+              transition-all duration-150 
+              ${element.className || ''}`}
               style={{
                 left: `${element.position.x}px`,
                 top: `${element.position.y}px`,
                 width: '40px',
                 height: showMeanings && element.meaning ? '65px' : '40px',
                 backgroundColor: element.type === 'kanji' 
-                  ? (hoveredElements.has(element.id) || (element.id === draggedElementId && hoveredElements.size > 0)
+                  ? (hoveredElements.has(element.id) 
                     ? 'rgba(0, 79, 23, 0.9)' // #004F17 with 90% opacity for hovered kanji
                     : 'rgba(0, 79, 23, 0.8)') // #004F17 with 80% opacity for kanji
-                  : (hoveredElements.has(element.id) || (element.id === draggedElementId && hoveredElements.size > 0)
+                  : (hoveredElements.has(element.id) 
                     ? 'rgba(120, 182, 147, 0.85)' // Slightly more opaque for hovered radicals
                     : 'rgba(120, 182, 147, 0.8)'), // #78B693 with 80% opacity for radicals
                 userSelect: 'none',
-                boxShadow: hoveredElements.has(element.id) || (element.id === draggedElementId && hoveredElements.size > 0)
+                boxShadow: hoveredElements.has(element.id)
                   ? '0 0 0 2px rgba(120, 182, 147, 1), 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)'
                   : '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
-                transform: hoveredElements.has(element.id) || (element.id === draggedElementId && hoveredElements.size > 0) 
-                  ? 'scale(1.05)' : 'scale(1)',
+                transform: hoveredElements.has(element.id) ? 'scale(1.05)' : 'scale(1)',
                 transition: element.isDragging ? 'none' : 'all 0.15s ease-in-out',
-                ...(element.style || {}) // Apply custom style properties for scatter effect
+                ...element.style
               }}
               onMouseDown={(e) => {
-                // Skip if it's a right-click (button === 2)
-                if (e.button === 2) return;
-                
                 const rect = e.currentTarget.getBoundingClientRect();
                 handleStartDrag(element.id, e.clientX, e.clientY, rect);
                 e.preventDefault(); // Prevent text selection
               }}
               onTouchStart={(e) => {
-                // Skip if we're handling a right-click equivalent on touch
-                if (handlingRightClick) return;
-                
                 if (e.touches[0]) {
                   const rect = e.currentTarget.getBoundingClientRect();
                   handleStartDrag(element.id, e.touches[0].clientX, e.touches[0].clientY, rect);
@@ -3068,9 +1788,6 @@ function GamePageClient() {
                     e.preventDefault(); // Prevent text selection
                   }}
                   onTouchStart={(e) => {
-                    // Skip if we're handling a right-click equivalent on touch
-                    if (handlingRightClick) return;
-                    
                     if (e.touches[0]) {
                       const rect = e.currentTarget.getBoundingClientRect();
                       handleSidebarDragStart(radical.char, e.touches[0].clientX, e.touches[0].clientY, rect);
@@ -3165,17 +1882,11 @@ function GamePageClient() {
                           zIndex: 30 // Ensure it's above other elements
                         }}
                         onMouseDown={(e) => {
-                          // Skip if it's a right-click (button === 2)
-                          if (e.button === 2) return;
-                          
                           const rect = e.currentTarget.getBoundingClientRect();
                           handleSidebarDragStart(kanji, e.clientX, e.clientY, rect);
                           e.preventDefault(); // Prevent text selection
                         }}
                         onTouchStart={(e) => {
-                          // Skip if we're handling a right-click equivalent on touch
-                          if (handlingRightClick) return;
-                          
                           if (e.touches[0]) {
                             const rect = e.currentTarget.getBoundingClientRect();
                             handleSidebarDragStart(kanji, e.touches[0].clientX, e.touches[0].clientY, rect);
@@ -3183,18 +1894,10 @@ function GamePageClient() {
                           }
                         }}
                         onClick={(e) => {
-                          // Skip if we're handling a right-click
-                          if (handlingRightClick) return;
-                          
                           const rect = e.currentTarget.getBoundingClientRect();
                           handleCloneRadical(kanji, e.clientX, e.clientY, rect);
                         }}
-                        onContextMenu={(e) => {
-                          // Immediately prevent any drag operations
-                          setIsDraggingFromSidebar(false);
-                          setSidebarDraggedChar(null);
-                          handleKanjiClick(kanji, e);
-                        }}
+                        onContextMenu={(e) => handleKanjiClick(kanji, e)}
                       >
                         {kanji}
                       </div>
