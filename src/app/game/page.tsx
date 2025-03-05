@@ -1649,6 +1649,9 @@ function GamePageClient() {
       // Determine if we should use scatter effect (multiple kanji created)
       const shouldScatter = possibleKanji.length > 1;
       
+      // Track if any new kanji was actually created
+      let createdNewKanji = false;
+      
       // If kanji is formed, add to discovered kanji
       for (let i = 0; i < possibleKanji.length; i++) {
         const kanji = possibleKanji[i];
@@ -1722,6 +1725,8 @@ function GamePageClient() {
             
             // Add the new kanji to the updated elements
             updated.push(newKanjiElement);
+            // Mark that we created a new kanji
+            createdNewKanji = true;
           }
           
           continue;
@@ -1764,10 +1769,12 @@ function GamePageClient() {
         
         // Add the new kanji to the updated elements
         updated.push(newKanjiElement);
+        // Mark that we created a new kanji
+        createdNewKanji = true;
       }
       
-      // Remove the radicals that were used after adding all new kanji
-      if (possibleKanji.length > 0) {
+      // Remove the radicals only if new kanji were actually created
+      if (possibleKanji.length > 0 && createdNewKanji) {
         return updated.filter(el => !connectedIds.has(el.id));
       }
       
