@@ -1322,10 +1322,22 @@ function GamePageClient() {
       
       // Check for overlaps with other elements
       for (const el of gameElements) {
-        const elLeft = el.position.x;
-        const elRight = el.position.x + elementWidth;
-        const elTop = el.position.y;
-        const elBottom = el.position.y + elementHeight;
+        // Check if this element has scatter effect and adjust position accordingly
+        let elPosX = el.position.x;
+        let elPosY = el.position.y;
+        
+        // Apply scatter offsets if the element has scatter effect
+        if (el.className?.includes('scatter-effect') && el.style) {
+          const scatterX = parseFloat(el.style['--scatter-x'] as string) || 0;
+          const scatterY = parseFloat(el.style['--scatter-y'] as string) || 0;
+          elPosX += scatterX;
+          elPosY += scatterY;
+        }
+        
+        const elLeft = elPosX;
+        const elRight = elPosX + elementWidth;
+        const elTop = elPosY;
+        const elBottom = elPosY + elementHeight;
         
         // Add some margin for easier connecting with dotted lines
         const proximityMargin = 15;
@@ -1357,6 +1369,13 @@ function GamePageClient() {
           // Only add to hoveredElements if actually overlapping (for size increase)
           if (isOverlapping) {
             hoveredElements.add(el.id);
+            
+            // If the dragged element is a kanji and the other element is also a kanji,
+            // add the dragged element to hoveredElements too for proper merging
+            const draggedElement = elements.find(e => e.id === draggedId);
+            if (draggedElement && draggedElement.type === 'kanji' && el.type === 'kanji') {
+              hoveredElements.add(draggedId);
+            }
           }
         }
       }
