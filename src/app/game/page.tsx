@@ -1169,6 +1169,42 @@ function GamePageClient() {
 
   // Handle starting a drag operation for elements already in the game area
   const handleStartDrag = (elementId: string, clientX: number, clientY: number, elementRect: DOMRect) => {
+    // Find the element
+    const element = elements.find(el => el.id === elementId);
+    
+    // Skip if element not found
+    if (!element) {
+      return;
+    }
+    
+    // Special handling for scatter animation - update position immediately
+    if (element.className?.includes('scatter-effect') && element.style) {
+      const scatterX = parseFloat(element.style['--scatter-x'] as string) || 0;
+      const scatterY = parseFloat(element.style['--scatter-y'] as string) || 0;
+      
+      // Update the element with final position and clear animation
+      setElements(prev => prev.map(el => 
+        el.id === elementId 
+          ? { 
+              ...el, 
+              position: {
+                x: el.position.x + scatterX,
+                y: el.position.y + scatterY
+              },
+              className: (el.className || '').replace('scatter-effect', 'kanji-created').trim(),
+              style: {},
+              isDragging: true
+            }
+          : el
+      ));
+      
+      setDraggedElementId(elementId);
+      
+      // Set drag offset
+      setDragOffset({ x: clientX - elementRect.left, y: clientY - elementRect.top });
+      return;
+    }
+    
     // Set the element being dragged
     setDraggedElementId(elementId);
     
