@@ -1264,13 +1264,54 @@ function GamePageClient() {
         // If dragging an existing element, get its position from elements state
         const draggedElementObj = elements.find(el => el.id === draggedElementId);
         if (draggedElementObj) {
-          draggedX = draggedElementObj.position.x;
-          draggedY = draggedElementObj.position.y;
+          // First check if this is a scattered element being dragged
+          if (draggedElementObj.className?.includes('scatter-effect') && draggedElementObj.style) {
+            // Apply scatter offsets to the position for connection calculations
+            const scatterX = parseFloat(draggedElementObj.style['--scatter-x'] as string) || 0;
+            const scatterY = parseFloat(draggedElementObj.style['--scatter-y'] as string) || 0;
+            
+            // Use the updated position with scatter offsets
+            draggedX = draggedElementObj.position.x + scatterX;
+            draggedY = draggedElementObj.position.y + scatterY;
+          } else {
+            // Use position as is for non-scattered elements
+            draggedX = draggedElementObj.position.x;
+            draggedY = draggedElementObj.position.y;
+          }
         }
       } else if (isDraggingFromSidebar) {
         // If dragging from sidebar, calculate position from mouse and offset
         draggedX = clientX - gameRect.left - dragOffset.x;
         draggedY = clientY - gameRect.top - dragOffset.y;
+      }
+      
+      // Also update the element's position if it's moving (for existing elements being dragged)
+      if (draggedElementId) {
+        // Calculate new position relative to game area
+        const newX = clientX - gameRect.left - dragOffset.x;
+        const newY = clientY - gameRect.top - dragOffset.y;
+        
+        // Ensure element stays within bounds
+        const elementWidth = 40; 
+        const elementHeight = 40;
+        
+        const boundedX = Math.max(0, Math.min(newX, gameRect.width - elementWidth));
+        const boundedY = Math.max(0, Math.min(newY, gameRect.height - elementHeight));
+        
+        // Override the position for this calculation (doesn't change draggedX/Y used for element rendering)
+        draggedX = boundedX;
+        draggedY = boundedY;
+        
+        // Also update the element in state
+        setElements(prev => prev.map(el => {
+          if (el.id === draggedElementId) {
+            return { 
+              ...el, 
+              position: { x: boundedX, y: boundedY } 
+            };
+          }
+          return el;
+        }));
       }
       
       // Define the bounding box of the dragged element
@@ -1322,107 +1363,82 @@ function GamePageClient() {
       
       setHoveredElements(hoveredElements);
       setConnections(newConnections);
+      
+      // Check for kanji discoveries with the current set of touching elements
+      if (hoveredElements.size >= 2) {
+        // Get all radical characters that are touching
+        const radicalSet = new Set<string>();
+        
+        hoveredElements.forEach(id => {
+          const element = elements.find(el => el.id === id);
+          if (element) {
+            radicalSet.add(element.char);
+          }
+        });
+        
+        // Convert set to sorted array for consistent checking
+        const radicals = Array.from(radicalSet).sort();
+        
+        // Check if these radicals form a kanji
+        if (kanjiData && radicals.length >= 2) {
+          // Using every radical to check for potential kanji
+          radicals.forEach(radical => {
+            if (kanjiData.radicalToKanji[radical]) {
+              kanjiData.radicalToKanji[radical].forEach(kanji => {
+                // Get the set of radicals for this kanji
+                const kanjiRadicals = kanjiData.kanjiToRadicals[kanji] || [];
+                
+                // Check if all radicals for this kanji are present in our touching set
+                // AND check if our touching set contains exactly these radicals (no extras)
+                if (
+                  kanjiRadicals.every(r => radicalSet.has(r)) && 
+                  kanjiRadicals.length === radicalSet.size
+                ) {
+                  // We've discovered a kanji!
+                  if (!discoveredKanji.has(kanji)) {
+                    // Add to discovered set
+                    const newDiscoveredKanji = new Set(discoveredKanji);
+                    newDiscoveredKanji.add(kanji);
+                    
+                    // Update state
+                    recordKanjiDiscovery(kanji);
+                    
+                    // Show notification with the kanji
+                    addNotification('', 'success', kanji);
+                    
+                    // Add the kanji as a new element in the workspace
+                    const newKanjiElement: GameElement = {
+                      id: generateUniqueId('kanji', kanji),
+                      type: 'kanji',
+                      char: kanji,
+                      position: {
+                        x: Math.min(...Array.from(hoveredElements).map(el => elements.find(e => e.id === el)?.position.x || 0)) + 10,
+                        y: Math.min(...Array.from(hoveredElements).map(el => elements.find(e => e.id === el)?.position.y || 0)) + 10
+                      },
+                      isDragging: false,
+                      touchingElements: new Set(),
+                      className: 'kanji-created',
+                      meaning: kanjiMeanings[kanji] && kanjiMeanings[kanji].length > 0 ? kanjiMeanings[kanji][0] : undefined
+                    };
+                    
+                    // Add new kanji and remove all the radicals used
+                    setElements(prev => {
+                      // Remove the radicals that were combined
+                      const filtered = prev.filter(el => !hoveredElements.has(el.id));
+                      // Add the new kanji
+                      return [...filtered, newKanjiElement];
+                    });
+                  }
+                }
+              });
+            }
+          });
+        }
+      }
     } else {
       // Clear hover state when not dragging
       setHoveredElements(new Set());
       setConnections([]);
-    }
-    
-    // Handle movement for regular drag operations
-    if (draggedElementId) {
-      // Update element position, keeping it within game area bounds
-      setElements(prev => prev.map(el => {
-        if (el.id === draggedElementId) {
-          // Calculate new position relative to game area
-          const newX = clientX - gameRect.left - dragOffset.x;
-          const newY = clientY - gameRect.top - dragOffset.y;
-          
-          // Ensure element stays within bounds
-          const elementWidth = 40; // Assuming element is 40px wide
-          const elementHeight = 40; // Assuming element is 40px tall
-          
-          const boundedX = Math.max(0, Math.min(newX, gameRect.width - elementWidth));
-          const boundedY = Math.max(0, Math.min(newY, gameRect.height - elementHeight));
-          
-          return { 
-            ...el, 
-            position: { x: boundedX, y: boundedY } 
-          };
-        }
-        return el;
-      }));
-    }
-
-    // Check for kanji discoveries with the current set of touching elements
-    if (hoveredElements.size >= 2) {
-      // Get all radical characters that are touching
-      const radicalSet = new Set<string>();
-      
-      hoveredElements.forEach(id => {
-        const element = elements.find(el => el.id === id);
-        if (element) {
-          radicalSet.add(element.char);
-        }
-      });
-      
-      // Convert set to sorted array for consistent checking
-      const radicals = Array.from(radicalSet).sort();
-      
-      // Check if these radicals form a kanji
-      if (kanjiData && radicals.length >= 2) {
-        // Using every radical to check for potential kanji
-        radicals.forEach(radical => {
-          if (kanjiData.radicalToKanji[radical]) {
-            kanjiData.radicalToKanji[radical].forEach(kanji => {
-              // Get the set of radicals for this kanji
-              const kanjiRadicals = kanjiData.kanjiToRadicals[kanji] || [];
-              
-              // Check if all radicals for this kanji are present in our touching set
-              // AND check if our touching set contains exactly these radicals (no extras)
-              if (
-                kanjiRadicals.every(r => radicalSet.has(r)) && 
-                kanjiRadicals.length === radicalSet.size
-              ) {
-                // We've discovered a kanji!
-                if (!discoveredKanji.has(kanji)) {
-                  // Add to discovered set
-                  const newDiscoveredKanji = new Set(discoveredKanji);
-                  newDiscoveredKanji.add(kanji);
-                  
-                  // Update state
-                  recordKanjiDiscovery(kanji);
-                  
-                  // Show notification with the kanji
-                  addNotification('', 'success', kanji);
-                  
-                  // Add the kanji as a new element in the workspace
-                  const newKanjiElement: GameElement = {
-                    id: generateUniqueId('kanji', kanji),
-                    type: 'kanji',
-                    char: kanji,
-                    position: {
-                      x: Math.min(...Array.from(hoveredElements).map(el => elements.find(e => e.id === el)?.position.x || 0)) + 10,
-                      y: Math.min(...Array.from(hoveredElements).map(el => elements.find(e => e.id === el)?.position.y || 0)) + 10
-                    },
-                    isDragging: false,
-                    touchingElements: new Set(),
-                    className: 'kanji-created',
-                    meaning: kanjiMeanings[kanji] && kanjiMeanings[kanji].length > 0 ? kanjiMeanings[kanji][0] : undefined
-                  };
-                  
-                  // Add new kanji and remove all the radicals used
-                  setElements(prev => {
-                    // Remove the radicals that were combined
-                    const filtered = prev.filter(el => !hoveredElements.has(el.id));
-                    // Add the new kanji
-                    return [...filtered, newKanjiElement];
-                  });
-                }
-              }
-            });
-          }
-        });
-      }
     }
   };
 
@@ -3013,10 +3029,35 @@ function GamePageClient() {
             
             if (!fromElement || !toElement) return null;
             
-            const fromX = fromElement.position.x + 20; // Center X of from element
-            const fromY = fromElement.position.y + 20; // Center Y of from element
-            const toX = toElement.position.x + 20; // Center X of to element
-            const toY = toElement.position.y + 20; // Center Y of to element
+            // Handle scattered elements for the fromElement
+            let fromX, fromY;
+            if (connection.from !== 'sidebar' && 'className' in fromElement && 
+                fromElement.className?.includes('scatter-effect') && 'style' in fromElement && fromElement.style) {
+              // Apply scatter offsets for scattered elements
+              const scatterX = parseFloat(fromElement.style['--scatter-x'] as string) || 0;
+              const scatterY = parseFloat(fromElement.style['--scatter-y'] as string) || 0;
+              fromX = (fromElement.position.x + scatterX) + 20;
+              fromY = (fromElement.position.y + scatterY) + 20;
+            } else {
+              // Regular position calculation for non-scattered elements
+              fromX = fromElement.position.x + 20; // Center X of from element
+              fromY = fromElement.position.y + 20; // Center Y of from element
+            }
+            
+            // Handle scattered elements for the toElement
+            let toX, toY;
+            if ('className' in toElement && toElement.className?.includes('scatter-effect') && 
+                'style' in toElement && toElement.style) {
+              // Apply scatter offsets for scattered elements
+              const scatterX = parseFloat(toElement.style['--scatter-x'] as string) || 0;
+              const scatterY = parseFloat(toElement.style['--scatter-y'] as string) || 0;
+              toX = (toElement.position.x + scatterX) + 20;
+              toY = (toElement.position.y + scatterY) + 20;
+            } else {
+              // Regular position calculation for non-scattered elements
+              toX = toElement.position.x + 20; // Center X of to element
+              toY = toElement.position.y + 20; // Center Y of to element
+            }
             
             return (
               <svg 
