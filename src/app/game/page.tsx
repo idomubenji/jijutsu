@@ -1160,6 +1160,9 @@ function GamePageClient() {
     setIsDraggingFromSidebar(true);
     setSidebarDraggedChar(radical);
     
+    // Reset sidebarDragging flag - will be set to true if mouse actually moves
+    setSidebarDragging(false);
+    
     // Store where on the element the user clicked using the state setter
     setDragOffset({
       x: offsetX,
@@ -1229,6 +1232,11 @@ function GamePageClient() {
     
     if (!gameAreaRef.current) return;
     
+    // Set sidebarDragging to true when dragging from sidebar
+    if (isDraggingFromSidebar && !sidebarDragging) {
+      setSidebarDragging(true);
+    }
+    
     const gameRect = gameAreaRef.current.getBoundingClientRect();
     
     // Handle trash can hover check
@@ -1248,7 +1256,8 @@ function GamePageClient() {
     }
     
     // Update hovered elements for both sidebar drags and regular drags
-    if (isDraggingFromSidebar || draggedElementId) {
+    // Only proceed with calculations if we're actually dragging (not just clicking)
+    if ((isDraggingFromSidebar && sidebarDragging) || draggedElementId) {
       const gameElements = elements.filter(el => (el.position.x !== 0 || el.position.y !== 0) && el.id !== draggedElementId);
       const hoveredElements = new Set<string>();
       const newConnections: {from: string, to: string}[] = [];
@@ -1475,8 +1484,16 @@ function GamePageClient() {
         // Use tracked mouse position instead of window.event
         const currentPosition = mousePosition;
         
-        // Only create element if cursor is within game area
+        // Calculate initial click position
+        const initialClickX = currentPosition.x - dragOffset.x;
+        const initialClickY = currentPosition.y - dragOffset.y;
+        
+        // Only create element if cursor is within game area AND has been dragged a minimum distance
+        // This prevents element creation on a simple click (without drag)
+        const hasBeenDragged = sidebarDragging;
+        
         if (
+          hasBeenDragged &&
           currentPosition.x >= gameRect.left && 
           currentPosition.x <= gameRect.right && 
           currentPosition.y >= gameRect.top && 
@@ -1520,9 +1537,10 @@ function GamePageClient() {
         }
       }
       
-      // Reset sidebar drag state
+      // Reset sidebar drag state regardless of whether an element was created
       setIsDraggingFromSidebar(false);
       setSidebarDraggedChar('');
+      setSidebarDragging(false);
       setIsOverTrash(false);
     } 
     // Handle the case for regular dragged elements
@@ -3009,7 +3027,7 @@ function GamePageClient() {
           )}
 
           {/* Update the floating element to handle scroll position correctly */}
-          {isDraggingFromSidebar && sidebarDraggedChar && (
+          {isDraggingFromSidebar && sidebarDraggedChar && sidebarDragging && (
             <div 
               className={`absolute z-50 pointer-events-none ${discoveredKanji.has(sidebarDraggedChar) || supabaseKanji.includes(sidebarDraggedChar) ? 'text-white' : ''}`}
               style={{
