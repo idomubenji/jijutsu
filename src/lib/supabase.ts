@@ -193,4 +193,59 @@ export async function addToWaitlist(email: string) {
     console.error('Error adding to waitlist:', error);
     return { success: false, message: 'Failed to join waitlist. Please try again.' };
   }
+}
+
+// Helper function to add an authenticated user to the users table
+export async function createOrUpdateUser(userId: string, email: string) {
+  try {
+    // Check if the user already exists in the users table
+    const { data, error: selectError } = await supabase
+      .from('users')
+      .select('user_id')
+      .eq('user_id', userId);
+
+    if (selectError) {
+      console.error('Error checking user existence:', selectError);
+      return { success: false, message: 'Failed to check if user exists.', error: selectError };
+    }
+
+    // If user doesn't exist, create a new record
+    if (!data || data.length === 0) {
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert([{ 
+          user_id: userId, 
+          email 
+        }]);
+
+      if (insertError) {
+        console.error('Error creating user record:', insertError);
+        return { success: false, message: 'Failed to create user record.', error: insertError };
+      }
+      
+      console.log('User added to users table successfully');
+      return { success: true, message: 'User record created successfully.' };
+    }
+    
+    // User already exists, update their record if needed
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ email })
+      .eq('user_id', userId);
+    
+    if (updateError) {
+      console.error('Error updating user record:', updateError);
+      return { success: false, message: 'Failed to update user record.', error: updateError };
+    }
+    
+    console.log('User record updated successfully');
+    return { success: true, message: 'User record updated successfully.' };
+  } catch (error) {
+    console.error('Error in createOrUpdateUser:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Unknown error in createOrUpdateUser',
+      error 
+    };
+  }
 } 

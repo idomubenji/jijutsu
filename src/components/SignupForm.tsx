@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { supabase } from '@/lib/supabase';
+import { supabase, createOrUpdateUser } from '@/lib/supabase';
 import { useLanguage } from '@/context/LanguageContext';
 
 interface SignupFormProps {
@@ -102,8 +102,23 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
       
       console.log('User signed up successfully:', data.user.id);
       
-      // No longer adding the user to the users table here
-      // They will be added after email confirmation
+      // Add the user to the users table if they were auto-confirmed
+      // Some email providers might auto-confirm emails
+      if (data.user.email_confirmed_at) {
+        const userId = data.user.id;
+        const userEmail = data.user.email || email;
+        
+        const { success, message: userMessage, error: userError } = await createOrUpdateUser(userId, userEmail);
+        
+        if (!success) {
+          console.warn('User record creation warning:', userMessage, userError);
+          // Continue even if there was an error adding the user to the database
+        } else {
+          console.log('User added to users table successfully');
+        }
+      } else {
+        console.log('User will be added to users table after email confirmation');
+      }
 
       setMessage({ 
         text: t('signup.success'),

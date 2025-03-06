@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { supabase } from '@/lib/supabase';
+import { supabase, createOrUpdateUser } from '@/lib/supabase';
 import { useLanguage } from '@/context/LanguageContext';
 
 interface SignInFormProps {
@@ -50,6 +50,18 @@ export function SignInForm({ onSwitchToSignUp, onSuccess }: SignInFormProps) {
 
       if (!data?.user) {
         throw new Error('No user returned from sign in');
+      }
+      
+      // Add the authenticated user to the users table
+      const userId = data.user.id;
+      const userEmail = data.user.email || email;
+      
+      const { success, message: userMessage, error: userError } = await createOrUpdateUser(userId, userEmail);
+      
+      if (!success) {
+        console.warn('User record creation/update warning:', userMessage, userError);
+        // We continue even if there was an error adding the user to the database
+        // This ensures users can still sign in even if there's a database issue
       }
       
       setMessage({ text: t('signin.success'), isError: false });

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { LanguageProvider } from "@/context/LanguageContext";
+import MobileWarning from "@/components/MobileWarning";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,7 +35,9 @@ export default function RootLayout({
           storageKey="jijutsu-theme"
         >
           <LanguageProvider>
-            {children}
+            <MobileWarning>
+              {children}
+            </MobileWarning>
           </LanguageProvider>
         </ThemeProvider>
       </body>

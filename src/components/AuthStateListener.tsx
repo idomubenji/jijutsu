@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, createOrUpdateUser } from '@/lib/supabase';
 
 export function AuthStateListener() {
   useEffect(() => {
@@ -17,36 +17,17 @@ export function AuthStateListener() {
             console.log('User signed in with confirmed email:', user.email);
             
             try {
-              // Check if user already exists in the users table
-              const { data: existingUser, error: checkError } = await supabase
-                .from('users')
-                .select('id')
-                .eq('user_id', user.id)
-                .maybeSingle();
-
-              if (checkError) {
-                console.error('Error checking if user exists in users table:', checkError);
+              // Use the createOrUpdateUser helper function to add or update the user
+              const { success, message, error } = await createOrUpdateUser(user.id, user.email);
+              
+              if (!success) {
+                console.error('Error handling user record in users table:', message, error);
                 return;
               }
-
-              // If user doesn't exist in the table, add them
-              if (!existingUser) {
-                const { error: insertError } = await supabase
-                  .from('users')
-                  .insert([{ 
-                    email: user.email, 
-                    user_id: user.id 
-                  }]);
-
-                if (insertError) {
-                  console.error('Error adding user to users table:', insertError);
-                  return;
-                }
-
-                console.log('User successfully added to users table after email confirmation');
-              }
+              
+              console.log('User record managed successfully in users table:', message);
             } catch (error) {
-              console.error('Error handling user table insertion after authentication:', error);
+              console.error('Error handling user table operation after authentication:', error);
             }
           }
         }
